@@ -238,6 +238,56 @@ public with sharing class DemoTerritoryController {
             new String[]{ 'ES_Basque_Bilbao',         'ES-Basque-Bilbao' }
         });
 
+        // ── Geographical: JP ──
+        Id jpId = insertIfMissing('JP_COUNTRY', 'JP-COUNTRY', defaultTypeId, modelId, globalId, existingDevNames);
+        buildCountryLeaves(modelId, defaultTypeId, jpId, existingDevNames, new List<String[]>{
+            new String[]{ 'JP_Kanto_Tokyo',       'JP-Kanto-Tokyo' },
+            new String[]{ 'JP_Kansai_Osaka',      'JP-Kansai-Osaka' },
+            new String[]{ 'JP_Chubu_Nagoya',      'JP-Chubu-Nagoya' },
+            new String[]{ 'JP_Kanto_Yokohama',    'JP-Kanto-Yokohama' },
+            new String[]{ 'JP_Kansai_Kyoto',      'JP-Kansai-Kyoto' }
+        });
+
+        // ── Geographical: KR ──
+        Id krId = insertIfMissing('KR_COUNTRY', 'KR-COUNTRY', defaultTypeId, modelId, globalId, existingDevNames);
+        buildCountryLeaves(modelId, defaultTypeId, krId, existingDevNames, new List<String[]>{
+            new String[]{ 'KR_Seoul_Seoul',        'KR-Seoul-Seoul' },
+            new String[]{ 'KR_Busan_Busan',        'KR-Busan-Busan' },
+            new String[]{ 'KR_Incheon_Incheon',    'KR-Incheon-Incheon' },
+            new String[]{ 'KR_Daejeon_Daejeon',    'KR-Daejeon-Daejeon' },
+            new String[]{ 'KR_Gyeonggi_Seongnam',  'KR-Gyeonggi-Seongnam' }
+        });
+
+        // ── Geographical: BR ──
+        Id brId = insertIfMissing('BR_COUNTRY', 'BR-COUNTRY', defaultTypeId, modelId, globalId, existingDevNames);
+        buildCountryLeaves(modelId, defaultTypeId, brId, existingDevNames, new List<String[]>{
+            new String[]{ 'BR_SP_Sao_Paulo',          'BR-SP-Sao Paulo' },
+            new String[]{ 'BR_RJ_Rio_de_Janeiro',     'BR-RJ-Rio de Janeiro' },
+            new String[]{ 'BR_MG_Belo_Horizonte',     'BR-MG-Belo Horizonte' },
+            new String[]{ 'BR_RS_Porto_Alegre',        'BR-RS-Porto Alegre' },
+            new String[]{ 'BR_BA_Salvador',             'BR-BA-Salvador' }
+        });
+
+        // ── Geographical: MX ──
+        Id mxId = insertIfMissing('MX_COUNTRY', 'MX-COUNTRY', defaultTypeId, modelId, globalId, existingDevNames);
+        buildCountryLeaves(modelId, defaultTypeId, mxId, existingDevNames, new List<String[]>{
+            new String[]{ 'MX_CDMX_Mexico_City',       'MX-CDMX-Mexico City' },
+            new String[]{ 'MX_Jalisco_Guadalajara',     'MX-Jalisco-Guadalajara' },
+            new String[]{ 'MX_NuevoLeon_Monterrey',     'MX-Nuevo Leon-Monterrey' },
+            new String[]{ 'MX_Puebla_Puebla',           'MX-Puebla-Puebla' },
+            new String[]{ 'MX_Yucatan_Merida',          'MX-Yucatan-Merida' }
+        });
+
+        // ── Geographical: AR ──
+        Id arId = insertIfMissing('AR_COUNTRY', 'AR-COUNTRY', defaultTypeId, modelId, globalId, existingDevNames);
+        buildCountryLeaves(modelId, defaultTypeId, arId, existingDevNames, new List<String[]>{
+            new String[]{ 'AR_CABA_Buenos_Aires',      'AR-CABA-Buenos Aires' },
+            new String[]{ 'AR_BuenosAires_La_Plata',   'AR-Buenos Aires-La Plata' },
+            new String[]{ 'AR_Cordoba_Cordoba',         'AR-Cordoba-Cordoba' },
+            new String[]{ 'AR_SantaFe_Rosario',         'AR-Santa Fe-Rosario' },
+            new String[]{ 'AR_Tucuman_Tucuman',          'AR-Tucuman-Tucuman' }
+        });
+
         // ── Medical hierarchy ──
         Id medRootId = insertIfMissing('MEDICAL', 'MEDICAL', defaultTypeId, modelId, globalId, existingDevNames);
         buildMedicalHierarchy(modelId, defaultTypeId, medRootId, existingDevNames);

@@ -31,13 +31,35 @@ sf project deploy start --source-dir force-app --target-org YOUR_ORG_ALIAS
 - **KAM** tree: Academic Medical Centers, Hospital Systems, Payer/Insurance, IDN, Government/VA
 
 ### Tab 2: Accounts & Healthcare Providers
-- **40 accounts** across 6 countries: hospitals, clinics, payers, pharmacies, health systems, academic medical centers
-- Real institutions: Mass General, Johns Hopkins, Charité Berlin, Hôpital Pitié-Salpêtrière, Policlinico Gemelli, Hospital Clínic Barcelona
-- **32 healthcare providers** with culturally appropriate names, NPIs, specialties, and hospital affiliations
+
+**Accounts (40 total)**
+- Real hospitals, clinics, payers, and pharmacies across US, GB, FR, DE, IT, ES
+- Uses Health_Care_Organization record type for orgs, Health_Care_Provider (PersonAccount) for doctors
+- Full billing addresses with country-specific formatting and state/country picklist codes
+
+**Healthcare Providers (32 doctors)**
+- Culturally appropriate names per country
+- HealthcareProviderNpi records with unique 10-digit NPIs
+- HealthcareProviderSpecialty records (Oncology, Cardiology, Neurology, etc.)
+- CareSpecialty reference records
+- ProviderAffiliation linking doctors to their hospitals/clinics
+
+**Territory Assignment**
+- Maps all 72 accounts to territories by city (with country-level fallback)
+- Creates ObjectTerritory2Association records
+- Creates ProviderAcctTerritoryInfo (PATI) records for each account-territory pair
+  - `IsTargetedAccount = true`, `IsAvailableOffline = true`, `IsActive = true`
+  - Tagged with `SourceSystemName = 'AFLSCE-Demo-Data'` for cleanup
 
 ### Tab 3: Contact Points & Business Licenses
-- Addresses, emails, phones (country-formatted), and social profiles for all accounts
-- Medical facility and pharmacy licenses with country-specific formats (CQC, FINESS, IK, SSN, REGA)
+
+Batched in groups of 15 to stay within managed-package SOQL governor limits.
+
+- **ContactPointAddress** (72) — billing addresses for all accounts
+- **ContactPointEmail** (104) — general + department emails per org, personal for doctors
+- **ContactPointPhone** (208) — main + department lines, country-formatted numbers
+- **ContactPointSocial** (~52) — LinkedIn and X handles for organizations
+- **BusinessLicense** (~32) — facility and pharmacy licenses with country-specific formats (CQC, FINESS, IK, SSN, REGA)
 
 ### Tab 4: Scenario Builder (Layered)
 Pick your company type to layer therapy-area-specific data on top of base records:
@@ -52,31 +74,47 @@ Pick your company type to layer therapy-area-specific data on top of base record
 
 Scenarios are additive — apply multiple to build a multi-therapeutic-area demo. Each can be independently removed.
 
-## Cleanup
+## Tagging & Cleanup
 
-Every tab has a **Delete** button that removes only the records created by this tool (tagged with `AFLSCE-Demo-Data` in the Description field). Your existing org data is never touched.
+All created records are tagged for safe cleanup:
+
+| Object | Tag Field | Tag Value |
+|---|---|---|
+| Account | `Site` | `AFLSCE-Demo-Data` |
+| HealthcareProvider | `SourceSystem` | `AFLSCE-Demo-Data` |
+| HealthcareProviderNpi | `SourceSystem` | `AFLSCE-Demo-Data` |
+| HealthcareProviderSpecialty | `SourceSystem` | `AFLSCE-Demo-Data` |
+| ProviderAffiliation | `SourceSystemName` | `AFLSCE-Demo-Data` |
+| ProviderAcctTerritoryInfo | `SourceSystemName` | `AFLSCE-Demo-Data` |
+| CareSpecialty | `Description` | `AFLSCE-Demo-Data` |
+| ContactPoint* | `SourceSystemName` | `AFLSCE-Demo-Data` |
+| BusinessLicense | `Identifier` | `AFLSCE-Demo-Data-*` |
+
+Every tab has a **Delete** button that removes only the records created by this tool. Your existing org data is never touched.
 
 ## Requirements
 
 - Salesforce org with Health Cloud or Life Sciences Cloud enabled
 - Territory Management enabled (for Territory tab)
-- Person Accounts enabled (for Scenario Builder HCPs)
+- Person Accounts enabled (for Healthcare Provider PersonAccounts)
+- State & Country Picklists enabled
 
 ## Project Structure
 
 ```
 force-app/main/default/
 ├── applications/         AFLSCE Demo Data app
-├── classes/              4 Apex controllers
-│   ├── DemoTerritoryController
-│   ├── DemoAccountProviderController
-│   ├── DemoContactPointController
-│   └── DemoScenarioController
-├── lwc/                  5 Lightning Web Components
+├── classes/              Apex controllers
+│   ├── DemoTerritoryController        Territory hierarchy CRUD
+│   ├── DemoAccountProviderController  Accounts, HCPs, NPIs, specialties, affiliations, territories, PATI
+│   ├── DemoAffiliationHelper          ProviderAffiliation CRUD (separate class for Schema visibility)
+│   ├── DemoContactPointController     Contact points & business licenses (batched)
+│   └── DemoScenarioController         Therapy-area scenario layering
+├── lwc/                  Lightning Web Components
 │   ├── demoDataAdmin           Main tabbed UI
 │   ├── territorySetup          Territory hierarchy creator
-│   ├── accountProviderSetup    Account & HCP creator
-│   ├── contactPointSetup       Contact points & licenses
+│   ├── accountProviderSetup    Account & HCP creator + territory assignment
+│   ├── contactPointSetup       Contact points & licenses (batched UI with progress)
 │   └── scenarioBuilder         Therapy-area scenario layering
 ├── permissionsets/       AFLSCE Demo Data Admin
 └── tabs/                 AFLSCE Demo Data tab
