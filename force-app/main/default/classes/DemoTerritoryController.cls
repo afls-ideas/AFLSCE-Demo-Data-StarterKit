@@ -28,7 +28,7 @@ public with sharing class DemoTerritoryController {
         }
     }
 
-    @AuraEnabled
+    @AuraEnabled(cacheable=true)
     public static String getStatus() {
         try {
             Integer modelCount = [SELECT COUNT() FROM Territory2Model WHERE DeveloperName = :MODEL_DEV_NAME];

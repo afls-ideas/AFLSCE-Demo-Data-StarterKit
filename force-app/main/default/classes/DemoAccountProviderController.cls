@@ -102,7 +102,7 @@ public with sharing class DemoAccountProviderController {
         }
     }
 
-    @AuraEnabled
+    @AuraEnabled(cacheable=true)
     public static String getStatus() {
         try {
             Integer acctCount = [SELECT COUNT() FROM Account WHERE Site = :DEMO_TAG];

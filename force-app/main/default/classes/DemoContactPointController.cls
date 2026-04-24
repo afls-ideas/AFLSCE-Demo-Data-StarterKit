@@ -109,7 +109,7 @@ public with sharing class DemoContactPointController {
         }
     }
 
-    @AuraEnabled
+    @AuraEnabled(cacheable=true)
     public static String getStatus() {
         try {
             Map<String, Boolean> available = checkObjectAvailability();
