@@ -5,6 +5,11 @@
  * for Agentforce for Life Sciences demos. Each scenario creates tagged HCPs,
  * specialty accounts, affiliations, and specialties that can be independently
  * applied and removed.
+ *
+ * Tagging strategy:
+ *   - Account.Site = 'AFLSCE-Demo-Data:scenarioName' for scenario records
+ *   - HealthcareProviderSpecialty.SourceSystem = tag
+ *   - ProviderAffiliation.SourceSystemName = tag
  */
 public with sharing class DemoScenarioController {
 
@@ -137,32 +142,40 @@ public with sharing class DemoScenarioController {
     public static String removeScenario(String scenarioName) {
         try {
             String tag = TAG_PREFIX + scenarioName;
+            String escapedTag = String.escapeSingleQuotes(tag);
 
-            // Delete child records first to respect referential integrity
-            List<HealthcareProviderSpecialty> specialties = [
-                SELECT Id FROM HealthcareProviderSpecialty
-                WHERE Account.Description = :tag
-                LIMIT 2000
-            ];
-            if (!specialties.isEmpty()) {
-                Database.delete(specialties, false);
+            // Delete HealthcareProviderSpecialty where SourceSystem = tag
+            try {
+                List<SObject> specialties = Database.query(
+                    'SELECT Id FROM HealthcareProviderSpecialty ' +
+                    'WHERE SourceSystem = \'' + escapedTag + '\' ' +
+                    'LIMIT 2000'
+                );
+                if (!specialties.isEmpty()) {
+                    Database.delete(specialties, false);
+                }
+            } catch (Exception e) {
+                // Object may not exist in this org
             }
 
-            // Delete affiliations where either side is tagged
-            List<SObject> affiliations = Database.query(
-                'SELECT Id FROM HealthcareProviderAffiliation ' +
-                'WHERE Practitioner.Description = \'' + String.escapeSingleQuotes(tag) + '\' ' +
-                'OR Account.Description = \'' + String.escapeSingleQuotes(tag) + '\' ' +
-                'LIMIT 2000'
-            );
-            if (!affiliations.isEmpty()) {
-                Database.delete(affiliations, false);
+            // Delete ProviderAffiliation where SourceSystemName = tag
+            try {
+                List<SObject> affiliations = Database.query(
+                    'SELECT Id FROM ProviderAffiliation ' +
+                    'WHERE SourceSystemName = \'' + escapedTag + '\' ' +
+                    'LIMIT 2000'
+                );
+                if (!affiliations.isEmpty()) {
+                    Database.delete(affiliations, false);
+                }
+            } catch (Exception e) {
+                // Object may not exist in this org
             }
 
-            // Delete tagged HCP (Account with IsPersonAccount or individual) records
+            // Delete tagged Account records
             List<Account> taggedAccounts = [
                 SELECT Id FROM Account
-                WHERE Description = :tag
+                WHERE Site = :tag
                 LIMIT 2000
             ];
             if (!taggedAccounts.isEmpty()) {
@@ -176,7 +189,7 @@ public with sharing class DemoScenarioController {
     }
 
     // ---------------------------------------------------------------------------
-    // Private helpers — status check
+    // Private helpers -- status check
     // ---------------------------------------------------------------------------
 
     private static Set<String> getAppliedScenarioNames() {
@@ -191,21 +204,21 @@ public with sharing class DemoScenarioController {
 
         // Use AggregateResult grouping for efficiency
         for (AggregateResult ar : [
-            SELECT Description, COUNT(Id) cnt
+            SELECT Site, COUNT(Id) cnt
             FROM Account
-            WHERE Description IN :allTags
-            GROUP BY Description
+            WHERE Site IN :allTags
+            GROUP BY Site
         ]) {
-            String desc = (String) ar.get('Description');
-            if (desc != null && desc.startsWith(TAG_PREFIX)) {
-                applied.add(desc.substringAfter(TAG_PREFIX));
+            String siteVal = (String) ar.get('Site');
+            if (siteVal != null && siteVal.startsWith(TAG_PREFIX)) {
+                applied.add(siteVal.substringAfter(TAG_PREFIX));
             }
         }
         return applied;
     }
 
     // ---------------------------------------------------------------------------
-    // Private helpers — bulk insert with error collection
+    // Private helpers -- bulk insert with error collection
     // ---------------------------------------------------------------------------
 
     private static List<Account> insertAccounts(List<Account> accs) {
@@ -226,12 +239,11 @@ public with sharing class DemoScenarioController {
         }
     }
 
-    private static Account hcp(String firstName, String lastName, String specialty, String tag) {
+    private static Account hcp(String firstName, String lastName, String tag) {
         Account a = new Account();
         a.FirstName = firstName;
         a.LastName = lastName;
-        a.Description = tag;
-        // Specialty stored via standard field or tagging
+        a.Site = tag;
         a.put('RecordTypeId', getPersonAccountRecordTypeId());
         return a;
     }
@@ -240,7 +252,7 @@ public with sharing class DemoScenarioController {
         Account a = new Account();
         a.Name = name;
         a.Type = accType;
-        a.Description = tag;
+        a.Site = tag;
         return a;
     }
 
@@ -282,47 +294,109 @@ public with sharing class DemoScenarioController {
         return [
             SELECT Id, Name FROM Account
             WHERE Type = 'Hospital'
-            AND Description != :TAG_PREFIX + 'oncology'
-            AND Description != :TAG_PREFIX + 'cardiology'
-            AND Description != :TAG_PREFIX + 'immunology'
-            AND Description != :TAG_PREFIX + 'neurology'
-            AND Description != :TAG_PREFIX + 'rare_disease'
+            AND Site = null
             LIMIT 10
         ];
     }
 
+    /**
+     * Creates ProviderAffiliation records linking HCP person accounts to facilities.
+     * Uses dynamic SObject creation since ProviderAffiliation may not exist in all orgs.
+     */
     private static void createAffiliations(List<Account> hcps, List<Account> facilities, String tag) {
         List<SObject> affiliations = new List<SObject>();
         Integer facilityCount = facilities.size();
         if (facilityCount == 0) {
             return;
         }
+
+        SObjectType affType = Schema.getGlobalDescribe().get('ProviderAffiliation');
+        if (affType == null) {
+            return;
+        }
+
         for (Integer i = 0; i < hcps.size(); i++) {
             if (hcps[i].Id == null) continue;
             Account facility = facilities[Math.mod(i, facilityCount)];
             if (facility.Id == null) continue;
 
-            SObject aff = Schema.getGlobalDescribe().get('HealthcareProviderAffiliation').newSObject();
-            aff.put('PractitionerId', hcps[i].Id);
-            aff.put('AccountId', facility.Id);
+            SObject aff = affType.newSObject();
+            aff.put('AccountId', hcps[i].Id);
+            aff.put('IsPrimary', (i == 0));
+            aff.put('SourceSystemName', tag);
+            aff.put('IsActive', true);
             affiliations.add(aff);
         }
         insertSObjects(affiliations);
     }
 
-    private static void createSpecialties(List<Account> hcps, Map<Id, String> hcpSpecialtyMap) {
-        List<SObject> specialties = new List<SObject>();
+    /**
+     * Creates HealthcareProviderSpecialty records for each HCP.
+     * First ensures CareSpecialty records exist for each specialty name,
+     * then links HCP accounts to CareSpecialty via SpecialtyId.
+     * Uses dynamic SObject creation since these objects may not exist in all orgs.
+     */
+    private static void createSpecialties(List<Account> hcps, Map<Id, String> hcpSpecialtyMap, String tag) {
+        if (hcpSpecialtyMap.isEmpty()) {
+            return;
+        }
+
+        // Collect unique specialty names needed
+        Set<String> neededNames = new Set<String>(hcpSpecialtyMap.values());
+
+        SObjectType csType = Schema.getGlobalDescribe().get('CareSpecialty');
+        SObjectType hpsType = Schema.getGlobalDescribe().get('HealthcareProviderSpecialty');
+        if (csType == null || hpsType == null) {
+            return;
+        }
+
+        // Query existing CareSpecialty records
+        Map<String, Id> specialtyNameToId = new Map<String, Id>();
+        List<SObject> existingSpecialties = Database.query(
+            'SELECT Id, Name FROM CareSpecialty WHERE Name IN :neededNames'
+        );
+        for (SObject cs : existingSpecialties) {
+            specialtyNameToId.put((String) cs.get('Name'), cs.Id);
+        }
+
+        // Create missing CareSpecialty records
+        List<SObject> newSpecialties = new List<SObject>();
+        for (String specName : neededNames) {
+            if (!specialtyNameToId.containsKey(specName)) {
+                SObject cs = csType.newSObject();
+                cs.put('Name', specName);
+                cs.put('IsActive', true);
+                newSpecialties.add(cs);
+            }
+        }
+        if (!newSpecialties.isEmpty()) {
+            Database.SaveResult[] csResults = Database.insert(newSpecialties, false);
+            for (Integer i = 0; i < csResults.size(); i++) {
+                if (csResults[i].isSuccess()) {
+                    String csName = (String) newSpecialties[i].get('Name');
+                    specialtyNameToId.put(csName, csResults[i].getId());
+                }
+            }
+        }
+
+        // Create HealthcareProviderSpecialty records
+        List<SObject> hpsRecords = new List<SObject>();
         for (Account hcpAcc : hcps) {
             if (hcpAcc.Id == null) continue;
             String specName = hcpSpecialtyMap.get(hcpAcc.Id);
             if (specName == null) continue;
+            Id specialtyId = specialtyNameToId.get(specName);
+            if (specialtyId == null) continue;
 
-            SObject spec = Schema.getGlobalDescribe().get('HealthcareProviderSpecialty').newSObject();
-            spec.put('AccountId', hcpAcc.Id);
-            spec.put('Name', specName);
-            specialties.add(spec);
+            SObject hps = hpsType.newSObject();
+            hps.put('AccountId', hcpAcc.Id);
+            hps.put('SpecialtyId', specialtyId);
+            hps.put('Name', specName);
+            hps.put('IsActive', true);
+            hps.put('SourceSystem', tag);
+            hpsRecords.add(hps);
         }
-        insertSObjects(specialties);
+        insertSObjects(hpsRecords);
     }
 
     // ---------------------------------------------------------------------------
@@ -330,7 +404,6 @@ public with sharing class DemoScenarioController {
     // ---------------------------------------------------------------------------
 
     private static void applyOncology(String tag) {
-        // HCPs — realistic US/GB/FR/DE/IT/ES names
         List<Account> hcps = new List<Account>();
         Map<Id, String> specMap = new Map<Id, String>();
         List<String[]> hcpData = new List<String[]>{
@@ -348,7 +421,7 @@ public with sharing class DemoScenarioController {
             new String[]{ 'Sophie', 'Laurent', 'Radiation Oncology' }
         };
         for (String[] d : hcpData) {
-            hcps.add(hcp(d[0], d[1], d[2], tag));
+            hcps.add(hcp(d[0], d[1], tag));
         }
         List<Account> insertedHcps = insertAccounts(hcps);
 
@@ -362,17 +435,7 @@ public with sharing class DemoScenarioController {
             }
         }
 
-        // KOLs — flag in Description (append KOL marker)
-        // First 3 HCPs are KOLs — update their description to include KOL flag
-        List<Account> kolUpdates = new List<Account>();
-        for (Integer i = 0; i < Math.min(3, insertedHcps.size()); i++) {
-            Account upd = new Account(Id = insertedHcps[i].Id);
-            upd.Description = tag + '|KOL';
-            kolUpdates.add(upd);
-        }
-        Database.update(kolUpdates, false);
-
-        // Specialty accounts — cancer centers, clinical trial sites
+        // Specialty accounts -- cancer centers, clinical trial sites
         List<Account> orgAccounts = new List<Account>{
             orgAccount('Memorial Oncology Center', 'Hospital', tag),
             orgAccount('Pacific Cancer Institute', 'Hospital', tag),
@@ -388,14 +451,14 @@ public with sharing class DemoScenarioController {
         }
         List<Account> insertedOrgs = insertAccounts(orgAccounts);
 
-        // Affiliations — link HCPs to cancer centers and existing hospitals
+        // Affiliations -- link HCPs to cancer centers and existing hospitals
         List<Account> allFacilities = new List<Account>();
         allFacilities.addAll(insertedOrgs);
         allFacilities.addAll(getExistingHospitals());
         createAffiliations(insertedHcps, allFacilities, tag);
 
         // Specialties
-        createSpecialties(insertedHcps, specMap);
+        createSpecialties(insertedHcps, specMap, tag);
     }
 
     // ---------------------------------------------------------------------------
@@ -421,7 +484,7 @@ public with sharing class DemoScenarioController {
             new String[]{ 'Andrew', 'Wilson', 'Cardiology' }
         };
         for (String[] d : hcpData) {
-            hcps.add(hcp(d[0], d[1], d[2], tag));
+            hcps.add(hcp(d[0], d[1], tag));
         }
         List<Account> insertedHcps = insertAccounts(hcps);
 
@@ -453,7 +516,7 @@ public with sharing class DemoScenarioController {
         allFacilities.addAll(insertedOrgs);
         allFacilities.addAll(getExistingHospitals());
         createAffiliations(insertedHcps, allFacilities, tag);
-        createSpecialties(insertedHcps, specMap);
+        createSpecialties(insertedHcps, specMap, tag);
     }
 
     // ---------------------------------------------------------------------------
@@ -480,7 +543,7 @@ public with sharing class DemoScenarioController {
             new String[]{ 'Stefan', 'Braun', 'Gastroenterology' }
         };
         for (String[] d : hcpData) {
-            hcps.add(hcp(d[0], d[1], d[2], tag));
+            hcps.add(hcp(d[0], d[1], tag));
         }
         List<Account> insertedHcps = insertAccounts(hcps);
 
@@ -512,7 +575,7 @@ public with sharing class DemoScenarioController {
         allFacilities.addAll(insertedOrgs);
         allFacilities.addAll(getExistingHospitals());
         createAffiliations(insertedHcps, allFacilities, tag);
-        createSpecialties(insertedHcps, specMap);
+        createSpecialties(insertedHcps, specMap, tag);
     }
 
     // ---------------------------------------------------------------------------
@@ -537,7 +600,7 @@ public with sharing class DemoScenarioController {
             new String[]{ 'Teresa', 'Sanchez', 'Epileptology' }
         };
         for (String[] d : hcpData) {
-            hcps.add(hcp(d[0], d[1], d[2], tag));
+            hcps.add(hcp(d[0], d[1], tag));
         }
         List<Account> insertedHcps = insertAccounts(hcps);
 
@@ -568,7 +631,7 @@ public with sharing class DemoScenarioController {
         allFacilities.addAll(insertedOrgs);
         allFacilities.addAll(getExistingHospitals());
         createAffiliations(insertedHcps, allFacilities, tag);
-        createSpecialties(insertedHcps, specMap);
+        createSpecialties(insertedHcps, specMap, tag);
     }
 
     // ---------------------------------------------------------------------------
@@ -594,7 +657,7 @@ public with sharing class DemoScenarioController {
             new String[]{ 'Andrea', 'Marino', 'Clinical Genetics' }
         };
         for (String[] d : hcpData) {
-            hcps.add(hcp(d[0], d[1], d[2], tag));
+            hcps.add(hcp(d[0], d[1], tag));
         }
         List<Account> insertedHcps = insertAccounts(hcps);
 
@@ -626,6 +689,6 @@ public with sharing class DemoScenarioController {
         allFacilities.addAll(insertedOrgs);
         allFacilities.addAll(getExistingHospitals());
         createAffiliations(insertedHcps, allFacilities, tag);
-        createSpecialties(insertedHcps, specMap);
+        createSpecialties(insertedHcps, specMap, tag);
     }
 }

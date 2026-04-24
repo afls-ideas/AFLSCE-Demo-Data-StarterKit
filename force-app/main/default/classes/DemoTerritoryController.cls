@@ -2,6 +2,11 @@
  * DemoTerritoryController
  * Creates a complete Territory2 hierarchy for demo orgs.
  * Callable from LWC via @AuraEnabled methods.
+ *
+ * NOTE: Territory2Type is a Setup entity that cannot be created via DML.
+ * This class queries existing Territory2Type records and uses the first
+ * available type for all territories. Ensure at least one Territory2Type
+ * (e.g., "Geographical") exists in Setup before running this tool.
  */
 public with sharing class DemoTerritoryController {
 
@@ -14,8 +19,9 @@ public with sharing class DemoTerritoryController {
     public static String createTerritoryHierarchy() {
         try {
             Territory2Model model = ensureActiveModel();
-            Map<String, Territory2Type> typesByName = ensureTypes();
-            buildHierarchy(model.Id, typesByName);
+            Map<String, Id> typesByLabel = ensureTypes();
+            Id defaultTypeId = typesByLabel.values()[0];
+            buildHierarchy(model.Id, defaultTypeId);
             return 'SUCCESS: Territory hierarchy created successfully.';
         } catch (Exception e) {
             return 'ERROR: ' + e.getMessage() + ' | ' + e.getStackTraceString();
@@ -39,20 +45,18 @@ public with sharing class DemoTerritoryController {
         try {
             // Delete territories (children first via bottom-up query)
             List<Territory2> territories = [
-                SELECT Id FROM Territory2
+                SELECT Id, ParentTerritory2Id FROM Territory2
                 WHERE Territory2Model.DeveloperName = :MODEL_DEV_NAME
                 ORDER BY Territory2.ParentTerritory2Id DESC NULLS LAST
             ];
             if (!territories.isEmpty()) {
-                // Delete leaf nodes first, then parents
-                List<Territory2> leaves = new List<Territory2>();
+                // Separate leaf/mid nodes from roots for ordered deletion
                 List<Territory2> mids = new List<Territory2>();
                 List<Territory2> roots = new List<Territory2>();
                 for (Territory2 t : territories) {
                     if (t.ParentTerritory2Id == null) {
                         roots.add(t);
                     } else {
-                        // We'll just delete all in reverse-depth order
                         mids.add(t);
                     }
                 }
@@ -94,7 +98,7 @@ public with sharing class DemoTerritoryController {
         if (models.isEmpty()) {
             model = new Territory2Model();
             model.DeveloperName = MODEL_DEV_NAME;
-            model.MasterLabel = MODEL_NAME;
+            model.Name = MODEL_NAME;
             insert model;
         } else {
             model = models[0];
@@ -107,41 +111,23 @@ public with sharing class DemoTerritoryController {
         return model;
     }
 
-    private static Map<String, Territory2Type> ensureTypes() {
-        List<String> requiredTypes = new List<String>{ 'Geographical', 'Medical', 'KAM' };
-        Map<String, Territory2Type> typesByName = new Map<String, Territory2Type>();
-
-        for (Territory2Type t : [SELECT Id, DeveloperName, MasterLabel FROM Territory2Type]) {
-            typesByName.put(t.MasterLabel, t);
+    private static Map<String, Id> ensureTypes() {
+        Map<String, Id> typesByLabel = new Map<String, Id>();
+        for (Territory2Type t : [SELECT Id, DeveloperName FROM Territory2Type]) {
+            typesByLabel.put(t.DeveloperName, t.Id);
         }
-
-        List<Territory2Type> toInsert = new List<Territory2Type>();
-        for (String typeName : requiredTypes) {
-            if (!typesByName.containsKey(typeName)) {
-                Territory2Type tt = new Territory2Type();
-                tt.DeveloperName = typeName;
-                tt.MasterLabel = typeName;
-                tt.Priority = 1;
-                toInsert.add(tt);
-            }
+        if (typesByLabel.isEmpty()) {
+            throw new TerritoryException(
+                'No Territory2Type records found. Please create at least one Territory2Type ' +
+                '(e.g., Geographical) in Setup before running this tool.'
+            );
         }
-        if (!toInsert.isEmpty()) {
-            Database.insert(toInsert, false);
-            // Re-query to get Ids
-            for (Territory2Type t : [SELECT Id, DeveloperName, MasterLabel FROM Territory2Type]) {
-                typesByName.put(t.MasterLabel, t);
-            }
-        }
-        return typesByName;
+        return typesByLabel;
     }
 
     // ── Hierarchy Builder ───────────────────────────────────────────────
 
-    private static void buildHierarchy(Id modelId, Map<String, Territory2Type> typesByName) {
-        Id geoTypeId = typesByName.get('Geographical').Id;
-        Id medTypeId = typesByName.get('Medical').Id;
-        Id kamTypeId = typesByName.get('KAM').Id;
-
+    private static void buildHierarchy(Id modelId, Id defaultTypeId) {
         // Check for existing territories to avoid duplicates
         Set<String> existingDevNames = new Set<String>();
         for (Territory2 t : [SELECT DeveloperName FROM Territory2 WHERE Territory2ModelId = :modelId]) {
@@ -149,15 +135,15 @@ public with sharing class DemoTerritoryController {
         }
 
         // ── Level 0: GLOBAL root ──
-        Id globalId = insertIfMissing('GLOBAL', 'GLOBAL', geoTypeId, modelId, null, existingDevNames);
+        Id globalId = insertIfMissing('GLOBAL', 'GLOBAL', defaultTypeId, modelId, null, existingDevNames);
 
         // ── Geographical: US ──
-        Id usId = insertIfMissing('US_COUNTRY', 'US-COUNTRY', geoTypeId, modelId, globalId, existingDevNames);
-        buildUSRegions(modelId, geoTypeId, usId, existingDevNames);
+        Id usId = insertIfMissing('US_COUNTRY', 'US-COUNTRY', defaultTypeId, modelId, globalId, existingDevNames);
+        buildUSRegions(modelId, defaultTypeId, usId, existingDevNames);
 
         // ── Geographical: GB ──
-        Id gbId = insertIfMissing('GB_COUNTRY', 'GB-COUNTRY', geoTypeId, modelId, globalId, existingDevNames);
-        buildCountryLeaves(modelId, geoTypeId, gbId, existingDevNames, new List<String[]>{
+        Id gbId = insertIfMissing('GB_COUNTRY', 'GB-COUNTRY', defaultTypeId, modelId, globalId, existingDevNames);
+        buildCountryLeaves(modelId, defaultTypeId, gbId, existingDevNames, new List<String[]>{
             new String[]{ 'GB_England_London',     'GB-England-London' },
             new String[]{ 'GB_England_Manchester',  'GB-England-Manchester' },
             new String[]{ 'GB_England_Birmingham',  'GB-England-Birmingham' },
@@ -166,8 +152,8 @@ public with sharing class DemoTerritoryController {
         });
 
         // ── Geographical: FR ──
-        Id frId = insertIfMissing('FR_COUNTRY', 'FR-COUNTRY', geoTypeId, modelId, globalId, existingDevNames);
-        buildCountryLeaves(modelId, geoTypeId, frId, existingDevNames, new List<String[]>{
+        Id frId = insertIfMissing('FR_COUNTRY', 'FR-COUNTRY', defaultTypeId, modelId, globalId, existingDevNames);
+        buildCountryLeaves(modelId, defaultTypeId, frId, existingDevNames, new List<String[]>{
             new String[]{ 'FR_Ile_de_France_Paris',   'FR-Ile-de-France-Paris' },
             new String[]{ 'FR_Auvergne_Lyon',         'FR-Auvergne-Lyon' },
             new String[]{ 'FR_PACA_Marseille',         'FR-PACA-Marseille' },
@@ -176,8 +162,8 @@ public with sharing class DemoTerritoryController {
         });
 
         // ── Geographical: DE ──
-        Id deId = insertIfMissing('DE_COUNTRY', 'DE-COUNTRY', geoTypeId, modelId, globalId, existingDevNames);
-        buildCountryLeaves(modelId, geoTypeId, deId, existingDevNames, new List<String[]>{
+        Id deId = insertIfMissing('DE_COUNTRY', 'DE-COUNTRY', defaultTypeId, modelId, globalId, existingDevNames);
+        buildCountryLeaves(modelId, defaultTypeId, deId, existingDevNames, new List<String[]>{
             new String[]{ 'DE_Bavaria_Munich',    'DE-Bavaria-Munich' },
             new String[]{ 'DE_Berlin_Berlin',     'DE-Berlin-Berlin' },
             new String[]{ 'DE_Hesse_Frankfurt',   'DE-Hesse-Frankfurt' },
@@ -186,8 +172,8 @@ public with sharing class DemoTerritoryController {
         });
 
         // ── Geographical: IT ──
-        Id itId = insertIfMissing('IT_COUNTRY', 'IT-COUNTRY', geoTypeId, modelId, globalId, existingDevNames);
-        buildCountryLeaves(modelId, geoTypeId, itId, existingDevNames, new List<String[]>{
+        Id itId = insertIfMissing('IT_COUNTRY', 'IT-COUNTRY', defaultTypeId, modelId, globalId, existingDevNames);
+        buildCountryLeaves(modelId, defaultTypeId, itId, existingDevNames, new List<String[]>{
             new String[]{ 'IT_Lazio_Rome',       'IT-Lazio-Rome' },
             new String[]{ 'IT_Lombardy_Milan',   'IT-Lombardy-Milan' },
             new String[]{ 'IT_Campania_Naples',  'IT-Campania-Naples' },
@@ -196,8 +182,8 @@ public with sharing class DemoTerritoryController {
         });
 
         // ── Geographical: ES ──
-        Id esId = insertIfMissing('ES_COUNTRY', 'ES-COUNTRY', geoTypeId, modelId, globalId, existingDevNames);
-        buildCountryLeaves(modelId, geoTypeId, esId, existingDevNames, new List<String[]>{
+        Id esId = insertIfMissing('ES_COUNTRY', 'ES-COUNTRY', defaultTypeId, modelId, globalId, existingDevNames);
+        buildCountryLeaves(modelId, defaultTypeId, esId, existingDevNames, new List<String[]>{
             new String[]{ 'ES_Madrid_Madrid',        'ES-Madrid-Madrid' },
             new String[]{ 'ES_Catalonia_Barcelona',  'ES-Catalonia-Barcelona' },
             new String[]{ 'ES_Andalusia_Seville',    'ES-Andalusia-Seville' },
@@ -206,12 +192,12 @@ public with sharing class DemoTerritoryController {
         });
 
         // ── Medical hierarchy ──
-        Id medRootId = insertIfMissing('MEDICAL', 'MEDICAL', medTypeId, modelId, globalId, existingDevNames);
-        buildMedicalHierarchy(modelId, medTypeId, medRootId, existingDevNames);
+        Id medRootId = insertIfMissing('MEDICAL', 'MEDICAL', defaultTypeId, modelId, globalId, existingDevNames);
+        buildMedicalHierarchy(modelId, defaultTypeId, medRootId, existingDevNames);
 
         // ── KAM hierarchy ──
-        Id kamRootId = insertIfMissing('KAM', 'KAM', kamTypeId, modelId, globalId, existingDevNames);
-        buildKAMHierarchy(modelId, kamTypeId, kamRootId, existingDevNames);
+        Id kamRootId = insertIfMissing('KAM', 'KAM', defaultTypeId, modelId, globalId, existingDevNames);
+        buildKAMHierarchy(modelId, defaultTypeId, kamRootId, existingDevNames);
     }
 
     // ── US Regions ──────────────────────────────────────────────────────

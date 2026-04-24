@@ -5,6 +5,11 @@
  * ContactPointSocial, and BusinessLicense records tied to existing
  * Account and HealthcareProvider records tagged with 'AFLSCE-Demo-Data'.
  *
+ * Tagging strategy:
+ *   - Accounts: Account.Site = 'AFLSCE-Demo-Data'
+ *   - HealthcareProviders: SourceSystem = 'AFLSCE-Demo-Data'
+ *   - BusinessLicenses: Identifier = 'AFLSCE-Demo-Data'
+ *
  * Callable from LWC via @AuraEnabled methods.
  */
 public with sharing class DemoContactPointController {
@@ -19,7 +24,7 @@ public with sharing class DemoContactPointController {
     public static String createContactPoints() {
         try {
             List<Account> accounts = queryAccounts();
-            List<HealthcareProvider> hcps = queryHealthcareProviders();
+            List<SObject> hcps = queryHealthcareProviders();
 
             if (accounts.isEmpty() && hcps.isEmpty()) {
                 return 'No records found with AFLSCE-Demo-Data tag.';
@@ -32,7 +37,7 @@ public with sharing class DemoContactPointController {
 
             // ContactPointAddress
             if (available.get('ContactPointAddress') == true) {
-                List<ContactPointAddress> addresses = buildAddresses(accounts, hcps);
+                List<ContactPointAddress> addresses = buildAddresses(accounts);
                 if (!addresses.isEmpty()) {
                     List<Database.SaveResult> sr = Database.insert(addresses, false);
                     Integer cnt = countSuccesses(sr);
@@ -69,7 +74,7 @@ public with sharing class DemoContactPointController {
                 results.add('ContactPointPhone: object not available');
             }
 
-            // ContactPointSocial — check via Schema since it may not exist
+            // ContactPointSocial — dynamic SObject since it may not exist
             if (available.get('ContactPointSocial') == true) {
                 List<SObject> socials = buildSocials(accounts);
                 if (!socials.isEmpty()) {
@@ -84,7 +89,7 @@ public with sharing class DemoContactPointController {
 
             // BusinessLicense
             if (available.get('BusinessLicense') == true) {
-                List<BusinessLicense> licenses = buildBusinessLicenses(accounts);
+                List<SObject> licenses = buildBusinessLicenses(accounts);
                 if (!licenses.isEmpty()) {
                     List<Database.SaveResult> sr = Database.insert(licenses, false);
                     Integer cnt = countSuccesses(sr);
@@ -110,20 +115,29 @@ public with sharing class DemoContactPointController {
             Map<String, Boolean> available = checkObjectAvailability();
             List<String> counts = new List<String>();
 
-            if (available.get('ContactPointAddress') == true) {
-                Integer cnt = [SELECT COUNT() FROM ContactPointAddress WHERE Name LIKE :('%' + DEMO_TAG + '%') OR Parent.Name IN (SELECT Name FROM Account WHERE Description LIKE :('%' + DEMO_TAG + '%'))];
+            // Get tagged account IDs first to avoid semi-join with OR
+            List<Account> taggedAccounts = queryAccounts();
+            Set<Id> accountIds = new Set<Id>();
+            for (Account a : taggedAccounts) {
+                accountIds.add(a.Id);
+            }
+
+            if (available.get('ContactPointAddress') == true && !accountIds.isEmpty()) {
+                Integer cnt = [SELECT COUNT() FROM ContactPointAddress WHERE ParentId IN :accountIds];
                 counts.add('ContactPointAddress: ' + cnt);
             }
-            if (available.get('ContactPointEmail') == true) {
-                Integer cnt = [SELECT COUNT() FROM ContactPointEmail WHERE ParentId IN (SELECT Id FROM Account WHERE Description LIKE :('%' + DEMO_TAG + '%'))];
+            if (available.get('ContactPointEmail') == true && !accountIds.isEmpty()) {
+                Integer cnt = [SELECT COUNT() FROM ContactPointEmail WHERE ParentId IN :accountIds];
                 counts.add('ContactPointEmail: ' + cnt);
             }
-            if (available.get('ContactPointPhone') == true) {
-                Integer cnt = [SELECT COUNT() FROM ContactPointPhone WHERE ParentId IN (SELECT Id FROM Account WHERE Description LIKE :('%' + DEMO_TAG + '%'))];
+            if (available.get('ContactPointPhone') == true && !accountIds.isEmpty()) {
+                Integer cnt = [SELECT COUNT() FROM ContactPointPhone WHERE ParentId IN :accountIds];
                 counts.add('ContactPointPhone: ' + cnt);
             }
             if (available.get('BusinessLicense') == true) {
-                Integer cnt = [SELECT COUNT() FROM BusinessLicense WHERE Name LIKE :('%' + DEMO_TAG + '%')];
+                Integer cnt = Database.countQuery(
+                    'SELECT COUNT() FROM BusinessLicense WHERE Identifier = \'' + DEMO_TAG + '\''
+                );
                 counts.add('BusinessLicense: ' + cnt);
             }
 
@@ -139,6 +153,7 @@ public with sharing class DemoContactPointController {
     @AuraEnabled
     public static String deleteContactPoints() {
         try {
+            // Get tagged account IDs first to avoid semi-join with OR
             List<Account> taggedAccounts = queryAccounts();
             Set<Id> accountIds = new Set<Id>();
             for (Account a : taggedAccounts) {
@@ -182,8 +197,9 @@ public with sharing class DemoContactPointController {
             }
 
             if (available.get('ContactPointSocial') == true && !accountIds.isEmpty()) {
-                String soql = 'SELECT Id FROM ContactPointSocial WHERE ParentId IN :accountIds';
-                List<SObject> recs = Database.query(soql);
+                List<SObject> recs = Database.query(
+                    'SELECT Id FROM ContactPointSocial WHERE ParentId IN :accountIds'
+                );
                 if (!recs.isEmpty()) {
                     List<Database.DeleteResult> dr = Database.delete(recs, false);
                     totalDeleted += countDeleteSuccesses(dr);
@@ -191,11 +207,9 @@ public with sharing class DemoContactPointController {
             }
 
             if (available.get('BusinessLicense') == true) {
-                String likePattern = '%' + DEMO_TAG + '%';
-                List<BusinessLicense> recs = [
-                    SELECT Id FROM BusinessLicense
-                    WHERE Name LIKE :likePattern
-                ];
+                List<SObject> recs = Database.query(
+                    'SELECT Id FROM BusinessLicense WHERE Identifier = \'' + DEMO_TAG + '\''
+                );
                 if (!recs.isEmpty()) {
                     List<Database.DeleteResult> dr = Database.delete(recs, false);
                     totalDeleted += countDeleteSuccesses(dr);
@@ -216,24 +230,19 @@ public with sharing class DemoContactPointController {
     // ──────────────────────────────────────────────────────────
 
     private static List<Account> queryAccounts() {
-        String likePattern = '%' + DEMO_TAG + '%';
         return [
             SELECT Id, Name, BillingStreet, BillingCity, BillingState,
-                   BillingPostalCode, BillingCountry, Type, Description, Phone
+                   BillingPostalCode, BillingCountry, Type, Phone, Site
             FROM Account
-            WHERE Description LIKE :likePattern
+            WHERE Site = :DEMO_TAG
             ORDER BY Name
         ];
     }
 
-    private static List<HealthcareProvider> queryHealthcareProviders() {
-        String likePattern = '%' + DEMO_TAG + '%';
-        return [
-            SELECT Id, Name, Description
-            FROM HealthcareProvider
-            WHERE Description LIKE :likePattern
-            ORDER BY Name
-        ];
+    private static List<SObject> queryHealthcareProviders() {
+        return Database.query(
+            'SELECT Id, Name, SourceSystem, AccountId FROM HealthcareProvider WHERE SourceSystem = \'' + DEMO_TAG + '\' ORDER BY Name'
+        );
     }
 
     private static Map<String, Boolean> checkObjectAvailability() {
@@ -251,10 +260,7 @@ public with sharing class DemoContactPointController {
     // Build ContactPointAddress records
     // ──────────────────────────────────────────────────────────
 
-    private static List<ContactPointAddress> buildAddresses(
-        List<Account> accounts,
-        List<HealthcareProvider> hcps
-    ) {
+    private static List<ContactPointAddress> buildAddresses(List<Account> accounts) {
         List<ContactPointAddress> addresses = new List<ContactPointAddress>();
 
         for (Account acct : accounts) {
@@ -286,9 +292,6 @@ public with sharing class DemoContactPointController {
             addresses.add(cpa);
         }
 
-        // HCP office addresses — ParentId on ContactPointAddress is polymorphic;
-        // HealthcareProvider may or may not be a valid parent. We link via Account
-        // if available, otherwise skip.
         return addresses;
     }
 
@@ -302,13 +305,13 @@ public with sharing class DemoContactPointController {
             addr.put('postalCode', 'W1G 9PF');
             addr.put('country', 'United Kingdom');
         } else if (country == 'France' || country == 'FR') {
-            addr.put('street', '47 Boulevard de l\'Hôpital');
+            addr.put('street', '47 Boulevard de l\'Hopital');
             addr.put('city', 'Paris');
-            addr.put('state', 'Île-de-France');
+            addr.put('state', 'Ile-de-France');
             addr.put('postalCode', '75013');
             addr.put('country', 'France');
         } else if (country == 'Germany' || country == 'DE') {
-            addr.put('street', 'Charité­platz 1');
+            addr.put('street', 'Chariteplatz 1');
             addr.put('city', 'Berlin');
             addr.put('state', 'Berlin');
             addr.put('postalCode', '10117');
@@ -320,7 +323,7 @@ public with sharing class DemoContactPointController {
             addr.put('postalCode', '20122');
             addr.put('country', 'Italy');
         } else if (country == 'Spain' || country == 'ES') {
-            addr.put('street', 'Calle del Prof Martín Lagos');
+            addr.put('street', 'Calle del Prof Martin Lagos');
             addr.put('city', 'Madrid');
             addr.put('state', 'Madrid');
             addr.put('postalCode', '28040');
@@ -343,7 +346,7 @@ public with sharing class DemoContactPointController {
 
     private static List<ContactPointEmail> buildEmails(
         List<Account> accounts,
-        List<HealthcareProvider> hcps
+        List<SObject> hcps
     ) {
         List<ContactPointEmail> emails = new List<ContactPointEmail>();
 
@@ -357,16 +360,22 @@ public with sharing class DemoContactPointController {
             emails.add(cpe);
         }
 
-        // HCP professional emails — linked to Account parent
-        for (HealthcareProvider hcp : hcps) {
-            String lastName = extractLastName(hcp.Name);
-            String domain = sanitizeDomain(hcp.Name);
+        // HCP professional emails — linked to the HCP's parent Account
+        for (SObject hcp : hcps) {
+            String hcpName = (String) hcp.get('Name');
+            Id hcpAccountId = (Id) hcp.get('AccountId');
+            if (hcpAccountId == null) {
+                continue; // Skip HCPs without a linked Account
+            }
+
+            String lastName = extractLastName(hcpName);
+            String domain = sanitizeDomain(hcpName);
 
             ContactPointEmail cpe = new ContactPointEmail();
             cpe.EmailAddress = 'dr.' + lastName.toLowerCase() + '@' + domain + '.com';
             cpe.EmailMailBox = 'dr.' + lastName.toLowerCase();
             cpe.IsPrimary = true;
-            cpe.ParentId = hcp.Id;
+            cpe.ParentId = hcpAccountId;
             emails.add(cpe);
         }
 
@@ -379,7 +388,7 @@ public with sharing class DemoContactPointController {
 
     private static List<ContactPointPhone> buildPhones(
         List<Account> accounts,
-        List<HealthcareProvider> hcps
+        List<SObject> hcps
     ) {
         List<ContactPointPhone> phones = new List<ContactPointPhone>();
         Integer counter = 0;
@@ -404,13 +413,18 @@ public with sharing class DemoContactPointController {
             phones.add(fax);
         }
 
-        for (HealthcareProvider hcp : hcps) {
+        for (SObject hcp : hcps) {
+            Id hcpAccountId = (Id) hcp.get('AccountId');
+            if (hcpAccountId == null) {
+                continue; // Skip HCPs without a linked Account
+            }
+
             // Office phone
             ContactPointPhone office = new ContactPointPhone();
             office.TelephoneNumber = generatePhone('US', counter++);
             office.PhoneType = 'Business';
             office.IsPrimary = true;
-            office.ParentId = hcp.Id;
+            office.ParentId = hcpAccountId;
             phones.add(office);
 
             // Mobile
@@ -418,7 +432,7 @@ public with sharing class DemoContactPointController {
             mobile.TelephoneNumber = generatePhone('US', counter++);
             mobile.PhoneType = 'Mobile';
             mobile.IsPrimary = false;
-            mobile.ParentId = hcp.Id;
+            mobile.ParentId = hcpAccountId;
             phones.add(mobile);
         }
 
@@ -492,11 +506,16 @@ public with sharing class DemoContactPointController {
     }
 
     // ──────────────────────────────────────────────────────────
-    // Build BusinessLicense records
+    // Build BusinessLicense records (dynamic SObject)
     // ──────────────────────────────────────────────────────────
 
-    private static List<BusinessLicense> buildBusinessLicenses(List<Account> accounts) {
-        List<BusinessLicense> licenses = new List<BusinessLicense>();
+    private static List<SObject> buildBusinessLicenses(List<Account> accounts) {
+        List<SObject> licenses = new List<SObject>();
+        Schema.SObjectType blType = Schema.getGlobalDescribe().get('BusinessLicense');
+        if (blType == null) {
+            return licenses;
+        }
+
         Integer counter = 0;
 
         for (Account acct : accounts) {
@@ -512,26 +531,30 @@ public with sharing class DemoContactPointController {
             if (acctTypeLower.contains('hospital') || acctTypeLower.contains('clinic') ||
                 acctTypeLower.contains('medical center') || acctTypeLower.contains('health system')) {
 
-                BusinessLicense bl = new BusinessLicense();
-                bl.Name = DEMO_TAG + ' - ' + acct.Name + ' Facility License';
-                bl.LicenseNumber = generateFacilityLicenseNumber(country, state, counter++);
-                bl.Status = 'Active';
-                bl.LicenseType = 'Medical Facility';
-                bl.LicenseClass = 'Healthcare';
-                bl.EffectiveDate = Date.today().addYears(-2);
-                bl.ExpirationDate = Date.today().addYears(3);
+                SObject bl = blType.newSObject();
+                bl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' Facility License');
+                bl.put('LicenseNumber', generateFacilityLicenseNumber(country, state, counter++));
+                bl.put('Status', 'Active');
+                bl.put('LicenseClass', 'Healthcare');
+                bl.put('Description', 'Medical Facility');
+                bl.put('IssueDate', Date.today().addYears(-2));
+                bl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(3), Time.newInstance(0, 0, 0, 0)));
+                bl.put('Identifier', DEMO_TAG);
+                bl.put('AccountId', acct.Id);
                 licenses.add(bl);
 
             } else if (acctTypeLower.contains('pharmacy')) {
 
-                BusinessLicense bl = new BusinessLicense();
-                bl.Name = DEMO_TAG + ' - ' + acct.Name + ' Pharmacy License';
-                bl.LicenseNumber = generatePharmacyLicenseNumber(country, state, counter++);
-                bl.Status = 'Active';
-                bl.LicenseType = 'Pharmacy';
-                bl.LicenseClass = 'Pharmaceutical';
-                bl.EffectiveDate = Date.today().addYears(-1);
-                bl.ExpirationDate = Date.today().addYears(2);
+                SObject bl = blType.newSObject();
+                bl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' Pharmacy License');
+                bl.put('LicenseNumber', generatePharmacyLicenseNumber(country, state, counter++));
+                bl.put('Status', 'Active');
+                bl.put('LicenseClass', 'Pharmaceutical');
+                bl.put('Description', 'Pharmacy');
+                bl.put('IssueDate', Date.today().addYears(-1));
+                bl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(2), Time.newInstance(0, 0, 0, 0)));
+                bl.put('Identifier', DEMO_TAG);
+                bl.put('AccountId', acct.Id);
                 licenses.add(bl);
             }
         }

@@ -1,8 +1,14 @@
 /**
  * DemoAccountProviderController
  * Creates realistic demo data for Accounts and Healthcare Providers across 6 countries.
- * All created records are tagged with 'AFLSCE-Demo-Data' in the Description field
- * for easy identification and cleanup.
+ * Tagging strategy:
+ *   - Account.Site = 'AFLSCE-Demo-Data' (filterable string field)
+ *   - HealthcareProvider.SourceSystem = 'AFLSCE-Demo-Data'
+ *   - HealthcareProviderNpi.SourceSystem = 'AFLSCE-Demo-Data'
+ *   - HealthcareProviderSpecialty.SourceSystem = 'AFLSCE-Demo-Data'
+ *   - ProviderAffiliation.SourceSystemName = 'AFLSCE-Demo-Data'
+ *   - CareSpecialty.Description = 'AFLSCE-Demo-Data'
+ * All Health Cloud objects accessed dynamically via Schema.getGlobalDescribe().
  */
 public with sharing class DemoAccountProviderController {
 
@@ -36,6 +42,7 @@ public with sharing class DemoAccountProviderController {
             Boolean hasNpi = Schema.getGlobalDescribe().containsKey('healthcareprovidernpi');
             Boolean hasSpec = Schema.getGlobalDescribe().containsKey('healthcareproviderspecialty');
             Boolean hasAffl = Schema.getGlobalDescribe().containsKey('provideraffiliation');
+            Boolean hasCareSpec = Schema.getGlobalDescribe().containsKey('carespecialty');
 
             Map<String, Id> hcpNameToId = new Map<String, Id>();
 
@@ -57,8 +64,10 @@ public with sharing class DemoAccountProviderController {
                     }
                 }
 
-                if (hasSpec) {
-                    List<SObject> specRecords = buildSpecialtyRecords(hcpNameToId);
+                if (hasSpec && hasCareSpec) {
+                    // Create CareSpecialty records first, then link via SpecialtyId
+                    Map<String, Id> specNameToId = createCareSpecialties();
+                    List<SObject> specRecords = buildSpecialtyRecords(hcpNameToId, specNameToId);
                     Database.SaveResult[] specResults = Database.insert(specRecords, false);
                     for (Database.SaveResult sr : specResults) {
                         if (sr.isSuccess()) specSuccess++;
@@ -96,21 +105,25 @@ public with sharing class DemoAccountProviderController {
     @AuraEnabled
     public static String getStatus() {
         try {
-            Integer acctCount = [SELECT COUNT() FROM Account WHERE Description LIKE :('%' + DEMO_TAG + '%')];
+            Integer acctCount = [SELECT COUNT() FROM Account WHERE Site = :DEMO_TAG];
 
             String result = 'Demo Accounts: ' + acctCount;
 
             if (Schema.getGlobalDescribe().containsKey('healthcareprovider')) {
-                String soql = 'SELECT COUNT() FROM HealthcareProvider WHERE Description LIKE \'%' + DEMO_TAG + '%\'';
+                String soql = 'SELECT COUNT() FROM HealthcareProvider WHERE SourceSystem = \'' + String.escapeSingleQuotes(DEMO_TAG) + '\'';
                 result += ', HCPs: ' + Database.countQuery(soql);
             }
             if (Schema.getGlobalDescribe().containsKey('healthcareprovidernpi')) {
-                String soql = 'SELECT COUNT() FROM HealthcareProviderNpi';
+                String soql = 'SELECT COUNT() FROM HealthcareProviderNpi WHERE SourceSystem = \'' + String.escapeSingleQuotes(DEMO_TAG) + '\'';
                 result += ', NPIs: ' + Database.countQuery(soql);
             }
             if (Schema.getGlobalDescribe().containsKey('healthcareproviderspecialty')) {
-                String soql = 'SELECT COUNT() FROM HealthcareProviderSpecialty WHERE Description LIKE \'%' + DEMO_TAG + '%\'';
+                String soql = 'SELECT COUNT() FROM HealthcareProviderSpecialty WHERE SourceSystem = \'' + String.escapeSingleQuotes(DEMO_TAG) + '\'';
                 result += ', Specialties: ' + Database.countQuery(soql);
+            }
+            if (Schema.getGlobalDescribe().containsKey('provideraffiliation')) {
+                String soql = 'SELECT COUNT() FROM ProviderAffiliation WHERE SourceSystemName = \'' + String.escapeSingleQuotes(DEMO_TAG) + '\'';
+                result += ', Affiliations: ' + Database.countQuery(soql);
             }
             return result;
         } catch (Exception e) {
@@ -122,12 +135,12 @@ public with sharing class DemoAccountProviderController {
     public static String deleteAccountsAndProviders() {
         try {
             Integer deleted = 0;
+            String escapedTag = String.escapeSingleQuotes(DEMO_TAG);
 
             // Delete child objects first (reverse order of creation)
+            // 1. Affiliations
             if (Schema.getGlobalDescribe().containsKey('provideraffiliation')) {
-                // Affiliations reference HCPs that have our tag
-                String soql = 'SELECT Id FROM ProviderAffiliation WHERE HealthcareProviderId IN '
-                    + '(SELECT Id FROM HealthcareProvider WHERE Description LIKE \'%' + DEMO_TAG + '%\')';
+                String soql = 'SELECT Id FROM ProviderAffiliation WHERE SourceSystemName = \'' + escapedTag + '\'';
                 List<SObject> recs = Database.query(soql);
                 if (!recs.isEmpty()) {
                     Database.DeleteResult[] dr = Database.delete(recs, false);
@@ -135,8 +148,9 @@ public with sharing class DemoAccountProviderController {
                 }
             }
 
+            // 2. Specialties
             if (Schema.getGlobalDescribe().containsKey('healthcareproviderspecialty')) {
-                String soql = 'SELECT Id FROM HealthcareProviderSpecialty WHERE Description LIKE \'%' + DEMO_TAG + '%\'';
+                String soql = 'SELECT Id FROM HealthcareProviderSpecialty WHERE SourceSystem = \'' + escapedTag + '\'';
                 List<SObject> recs = Database.query(soql);
                 if (!recs.isEmpty()) {
                     Database.DeleteResult[] dr = Database.delete(recs, false);
@@ -144,9 +158,9 @@ public with sharing class DemoAccountProviderController {
                 }
             }
 
+            // 3. NPIs
             if (Schema.getGlobalDescribe().containsKey('healthcareprovidernpi')) {
-                String soql = 'SELECT Id FROM HealthcareProviderNpi WHERE HealthcareProviderId IN '
-                    + '(SELECT Id FROM HealthcareProvider WHERE Description LIKE \'%' + DEMO_TAG + '%\')';
+                String soql = 'SELECT Id FROM HealthcareProviderNpi WHERE SourceSystem = \'' + escapedTag + '\'';
                 List<SObject> recs = Database.query(soql);
                 if (!recs.isEmpty()) {
                     Database.DeleteResult[] dr = Database.delete(recs, false);
@@ -154,8 +168,9 @@ public with sharing class DemoAccountProviderController {
                 }
             }
 
+            // 4. HCPs
             if (Schema.getGlobalDescribe().containsKey('healthcareprovider')) {
-                String soql = 'SELECT Id FROM HealthcareProvider WHERE Description LIKE \'%' + DEMO_TAG + '%\'';
+                String soql = 'SELECT Id FROM HealthcareProvider WHERE SourceSystem = \'' + escapedTag + '\'';
                 List<SObject> recs = Database.query(soql);
                 if (!recs.isEmpty()) {
                     Database.DeleteResult[] dr = Database.delete(recs, false);
@@ -163,7 +178,18 @@ public with sharing class DemoAccountProviderController {
                 }
             }
 
-            List<Account> accts = [SELECT Id FROM Account WHERE Description LIKE :('%' + DEMO_TAG + '%')];
+            // 5. CareSpecialty records
+            if (Schema.getGlobalDescribe().containsKey('carespecialty')) {
+                String soql = 'SELECT Id FROM CareSpecialty WHERE Description = \'' + escapedTag + '\'';
+                List<SObject> recs = Database.query(soql);
+                if (!recs.isEmpty()) {
+                    Database.DeleteResult[] dr = Database.delete(recs, false);
+                    for (Database.DeleteResult r : dr) { if (r.isSuccess()) deleted++; }
+                }
+            }
+
+            // 6. Accounts
+            List<Account> accts = [SELECT Id FROM Account WHERE Site = :DEMO_TAG];
             if (!accts.isEmpty()) {
                 Database.DeleteResult[] dr = Database.delete(accts, false);
                 for (Database.DeleteResult r : dr) { if (r.isSuccess()) deleted++; }
@@ -249,7 +275,8 @@ public with sharing class DemoAccountProviderController {
         a.Website = website;
         a.Industry = 'Healthcare';
         a.Type = acctType;
-        a.Description = description + ' [' + DEMO_TAG + ']';
+        a.Site = DEMO_TAG;
+        a.Description = description;
         return a;
     }
 
@@ -308,10 +335,12 @@ public with sharing class DemoAccountProviderController {
         return providers;
     }
 
-    private static SObject makeHCP(Schema.SObjectType hcpType, String name, String specialty, Id accountId) {
+    private static SObject makeHCP(Schema.SObjectType hcpType, String name, String classification, Id accountId) {
         SObject hcp = hcpType.newSObject();
         hcp.put('Name', name);
-        hcp.put('Description', specialty + ' specialist. [' + DEMO_TAG + ']');
+        hcp.put('Classification', classification);
+        hcp.put('SourceSystem', DEMO_TAG);
+        hcp.put('IsActive', true);
         if (accountId != null) {
             hcp.put('AccountId', accountId);
         }
@@ -365,10 +394,14 @@ public with sharing class DemoAccountProviderController {
             Id hcpId = hcpNameToId.get(provName);
             if (hcpId != null) {
                 SObject npi = npiType.newSObject();
+                npi.put('Name', provName + ' NPI');
                 npi.put('Npi', npiMap.get(provName));
+                npi.put('NpiType', 'Individual');
                 npi.put('HealthcareProviderId', hcpId);
-                npi.put('EffectiveDate', Date.newInstance(2020, 1, 1));
-                npi.put('ExpirationDate', Date.newInstance(2030, 12, 31));
+                npi.put('EffectiveFrom', Date.newInstance(2020, 1, 1));
+                npi.put('EffectiveTo', Date.newInstance(2030, 12, 31));
+                npi.put('IsActive', true);
+                npi.put('SourceSystem', DEMO_TAG);
                 npis.add(npi);
             }
         }
@@ -377,10 +410,46 @@ public with sharing class DemoAccountProviderController {
     }
 
     // ---------------------------------------------------------------------------
-    // Specialty builders
+    // CareSpecialty + HealthcareProviderSpecialty builders
     // ---------------------------------------------------------------------------
 
-    private static List<SObject> buildSpecialtyRecords(Map<String, Id> hcpNameToId) {
+    /**
+     * Creates CareSpecialty records for each unique specialty used by our providers.
+     * Returns a map of specialty name -> CareSpecialty Id.
+     */
+    private static Map<String, Id> createCareSpecialties() {
+        Map<String, Id> specNameToId = new Map<String, Id>();
+        Schema.SObjectType csType = Schema.getGlobalDescribe().get('carespecialty');
+        if (csType == null) {
+            return specNameToId;
+        }
+
+        Set<String> specialtyNames = new Set<String>{
+            'Oncology', 'Cardiology', 'Neurology', 'Internal Medicine',
+            'Gastroenterology', 'Pulmonology', 'Endocrinology', 'Dermatology',
+            'Orthopedics', 'Immunology', 'Pediatrics', 'Family Medicine'
+        };
+
+        List<SObject> careSpecs = new List<SObject>();
+        for (String specName : specialtyNames) {
+            SObject cs = csType.newSObject();
+            cs.put('Name', specName);
+            cs.put('IsActive', true);
+            cs.put('Description', DEMO_TAG);
+            careSpecs.add(cs);
+        }
+
+        Database.SaveResult[] results = Database.insert(careSpecs, false);
+        for (Integer i = 0; i < careSpecs.size(); i++) {
+            if (results[i].isSuccess()) {
+                specNameToId.put((String) careSpecs[i].get('Name'), results[i].getId());
+            }
+        }
+
+        return specNameToId;
+    }
+
+    private static List<SObject> buildSpecialtyRecords(Map<String, Id> hcpNameToId, Map<String, Id> specNameToId) {
         List<SObject> specs = new List<SObject>();
         Schema.SObjectType specType = Schema.getGlobalDescribe().get('healthcareproviderspecialty');
 
@@ -421,13 +490,16 @@ public with sharing class DemoAccountProviderController {
 
         for (String provName : providerSpecialties.keySet()) {
             Id hcpId = hcpNameToId.get(provName);
-            if (hcpId != null) {
+            String specName = providerSpecialties.get(provName);
+            Id careSpecId = specNameToId.get(specName);
+            if (hcpId != null && careSpecId != null) {
                 SObject spec = specType.newSObject();
-                spec.put('Name', providerSpecialties.get(provName));
+                spec.put('Name', provName + ' - ' + specName);
                 spec.put('HealthcareProviderId', hcpId);
-                spec.put('SpecialtyType', providerSpecialties.get(provName));
+                spec.put('SpecialtyId', careSpecId);
                 spec.put('IsActive', true);
-                spec.put('Description', provName + ' - ' + providerSpecialties.get(provName) + ' [' + DEMO_TAG + ']');
+                spec.put('IsPrimarySpecialty', true);
+                spec.put('SourceSystem', DEMO_TAG);
                 specs.add(spec);
             }
         }
@@ -443,51 +515,51 @@ public with sharing class DemoAccountProviderController {
         List<SObject> affls = new List<SObject>();
         Schema.SObjectType afflType = Schema.getGlobalDescribe().get('provideraffiliation');
 
-        // Map provider -> primary account, practice location name
+        // Map: provider name -> hospital account name -> role
         List<List<String>> affiliationData = new List<List<String>>{
-            new List<String>{'Dr. Sarah Mitchell', 'Massachusetts General Hospital', 'MGH Cancer Center'},
-            new List<String>{'Dr. James Patterson', 'Johns Hopkins Hospital', 'Johns Hopkins Heart Institute'},
-            new List<String>{'Dr. Emily Chen', 'Cleveland Clinic', 'Cleveland Clinic Neurology Institute'},
-            new List<String>{'Dr. Michael Rodriguez', 'Mayo Clinic', 'Mayo Clinic Internal Medicine'},
-            new List<String>{'Dr. Jennifer Goldstein', 'Memorial Sloan Kettering Cancer Center', 'MSK Breast Cancer Center'},
-            new List<String>{'Dr. David Kumar', 'MD Anderson Cancer Center', 'MD Anderson Thoracic Center'},
-            new List<String>{'Dr. Robert Washington', 'Midtown Oncology Associates', 'Midtown GI Suite'},
-            new List<String>{'Dr. William Hartley', 'Royal London Hospital', 'Barts Heart Centre'},
-            new List<String>{'Dr. Eleanor Blackwood', 'St Thomas\' Hospital', 'St Thomas\' Respiratory Unit'},
-            new List<String>{'Dr. Oliver Pemberton', 'Addenbrooke\'s Hospital', 'Addenbrooke\'s Endocrine Centre'},
-            new List<String>{'Dr. Charlotte Ainsworth', 'Royal London Hospital', 'Royal London Dermatology Dept'},
-            new List<String>{'Dr. George Whitfield', 'St Thomas\' Hospital', 'St Thomas\' Orthopaedic Unit'},
-            new List<String>{'Dr. Pierre Lefèvre', 'Hôpital Pitié-Salpêtrière', 'Service de Neurologie'},
-            new List<String>{'Dr. Marie-Claire Dubois', 'Hôpital Européen Georges-Pompidou', 'Service de Cardiologie HEGP'},
-            new List<String>{'Dr. François Moreau', 'Centre Hospitalier Universitaire de Lyon', 'CHU Lyon Médecine Interne'},
-            new List<String>{'Dr. Camille Rousseau', 'Institut Gustave Roussy', 'IGR Département d\'Oncologie'},
-            new List<String>{'Dr. Jean-Luc Bernard', 'Hôpital Pitié-Salpêtrière', 'Service d\'Immunologie Pitié'},
-            new List<String>{'Dr. Klaus Müller', 'Charité - Universitätsmedizin Berlin', 'Charité Comprehensive Cancer Center'},
-            new List<String>{'Dr. Anna Schneider', 'Universitätsklinikum Heidelberg', 'Heidelberg Neurologie Klinik'},
-            new List<String>{'Dr. Stefan Weber', 'Universitätsklinikum Hamburg-Eppendorf', 'UKE Herz- und Gefäßzentrum'},
-            new List<String>{'Dr. Katrin Fischer', 'Charité - Universitätsmedizin Berlin', 'Charité Kinder- und Jugendmedizin'},
-            new List<String>{'Dr. Hans-Peter Braun', 'Munich Heart Centre', 'Deutsches Herzzentrum München'},
-            new List<String>{'Dr. Marco Rossi', 'Policlinico Agostino Gemelli', 'Gemelli Gastroenterologia'},
-            new List<String>{'Dr. Giulia Bianchi', 'Istituto Europeo di Oncologia', 'IEO Divisione Oncologia'},
-            new List<String>{'Dr. Alessandro Conti', 'Ospedale San Raffaele', 'San Raffaele Centro Cardiologico'},
-            new List<String>{'Dr. Francesca Romano', 'Azienda Ospedaliera di Padova', 'AO Padova Dermatologia'},
-            new List<String>{'Dr. Luca Ferretti', 'Ospedale San Raffaele', 'San Raffaele Pneumologia'},
-            new List<String>{'Dr. Carlos García López', 'Hospital Clínic de Barcelona', 'Clínic Servicio de Inmunología'},
-            new List<String>{'Dr. María Fernández Ruiz', 'Hospital Universitario La Paz', 'La Paz Servicio de Oncología'},
-            new List<String>{'Dr. Alejandro Martínez Soto', 'Hospital Universitario Vall d\'Hebron', 'Vall d\'Hebron Neurología'},
-            new List<String>{'Dr. Isabel Navarro Díaz', 'Centro Médico Teknon', 'Teknon Endocrinología'},
-            new List<String>{'Dr. Pablo Herrera Molina', 'Hospital Clínic de Barcelona', 'Clínic Medicina Familiar'}
+            new List<String>{'Dr. Sarah Mitchell', 'Massachusetts General Hospital', 'Attending Physician'},
+            new List<String>{'Dr. James Patterson', 'Johns Hopkins Hospital', 'Attending Physician'},
+            new List<String>{'Dr. Emily Chen', 'Cleveland Clinic', 'Attending Physician'},
+            new List<String>{'Dr. Michael Rodriguez', 'Mayo Clinic', 'Attending Physician'},
+            new List<String>{'Dr. Jennifer Goldstein', 'Memorial Sloan Kettering Cancer Center', 'Attending Physician'},
+            new List<String>{'Dr. David Kumar', 'MD Anderson Cancer Center', 'Attending Physician'},
+            new List<String>{'Dr. Robert Washington', 'Midtown Oncology Associates', 'Attending Physician'},
+            new List<String>{'Dr. William Hartley', 'Royal London Hospital', 'Consultant'},
+            new List<String>{'Dr. Eleanor Blackwood', 'St Thomas\' Hospital', 'Consultant'},
+            new List<String>{'Dr. Oliver Pemberton', 'Addenbrooke\'s Hospital', 'Consultant'},
+            new List<String>{'Dr. Charlotte Ainsworth', 'Royal London Hospital', 'Consultant'},
+            new List<String>{'Dr. George Whitfield', 'St Thomas\' Hospital', 'Consultant'},
+            new List<String>{'Dr. Pierre Lefèvre', 'Hôpital Pitié-Salpêtrière', 'Attending Physician'},
+            new List<String>{'Dr. Marie-Claire Dubois', 'Hôpital Européen Georges-Pompidou', 'Attending Physician'},
+            new List<String>{'Dr. François Moreau', 'Centre Hospitalier Universitaire de Lyon', 'Attending Physician'},
+            new List<String>{'Dr. Camille Rousseau', 'Institut Gustave Roussy', 'Attending Physician'},
+            new List<String>{'Dr. Jean-Luc Bernard', 'Hôpital Pitié-Salpêtrière', 'Attending Physician'},
+            new List<String>{'Dr. Klaus Müller', 'Charité - Universitätsmedizin Berlin', 'Attending Physician'},
+            new List<String>{'Dr. Anna Schneider', 'Universitätsklinikum Heidelberg', 'Attending Physician'},
+            new List<String>{'Dr. Stefan Weber', 'Universitätsklinikum Hamburg-Eppendorf', 'Attending Physician'},
+            new List<String>{'Dr. Katrin Fischer', 'Charité - Universitätsmedizin Berlin', 'Attending Physician'},
+            new List<String>{'Dr. Hans-Peter Braun', 'Munich Heart Centre', 'Attending Physician'},
+            new List<String>{'Dr. Marco Rossi', 'Policlinico Agostino Gemelli', 'Attending Physician'},
+            new List<String>{'Dr. Giulia Bianchi', 'Istituto Europeo di Oncologia', 'Attending Physician'},
+            new List<String>{'Dr. Alessandro Conti', 'Ospedale San Raffaele', 'Attending Physician'},
+            new List<String>{'Dr. Francesca Romano', 'Azienda Ospedaliera di Padova', 'Attending Physician'},
+            new List<String>{'Dr. Luca Ferretti', 'Ospedale San Raffaele', 'Attending Physician'},
+            new List<String>{'Dr. Carlos García López', 'Hospital Clínic de Barcelona', 'Attending Physician'},
+            new List<String>{'Dr. María Fernández Ruiz', 'Hospital Universitario La Paz', 'Attending Physician'},
+            new List<String>{'Dr. Alejandro Martínez Soto', 'Hospital Universitario Vall d\'Hebron', 'Attending Physician'},
+            new List<String>{'Dr. Isabel Navarro Díaz', 'Centro Médico Teknon', 'Attending Physician'},
+            new List<String>{'Dr. Pablo Herrera Molina', 'Hospital Clínic de Barcelona', 'Attending Physician'}
         };
 
         for (List<String> row : affiliationData) {
-            Id hcpId = hcpNameToId.get(row[0]);
             Id acctId = acctNameToId.get(row[1]);
-            if (hcpId != null && acctId != null) {
+            if (acctId != null) {
                 SObject affl = afflType.newSObject();
-                affl.put('HealthcareProviderId', hcpId);
                 affl.put('AccountId', acctId);
-                affl.put('PracticeLocationName', row[2]);
-                affl.put('IsPrimaryAffiliation', true);
+                affl.put('Role', row[2]);
+                affl.put('IsPrimary', true);
+                affl.put('IsActive', true);
+                affl.put('SourceSystemName', DEMO_TAG);
                 affls.add(affl);
             }
         }
