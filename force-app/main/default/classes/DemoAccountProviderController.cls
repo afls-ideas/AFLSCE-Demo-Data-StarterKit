@@ -339,7 +339,6 @@ public with sharing class DemoAccountProviderController {
         SObject hcp = hcpType.newSObject();
         hcp.put('Name', name);
         hcp.put('SourceSystem', DEMO_TAG);
-        hcp.put('IsActive', true);
         if (accountId != null) {
             hcp.put('AccountId', accountId);
         }
