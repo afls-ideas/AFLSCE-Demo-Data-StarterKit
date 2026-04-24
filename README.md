@@ -6,7 +6,7 @@ Deploy to any Salesforce org, open the app, and click buttons to populate a full
 
 ## Deploy to Salesforce
 
-<a href="https://githubsfdeploy.herokuapp.com?owner=&repo=AFLSCE-Demo-Data-StarterKit">
+<a href="https://githubsfdeploy.herokuapp.com?owner=afls-ideas&repo=AFLSCE-Demo-Data-StarterKit&ref=main">
   <img alt="Deploy to Salesforce" src="https://raw.githubusercontent.com/afawcett/githubsfdeploy/master/deploy.png">
 </a>
 
