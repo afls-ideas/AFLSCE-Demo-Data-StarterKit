@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomTab xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Admin interface for creating AFLSCE demo data</description>
+    <label>AFLSCE Demo Data</label>
+    <lwcComponent>demoDataAdmin</lwcComponent>
+    <motif>Custom90: Medical Cross</motif>
+</CustomTab>

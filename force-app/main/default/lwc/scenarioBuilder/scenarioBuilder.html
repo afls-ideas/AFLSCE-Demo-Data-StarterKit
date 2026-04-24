@@ -1,0 +1,95 @@
+<template>
+    <lightning-card title="Scenario Builder" icon-name="standard:strategy">
+        <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+            <p class="slds-text-body_regular slds-m-bottom_medium">
+                Layer therapy-area specific data for your company type. Each scenario creates
+                targeted demo data including products, interactions, and relevant records for specific personas.
+            </p>
+
+            <!-- Spinner -->
+            <template if:true={isLoading}>
+                <div class="slds-is-relative slds-m-bottom_medium" style="height: 60px;">
+                    <lightning-spinner alternative-text="Processing..." size="medium"></lightning-spinner>
+                </div>
+            </template>
+
+            <!-- Status Messages -->
+            <template if:true={resultMessage}>
+                <div class={resultClass}>
+                    <p>{resultMessage}</p>
+                </div>
+            </template>
+
+            <!-- Scenario Grid -->
+            <template if:true={scenarios}>
+                <lightning-layout multiple-rows="true">
+                    <template for:each={scenarios} for:item="scenario">
+                        <lightning-layout-item key={scenario.name} size="4" padding="around-small">
+                            <div class={scenario.cardClass}>
+                                <div class="slds-p-around_medium">
+                                    <!-- Header -->
+                                    <div class="slds-grid slds-grid_align-spread slds-m-bottom_small">
+                                        <div class="slds-grid slds-grid_vertical-align-center">
+                                            <lightning-icon
+                                                icon-name={scenario.icon}
+                                                size="small"
+                                                class="slds-m-right_small">
+                                            </lightning-icon>
+                                            <h3 class="slds-text-heading_small">{scenario.label}</h3>
+                                        </div>
+                                        <template if:true={scenario.isApplied}>
+                                            <lightning-badge label="Applied" class="slds-badge slds-theme_success"></lightning-badge>
+                                        </template>
+                                    </div>
+
+                                    <!-- Description -->
+                                    <p class="slds-text-body_small slds-m-bottom_small">{scenario.description}</p>
+
+                                    <!-- Personas -->
+                                    <div class="slds-m-bottom_medium">
+                                        <template for:each={scenario.personas} for:item="persona">
+                                            <lightning-badge key={persona} label={persona} class="slds-m-right_xx-small slds-m-bottom_xx-small"></lightning-badge>
+                                        </template>
+                                    </div>
+
+                                    <!-- Action Button -->
+                                    <template if:false={scenario.isApplied}>
+                                        <lightning-button
+                                            variant="brand"
+                                            label="Apply Scenario"
+                                            icon-name="utility:check"
+                                            data-scenario={scenario.name}
+                                            onclick={handleApply}
+                                            disabled={isLoading}
+                                            aria-label={scenario.applyAriaLabel}>
+                                        </lightning-button>
+                                    </template>
+                                    <template if:true={scenario.isApplied}>
+                                        <lightning-button
+                                            variant="destructive-text"
+                                            label="Remove Scenario"
+                                            icon-name="utility:close"
+                                            data-scenario={scenario.name}
+                                            onclick={handleRemove}
+                                            disabled={isLoading}
+                                            aria-label={scenario.removeAriaLabel}>
+                                        </lightning-button>
+                                    </template>
+                                </div>
+                            </div>
+                        </lightning-layout-item>
+                    </template>
+                </lightning-layout>
+            </template>
+
+            <!-- Empty State -->
+            <template if:false={scenarios}>
+                <template if:false={isLoading}>
+                    <div class="slds-illustration slds-illustration_small slds-text-align_center slds-p-around_large">
+                        <p class="slds-text-color_weak">No scenarios available.</p>
+                    </div>
+                </template>
+            </template>
+        </div>
+    </lightning-card>
+</template>

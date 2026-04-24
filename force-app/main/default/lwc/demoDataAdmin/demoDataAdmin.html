@@ -1,0 +1,32 @@
+<template>
+    <div class="slds-card slds-p-around_large">
+        <div class="slds-m-bottom_large slds-text-align_center">
+            <div class="slds-m-bottom_x-small">
+                <lightning-icon icon-name="standard:activations" size="large"></lightning-icon>
+            </div>
+            <h1 class="slds-text-heading_large slds-m-bottom_xx-small">AFLSCE Demo Data Starter Kit</h1>
+            <p class="slds-text-body_regular slds-text-color_weak">
+                Create realistic demo data for Agentforce for Life Sciences
+            </p>
+        </div>
+
+        <lightning-tabset variant="scoped" active-tab-value={activeTab}>
+            <lightning-tab label="Territory Setup" value="territory"
+                           icon-name="standard:location">
+                <c-territory-setup></c-territory-setup>
+            </lightning-tab>
+            <lightning-tab label="Accounts &amp; Providers" value="accounts"
+                           icon-name="standard:account">
+                <c-account-provider-setup></c-account-provider-setup>
+            </lightning-tab>
+            <lightning-tab label="Contact Points" value="contacts"
+                           icon-name="standard:contact">
+                <c-contact-point-setup></c-contact-point-setup>
+            </lightning-tab>
+            <lightning-tab label="Scenario Builder" value="scenarios"
+                           icon-name="standard:strategy">
+                <c-scenario-builder></c-scenario-builder>
+            </lightning-tab>
+        </lightning-tabset>
+    </div>
+</template>
