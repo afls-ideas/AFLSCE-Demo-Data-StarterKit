@@ -63,6 +63,19 @@
                     <p>{resultMessage}</p>
                 </div>
             </template>
+
+            <!-- Territory Hierarchy Tree -->
+            <template if:true={hasTreeItems}>
+                <div class="slds-m-top_medium">
+                    <h3 class="slds-text-heading_small slds-m-bottom_x-small">Territory Hierarchy</h3>
+                    <div class="slds-box slds-p-around_small" style="max-height: 500px; overflow-y: auto;">
+                        <lightning-tree
+                            items={treeItems}
+                            header="">
+                        </lightning-tree>
+                    </div>
+                </div>
+            </template>
         </div>
     </lightning-card>
 </template>

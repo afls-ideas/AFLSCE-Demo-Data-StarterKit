@@ -86,6 +86,53 @@ public with sharing class DemoTerritoryController {
         }
     }
 
+    @AuraEnabled(cacheable=true)
+    public static List<TerritoryNode> getHierarchy() {
+        List<Territory2> allTerritories = [
+            SELECT Id, Name, DeveloperName, ParentTerritory2Id
+            FROM Territory2
+            WHERE Territory2Model.DeveloperName = :MODEL_DEV_NAME
+            ORDER BY Name
+        ];
+
+        if (allTerritories.isEmpty()) {
+            return new List<TerritoryNode>();
+        }
+
+        Map<Id, TerritoryNode> nodeMap = new Map<Id, TerritoryNode>();
+        for (Territory2 t : allTerritories) {
+            TerritoryNode node = new TerritoryNode();
+            node.label = t.Name;
+            node.name = t.DeveloperName;
+            node.expanded = false;
+            node.items = new List<TerritoryNode>();
+            nodeMap.put(t.Id, node);
+        }
+
+        List<TerritoryNode> roots = new List<TerritoryNode>();
+        for (Territory2 t : allTerritories) {
+            TerritoryNode node = nodeMap.get(t.Id);
+            if (t.ParentTerritory2Id != null && nodeMap.containsKey(t.ParentTerritory2Id)) {
+                nodeMap.get(t.ParentTerritory2Id).items.add(node);
+            } else {
+                roots.add(node);
+            }
+        }
+
+        for (TerritoryNode root : roots) {
+            root.expanded = true;
+        }
+
+        return roots;
+    }
+
+    public class TerritoryNode {
+        @AuraEnabled public String label;
+        @AuraEnabled public String name;
+        @AuraEnabled public Boolean expanded;
+        @AuraEnabled public List<TerritoryNode> items;
+    }
+
     // ── Model & Type Helpers ────────────────────────────────────────────
 
     private static Territory2Model ensureActiveModel() {

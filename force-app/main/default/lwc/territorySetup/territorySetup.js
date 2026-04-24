@@ -2,6 +2,7 @@ import { LightningElement, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
 import getStatus from '@salesforce/apex/DemoTerritoryController.getStatus';
+import getHierarchy from '@salesforce/apex/DemoTerritoryController.getHierarchy';
 import createTerritoryHierarchy from '@salesforce/apex/DemoTerritoryController.createTerritoryHierarchy';
 import deleteAllTerritories from '@salesforce/apex/DemoTerritoryController.deleteAllTerritories';
 
@@ -12,6 +13,8 @@ export default class TerritorySetup extends LightningElement {
     resultMessage;
     isSuccess = false;
     wiredStatusResult;
+    wiredHierarchyResult;
+    treeItems;
 
     @wire(getStatus)
     wiredStatus(result) {
@@ -23,6 +26,20 @@ export default class TerritorySetup extends LightningElement {
             this.statusError = result.error.body ? result.error.body.message : 'Unable to retrieve status.';
             this.statusData = undefined;
         }
+    }
+
+    @wire(getHierarchy)
+    wiredHierarchy(result) {
+        this.wiredHierarchyResult = result;
+        if (result.data) {
+            this.treeItems = result.data;
+        } else if (result.error) {
+            this.treeItems = undefined;
+        }
+    }
+
+    get hasTreeItems() {
+        return this.treeItems && this.treeItems.length > 0;
     }
 
     get resultClass() {
@@ -58,6 +75,7 @@ export default class TerritorySetup extends LightningElement {
         } finally {
             this.isLoading = false;
             await refreshApex(this.wiredStatusResult);
+            await refreshApex(this.wiredHierarchyResult);
         }
     }
 
@@ -88,6 +106,7 @@ export default class TerritorySetup extends LightningElement {
         } finally {
             this.isLoading = false;
             await refreshApex(this.wiredStatusResult);
+            await refreshApex(this.wiredHierarchyResult);
         }
     }
 }
