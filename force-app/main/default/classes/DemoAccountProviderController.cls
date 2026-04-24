@@ -338,7 +338,6 @@ public with sharing class DemoAccountProviderController {
     private static SObject makeHCP(Schema.SObjectType hcpType, String name, String classification, Id accountId) {
         SObject hcp = hcpType.newSObject();
         hcp.put('Name', name);
-        hcp.put('Classification', classification);
         hcp.put('SourceSystem', DEMO_TAG);
         hcp.put('IsActive', true);
         if (accountId != null) {
