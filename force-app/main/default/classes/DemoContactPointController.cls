@@ -2,258 +2,255 @@
  * DemoContactPointController
  *
  * Creates ContactPointAddress, ContactPointEmail, ContactPointPhone,
- * ContactPointSocial, and BusinessLicense records tied to existing
- * Account and HealthcareProvider records tagged with 'AFLSCE-Demo-Data'.
+ * ContactPointSocial, and BusinessLicense records in batches to stay
+ * within SOQL governor limits imposed by managed-package triggers.
  *
- * Tagging strategy:
- *   - Accounts: Account.Site = 'AFLSCE-Demo-Data'
- *   - HealthcareProviders: SourceSystem = 'AFLSCE-Demo-Data'
- *   - BusinessLicenses: Identifier = 'AFLSCE-Demo-Data'
- *
- * Callable from LWC via @AuraEnabled methods.
+ * Each @AuraEnabled method accepts an offset and processes BATCH_SIZE
+ * accounts per call. The LWC calls repeatedly until hasMore = false.
  */
 public with sharing class DemoContactPointController {
 
     private static final String DEMO_TAG = 'AFLSCE-Demo-Data';
+    private static final Integer BATCH_SIZE = 15;
 
     // ──────────────────────────────────────────────────────────
-    // Public AuraEnabled methods
+    // Batch-style create methods — each returns JSON:
+    //   { "created": N, "total": N, "hasMore": true/false, "errors": [] }
     // ──────────────────────────────────────────────────────────
 
     @AuraEnabled
-    public static String createContactPoints() {
+    public static String createAddressBatch(Integer batchOffset) {
         try {
-            List<Account> accounts = queryAccounts();
-            List<SObject> hcps = queryHealthcareProviders();
+            List<Account> batch = queryAccountBatch(batchOffset);
+            if (batch.isEmpty()) return batchResult(0, 0, false, new List<String>());
+            Integer total = countDemoAccounts();
 
-            if (accounts.isEmpty() && hcps.isEmpty()) {
-                return 'No records found with AFLSCE-Demo-Data tag.';
-            }
+            List<ContactPointAddress> records = buildAddresses(batch);
+            Database.SaveResult[] sr = Database.insert(records, false);
+            List<String> errors = new List<String>();
+            collectErrors(sr, records, errors);
+            Integer created = countSuccesses(sr);
 
-            Map<String, Boolean> available = checkObjectAvailability();
-
-            List<String> results = new List<String>();
-            Integer totalCreated = 0;
-
-            // ContactPointAddress
-            if (available.get('ContactPointAddress') == true) {
-                List<ContactPointAddress> addresses = buildAddresses(accounts);
-                if (!addresses.isEmpty()) {
-                    List<Database.SaveResult> sr = Database.insert(addresses, false);
-                    Integer cnt = countSuccesses(sr);
-                    totalCreated += cnt;
-                    results.add('ContactPointAddress: ' + cnt + '/' + addresses.size());
-                }
-            } else {
-                results.add('ContactPointAddress: object not available');
-            }
-
-            // ContactPointEmail
-            if (available.get('ContactPointEmail') == true) {
-                List<ContactPointEmail> emails = buildEmails(accounts, hcps);
-                if (!emails.isEmpty()) {
-                    List<Database.SaveResult> sr = Database.insert(emails, false);
-                    Integer cnt = countSuccesses(sr);
-                    totalCreated += cnt;
-                    results.add('ContactPointEmail: ' + cnt + '/' + emails.size());
-                }
-            } else {
-                results.add('ContactPointEmail: object not available');
-            }
-
-            // ContactPointPhone
-            if (available.get('ContactPointPhone') == true) {
-                List<ContactPointPhone> phones = buildPhones(accounts, hcps);
-                if (!phones.isEmpty()) {
-                    List<Database.SaveResult> sr = Database.insert(phones, false);
-                    Integer cnt = countSuccesses(sr);
-                    totalCreated += cnt;
-                    results.add('ContactPointPhone: ' + cnt + '/' + phones.size());
-                }
-            } else {
-                results.add('ContactPointPhone: object not available');
-            }
-
-            // ContactPointSocial — dynamic SObject since it may not exist
-            if (available.get('ContactPointSocial') == true) {
-                List<SObject> socials = buildSocials(accounts);
-                if (!socials.isEmpty()) {
-                    List<Database.SaveResult> sr = Database.insert(socials, false);
-                    Integer cnt = countSuccesses(sr);
-                    totalCreated += cnt;
-                    results.add('ContactPointSocial: ' + cnt + '/' + socials.size());
-                }
-            } else {
-                results.add('ContactPointSocial: object not available');
-            }
-
-            // BusinessLicense
-            if (available.get('BusinessLicense') == true) {
-                List<SObject> licenses = buildBusinessLicenses(accounts);
-                if (!licenses.isEmpty()) {
-                    List<Database.SaveResult> sr = Database.insert(licenses, false);
-                    Integer cnt = countSuccesses(sr);
-                    totalCreated += cnt;
-                    results.add('BusinessLicense: ' + cnt + '/' + licenses.size());
-                }
-            } else {
-                results.add('BusinessLicense: object not available');
-            }
-
-            return 'Created ' + totalCreated + ' records. Details: ' + String.join(results, '; ');
-
+            Boolean hasMore = (batchOffset + BATCH_SIZE) < total;
+            return batchResult(created, records.size(), hasMore, errors);
         } catch (Exception e) {
-            throw new AuraHandledException(
-                'Error creating contact points: ' + e.getMessage()
-            );
+            throw new AuraHandledException('Error creating addresses: ' + e.getMessage());
         }
     }
+
+    @AuraEnabled
+    public static String createEmailBatch(Integer batchOffset) {
+        try {
+            List<Account> batch = queryAccountBatch(batchOffset);
+            List<SObject> hcpBatch = queryHcpBatch(batchOffset);
+            if (batch.isEmpty() && hcpBatch.isEmpty()) return batchResult(0, 0, false, new List<String>());
+
+            Integer totalAccts = countDemoAccounts();
+            Integer totalHcps = countDemoHcps();
+            Integer totalRecords = totalAccts + totalHcps;
+
+            List<ContactPointEmail> records = buildEmails(batch, hcpBatch);
+            Database.SaveResult[] sr = Database.insert(records, false);
+            List<String> errors = new List<String>();
+            collectErrors(sr, records, errors);
+            Integer created = countSuccesses(sr);
+
+            Boolean hasMore = (batchOffset + BATCH_SIZE) < Math.max(totalAccts, totalHcps);
+            return batchResult(created, records.size(), hasMore, errors);
+        } catch (Exception e) {
+            throw new AuraHandledException('Error creating emails: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static String createPhoneBatch(Integer batchOffset) {
+        try {
+            List<Account> batch = queryAccountBatch(batchOffset);
+            List<SObject> hcpBatch = queryHcpBatch(batchOffset);
+            if (batch.isEmpty() && hcpBatch.isEmpty()) return batchResult(0, 0, false, new List<String>());
+
+            Integer totalAccts = countDemoAccounts();
+            Integer totalHcps = countDemoHcps();
+
+            List<ContactPointPhone> records = buildPhones(batch, hcpBatch);
+            Database.SaveResult[] sr = Database.insert(records, false);
+            List<String> errors = new List<String>();
+            collectErrors(sr, records, errors);
+            Integer created = countSuccesses(sr);
+
+            Boolean hasMore = (batchOffset + BATCH_SIZE) < Math.max(totalAccts, totalHcps);
+            return batchResult(created, records.size(), hasMore, errors);
+        } catch (Exception e) {
+            throw new AuraHandledException('Error creating phones: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static String createSocialBatch(Integer batchOffset) {
+        try {
+            Schema.SObjectType socialType = Schema.getGlobalDescribe().get('contactpointsocial');
+            if (socialType == null) return batchResult(0, 0, false, new List<String>{ 'ContactPointSocial not available' });
+
+            List<Account> batch = queryOrgAccountBatch(batchOffset);
+            if (batch.isEmpty()) return batchResult(0, 0, false, new List<String>());
+            Integer total = countOrgAccounts();
+
+            List<SObject> records = buildSocials(batch);
+            if (records.isEmpty()) {
+                Boolean hasMore = (batchOffset + BATCH_SIZE) < total;
+                return batchResult(0, 0, hasMore, new List<String>());
+            }
+            Database.SaveResult[] sr = Database.insert(records, false);
+            List<String> errors = new List<String>();
+            collectErrors(sr, records, errors);
+            Integer created = countSuccesses(sr);
+
+            Boolean hasMore = (batchOffset + BATCH_SIZE) < total;
+            return batchResult(created, records.size(), hasMore, errors);
+        } catch (Exception e) {
+            throw new AuraHandledException('Error creating socials: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static String createLicenseBatch(Integer batchOffset) {
+        try {
+            Schema.SObjectType blType = Schema.getGlobalDescribe().get('businesslicense');
+            if (blType == null) return batchResult(0, 0, false, new List<String>{ 'BusinessLicense not available' });
+
+            List<Account> batch = queryOrgAccountBatch(batchOffset);
+            if (batch.isEmpty()) return batchResult(0, 0, false, new List<String>());
+            Integer total = countOrgAccounts();
+
+            List<SObject> records = buildBusinessLicenses(batch);
+            if (records.isEmpty()) {
+                Boolean hasMore = (batchOffset + BATCH_SIZE) < total;
+                return batchResult(0, 0, hasMore, new List<String>());
+            }
+            Database.SaveResult[] sr = Database.insert(records, false);
+            List<String> errors = new List<String>();
+            collectErrors(sr, records, errors);
+            Integer created = countSuccesses(sr);
+
+            Boolean hasMore = (batchOffset + BATCH_SIZE) < total;
+            return batchResult(created, records.size(), hasMore, errors);
+        } catch (Exception e) {
+            throw new AuraHandledException('Error creating licenses: ' + e.getMessage());
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Status + Delete
+    // ──────────────────────────────────────────────────────────
 
     @AuraEnabled(cacheable=true)
     public static String getStatus() {
         try {
-            Map<String, Boolean> available = checkObjectAvailability();
             List<String> counts = new List<String>();
 
-            // Get tagged account IDs first to avoid semi-join with OR
-            List<Account> taggedAccounts = queryAccounts();
             Set<Id> accountIds = new Set<Id>();
-            for (Account a : taggedAccounts) {
+            for (Account a : [SELECT Id FROM Account WHERE Site = :DEMO_TAG]) {
                 accountIds.add(a.Id);
             }
 
-            if (available.get('ContactPointAddress') == true && !accountIds.isEmpty()) {
-                Integer cnt = [SELECT COUNT() FROM ContactPointAddress WHERE ParentId IN :accountIds];
-                counts.add('ContactPointAddress: ' + cnt);
+            if (!accountIds.isEmpty()) {
+                counts.add('Addresses: ' + [SELECT COUNT() FROM ContactPointAddress WHERE ParentId IN :accountIds]);
+                counts.add('Emails: ' + [SELECT COUNT() FROM ContactPointEmail WHERE ParentId IN :accountIds]);
+                counts.add('Phones: ' + [SELECT COUNT() FROM ContactPointPhone WHERE ParentId IN :accountIds]);
             }
-            if (available.get('ContactPointEmail') == true && !accountIds.isEmpty()) {
-                Integer cnt = [SELECT COUNT() FROM ContactPointEmail WHERE ParentId IN :accountIds];
-                counts.add('ContactPointEmail: ' + cnt);
-            }
-            if (available.get('ContactPointPhone') == true && !accountIds.isEmpty()) {
-                Integer cnt = [SELECT COUNT() FROM ContactPointPhone WHERE ParentId IN :accountIds];
-                counts.add('ContactPointPhone: ' + cnt);
-            }
-            if (available.get('BusinessLicense') == true) {
+
+            Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+            if (gd.containsKey('businesslicense')) {
                 Integer cnt = Database.countQuery(
-                    'SELECT COUNT() FROM BusinessLicense WHERE Identifier = \'' + DEMO_TAG + '\''
+                    'SELECT COUNT() FROM BusinessLicense WHERE Identifier LIKE \'' + String.escapeSingleQuotes(DEMO_TAG) + '%\''
                 );
-                counts.add('BusinessLicense: ' + cnt);
+                counts.add('Licenses: ' + cnt);
             }
 
-            return counts.isEmpty() ? 'No contact point objects available.' : String.join(counts, '; ');
-
+            return counts.isEmpty() ? 'No contact points found.' : String.join(counts, ', ');
         } catch (Exception e) {
-            throw new AuraHandledException(
-                'Error getting status: ' + e.getMessage()
-            );
+            throw new AuraHandledException('Error getting status: ' + e.getMessage());
         }
     }
 
     @AuraEnabled
-    public static String deleteContactPoints() {
+    public static String deleteContactPointBatch(String objectType) {
         try {
-            // Get tagged account IDs first to avoid semi-join with OR
-            List<Account> taggedAccounts = queryAccounts();
             Set<Id> accountIds = new Set<Id>();
-            for (Account a : taggedAccounts) {
+            for (Account a : [SELECT Id FROM Account WHERE Site = :DEMO_TAG]) {
                 accountIds.add(a.Id);
             }
 
-            Map<String, Boolean> available = checkObjectAvailability();
-            Integer totalDeleted = 0;
+            Integer deleted = 0;
+            String escapedTag = String.escapeSingleQuotes(DEMO_TAG);
 
-            if (available.get('ContactPointAddress') == true && !accountIds.isEmpty()) {
-                List<ContactPointAddress> recs = [
-                    SELECT Id FROM ContactPointAddress
-                    WHERE ParentId IN :accountIds
-                ];
-                if (!recs.isEmpty()) {
-                    List<Database.DeleteResult> dr = Database.delete(recs, false);
-                    totalDeleted += countDeleteSuccesses(dr);
-                }
+            if (objectType == 'ContactPointAddress' && !accountIds.isEmpty()) {
+                List<ContactPointAddress> recs = [SELECT Id FROM ContactPointAddress WHERE ParentId IN :accountIds];
+                if (!recs.isEmpty()) { deleted += countDeleteSuccesses(Database.delete(recs, false)); }
+            } else if (objectType == 'ContactPointEmail' && !accountIds.isEmpty()) {
+                List<ContactPointEmail> recs = [SELECT Id FROM ContactPointEmail WHERE ParentId IN :accountIds];
+                if (!recs.isEmpty()) { deleted += countDeleteSuccesses(Database.delete(recs, false)); }
+            } else if (objectType == 'ContactPointPhone' && !accountIds.isEmpty()) {
+                List<ContactPointPhone> recs = [SELECT Id FROM ContactPointPhone WHERE ParentId IN :accountIds];
+                if (!recs.isEmpty()) { deleted += countDeleteSuccesses(Database.delete(recs, false)); }
+            } else if (objectType == 'ContactPointSocial') {
+                List<SObject> recs = Database.query('SELECT Id FROM ContactPointSocial WHERE SourceSystemName = \'' + escapedTag + '\'');
+                if (!recs.isEmpty()) { deleted += countDeleteSuccesses(Database.delete(recs, false)); }
+            } else if (objectType == 'BusinessLicense') {
+                List<SObject> recs = Database.query('SELECT Id FROM BusinessLicense WHERE Identifier LIKE \'' + escapedTag + '%\'');
+                if (!recs.isEmpty()) { deleted += countDeleteSuccesses(Database.delete(recs, false)); }
             }
 
-            if (available.get('ContactPointEmail') == true && !accountIds.isEmpty()) {
-                List<ContactPointEmail> recs = [
-                    SELECT Id FROM ContactPointEmail
-                    WHERE ParentId IN :accountIds
-                ];
-                if (!recs.isEmpty()) {
-                    List<Database.DeleteResult> dr = Database.delete(recs, false);
-                    totalDeleted += countDeleteSuccesses(dr);
-                }
-            }
-
-            if (available.get('ContactPointPhone') == true && !accountIds.isEmpty()) {
-                List<ContactPointPhone> recs = [
-                    SELECT Id FROM ContactPointPhone
-                    WHERE ParentId IN :accountIds
-                ];
-                if (!recs.isEmpty()) {
-                    List<Database.DeleteResult> dr = Database.delete(recs, false);
-                    totalDeleted += countDeleteSuccesses(dr);
-                }
-            }
-
-            if (available.get('ContactPointSocial') == true && !accountIds.isEmpty()) {
-                List<SObject> recs = Database.query(
-                    'SELECT Id FROM ContactPointSocial WHERE ParentId IN :accountIds'
-                );
-                if (!recs.isEmpty()) {
-                    List<Database.DeleteResult> dr = Database.delete(recs, false);
-                    totalDeleted += countDeleteSuccesses(dr);
-                }
-            }
-
-            if (available.get('BusinessLicense') == true) {
-                List<SObject> recs = Database.query(
-                    'SELECT Id FROM BusinessLicense WHERE Identifier = \'' + DEMO_TAG + '\''
-                );
-                if (!recs.isEmpty()) {
-                    List<Database.DeleteResult> dr = Database.delete(recs, false);
-                    totalDeleted += countDeleteSuccesses(dr);
-                }
-            }
-
-            return 'Deleted ' + totalDeleted + ' contact point and license records.';
-
+            return String.valueOf(deleted);
         } catch (Exception e) {
-            throw new AuraHandledException(
-                'Error deleting contact points: ' + e.getMessage()
-            );
+            throw new AuraHandledException('Error deleting ' + objectType + ': ' + e.getMessage());
         }
     }
 
     // ──────────────────────────────────────────────────────────
-    // Query helpers
+    // Query helpers with LIMIT/OFFSET for batching
     // ──────────────────────────────────────────────────────────
 
-    private static List<Account> queryAccounts() {
+    private static List<Account> queryAccountBatch(Integer offset) {
         return [
             SELECT Id, Name, BillingStreet, BillingCity, BillingState,
                    BillingPostalCode, BillingCountry, Type, Phone, Site
             FROM Account
             WHERE Site = :DEMO_TAG
             ORDER BY Name
+            LIMIT :BATCH_SIZE OFFSET :offset
         ];
     }
 
-    private static List<SObject> queryHealthcareProviders() {
+    private static List<Account> queryOrgAccountBatch(Integer offset) {
+        return [
+            SELECT Id, Name, BillingStreet, BillingCity, BillingState,
+                   BillingPostalCode, BillingCountry, Type, Phone, Site
+            FROM Account
+            WHERE Site = :DEMO_TAG AND IsPersonAccount = false
+            ORDER BY Name
+            LIMIT :BATCH_SIZE OFFSET :offset
+        ];
+    }
+
+    private static List<SObject> queryHcpBatch(Integer offset) {
+        String escapedTag = String.escapeSingleQuotes(DEMO_TAG);
         return Database.query(
-            'SELECT Id, Name, SourceSystem, AccountId FROM HealthcareProvider WHERE SourceSystem = \'' + DEMO_TAG + '\' ORDER BY Name'
+            'SELECT Id, Name, SourceSystem, AccountId FROM HealthcareProvider WHERE SourceSystem = \'' + escapedTag + '\' ORDER BY Name LIMIT ' + BATCH_SIZE + ' OFFSET ' + offset
         );
     }
 
-    private static Map<String, Boolean> checkObjectAvailability() {
-        Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
-        Map<String, Boolean> result = new Map<String, Boolean>();
-        result.put('ContactPointAddress', gd.containsKey('ContactPointAddress'));
-        result.put('ContactPointEmail', gd.containsKey('ContactPointEmail'));
-        result.put('ContactPointPhone', gd.containsKey('ContactPointPhone'));
-        result.put('ContactPointSocial', gd.containsKey('ContactPointSocial'));
-        result.put('BusinessLicense', gd.containsKey('BusinessLicense'));
-        return result;
+    private static Integer countDemoAccounts() {
+        return [SELECT COUNT() FROM Account WHERE Site = :DEMO_TAG];
+    }
+
+    private static Integer countOrgAccounts() {
+        return [SELECT COUNT() FROM Account WHERE Site = :DEMO_TAG AND IsPersonAccount = false];
+    }
+
+    private static Integer countDemoHcps() {
+        String escapedTag = String.escapeSingleQuotes(DEMO_TAG);
+        return Database.countQuery('SELECT COUNT() FROM HealthcareProvider WHERE SourceSystem = \'' + escapedTag + '\'');
     }
 
     // ──────────────────────────────────────────────────────────
@@ -264,77 +261,67 @@ public with sharing class DemoContactPointController {
         List<ContactPointAddress> addresses = new List<ContactPointAddress>();
 
         for (Account acct : accounts) {
-            // Use the Account's billing address if present; otherwise generate one
-            String street = acct.BillingStreet;
-            String city = acct.BillingCity;
-            String state = acct.BillingState;
-            String postalCode = acct.BillingPostalCode;
-            String country = acct.BillingCountry;
-
-            if (String.isBlank(street)) {
-                Map<String, String> addr = getRealisticAddress(country, acct.Name);
-                street = addr.get('street');
-                city = addr.get('city');
-                state = addr.get('state');
-                postalCode = addr.get('postalCode');
-                country = addr.get('country');
-            }
-
             ContactPointAddress cpa = new ContactPointAddress();
             cpa.Name = DEMO_TAG + ' - ' + acct.Name + ' Primary';
-            cpa.Street = street;
-            cpa.City = city;
-            cpa.State = state;
-            cpa.PostalCode = postalCode;
-            cpa.Country = country;
             cpa.AddressType = 'Mailing';
             cpa.ParentId = acct.Id;
+
+            if (String.isNotBlank(acct.BillingCity)) {
+                cpa.Street = acct.BillingStreet;
+                cpa.City = acct.BillingCity;
+                cpa.State = acct.BillingState;
+                cpa.PostalCode = acct.BillingPostalCode;
+                cpa.Country = acct.BillingCountry;
+            } else {
+                Map<String, String> addr = getRealisticAddress(acct.BillingCountry);
+                cpa.Street = addr.get('street');
+                cpa.City = addr.get('city');
+                if (addr.containsKey('state')) cpa.State = addr.get('state');
+                cpa.PostalCode = addr.get('postalCode');
+                cpa.Country = addr.get('country');
+            }
+
             addresses.add(cpa);
         }
 
         return addresses;
     }
 
-    private static Map<String, String> getRealisticAddress(String country, String contextName) {
+    private static Map<String, String> getRealisticAddress(String country) {
         Map<String, String> addr = new Map<String, String>();
 
         if (country == 'United Kingdom' || country == 'UK' || country == 'GB') {
             addr.put('street', '10 Harley Street');
             addr.put('city', 'London');
-            addr.put('state', 'England');
             addr.put('postalCode', 'W1G 9PF');
-            addr.put('country', 'United Kingdom');
+            addr.put('country', 'GB');
         } else if (country == 'France' || country == 'FR') {
             addr.put('street', '47 Boulevard de l\'Hopital');
             addr.put('city', 'Paris');
-            addr.put('state', 'Ile-de-France');
             addr.put('postalCode', '75013');
-            addr.put('country', 'France');
+            addr.put('country', 'FR');
         } else if (country == 'Germany' || country == 'DE') {
             addr.put('street', 'Chariteplatz 1');
             addr.put('city', 'Berlin');
-            addr.put('state', 'Berlin');
             addr.put('postalCode', '10117');
-            addr.put('country', 'Germany');
+            addr.put('country', 'DE');
         } else if (country == 'Italy' || country == 'IT') {
             addr.put('street', 'Via Francesco Sforza 35');
             addr.put('city', 'Milan');
-            addr.put('state', 'Lombardy');
+            addr.put('state', 'MI');
             addr.put('postalCode', '20122');
-            addr.put('country', 'Italy');
+            addr.put('country', 'IT');
         } else if (country == 'Spain' || country == 'ES') {
             addr.put('street', 'Calle del Prof Martin Lagos');
             addr.put('city', 'Madrid');
-            addr.put('state', 'Madrid');
             addr.put('postalCode', '28040');
-            addr.put('country', 'Spain');
+            addr.put('country', 'ES');
         } else {
-            // Default to US
             addr.put('street', '1250 Health Sciences Drive');
             addr.put('city', 'San Francisco');
             addr.put('state', 'CA');
             addr.put('postalCode', '94143');
-            addr.put('country', 'United States');
+            addr.put('country', 'US');
         }
 
         return addr;
@@ -360,14 +347,11 @@ public with sharing class DemoContactPointController {
             emails.add(cpe);
         }
 
-        // HCP professional emails — linked to the HCP's parent Account
         for (SObject hcp : hcps) {
-            String hcpName = (String) hcp.get('Name');
             Id hcpAccountId = (Id) hcp.get('AccountId');
-            if (hcpAccountId == null) {
-                continue; // Skip HCPs without a linked Account
-            }
+            if (hcpAccountId == null) continue;
 
+            String hcpName = (String) hcp.get('Name');
             String lastName = extractLastName(hcpName);
             String domain = sanitizeDomain(hcpName);
 
@@ -396,38 +380,32 @@ public with sharing class DemoContactPointController {
         for (Account acct : accounts) {
             String countryCode = acct.BillingCountry;
 
-            // Main business phone
             ContactPointPhone mainPhone = new ContactPointPhone();
             mainPhone.TelephoneNumber = generatePhone(countryCode, counter++);
-            mainPhone.PhoneType = 'Business';
+            mainPhone.PhoneType = 'Home';
             mainPhone.IsPrimary = true;
             mainPhone.ParentId = acct.Id;
             phones.add(mainPhone);
 
-            // Fax
-            ContactPointPhone fax = new ContactPointPhone();
-            fax.TelephoneNumber = generatePhone(countryCode, counter++);
-            fax.PhoneType = 'Fax';
-            fax.IsPrimary = false;
-            fax.ParentId = acct.Id;
-            phones.add(fax);
+            ContactPointPhone mobilePhone = new ContactPointPhone();
+            mobilePhone.TelephoneNumber = generatePhone(countryCode, counter++);
+            mobilePhone.PhoneType = 'Mobile';
+            mobilePhone.IsPrimary = false;
+            mobilePhone.ParentId = acct.Id;
+            phones.add(mobilePhone);
         }
 
         for (SObject hcp : hcps) {
             Id hcpAccountId = (Id) hcp.get('AccountId');
-            if (hcpAccountId == null) {
-                continue; // Skip HCPs without a linked Account
-            }
+            if (hcpAccountId == null) continue;
 
-            // Office phone
             ContactPointPhone office = new ContactPointPhone();
             office.TelephoneNumber = generatePhone('US', counter++);
-            office.PhoneType = 'Business';
+            office.PhoneType = 'Home';
             office.IsPrimary = true;
             office.ParentId = hcpAccountId;
             phones.add(office);
 
-            // Mobile
             ContactPointPhone mobile = new ContactPointPhone();
             mobile.TelephoneNumber = generatePhone('US', counter++);
             mobile.PhoneType = 'Mobile';
@@ -440,8 +418,6 @@ public with sharing class DemoContactPointController {
     }
 
     private static String generatePhone(String country, Integer seed) {
-        // Generate realistic-looking phone numbers per country
-        // Use seed to vary the last digits
         String last4 = String.valueOf(Math.mod(1000 + seed * 137, 9000) + 1000);
         String mid3 = String.valueOf(Math.mod(200 + seed * 53, 800) + 200);
 
@@ -457,28 +433,22 @@ public with sharing class DemoContactPointController {
         } else if (country == 'Spain' || country == 'ES') {
             return '+34-91' + mid3.substring(0, 1) + '-' + mid3.substring(1) + '-' + last4.substring(0, 3);
         } else {
-            // US default
             return '+1-415-' + mid3 + '-' + last4;
         }
     }
 
     // ──────────────────────────────────────────────────────────
-    // Build ContactPointSocial records (dynamic SObject)
+    // Build ContactPointSocial records
     // ──────────────────────────────────────────────────────────
 
     private static List<SObject> buildSocials(List<Account> accounts) {
         List<SObject> socials = new List<SObject>();
-        Schema.SObjectType socialType = Schema.getGlobalDescribe().get('ContactPointSocial');
-        if (socialType == null) {
-            return socials;
-        }
+        Schema.SObjectType socialType = Schema.getGlobalDescribe().get('contactpointsocial');
+        if (socialType == null) return socials;
 
         for (Account acct : accounts) {
             String acctType = acct.Type;
-            // Only create social profiles for hospitals and health systems
-            if (acctType == null) {
-                continue;
-            }
+            if (acctType == null) continue;
             String acctTypeLower = acctType.toLowerCase();
             if (!acctTypeLower.contains('hospital') && !acctTypeLower.contains('health system') &&
                 !acctTypeLower.contains('clinic') && !acctTypeLower.contains('medical center')) {
@@ -487,42 +457,48 @@ public with sharing class DemoContactPointController {
 
             String handle = sanitizeDomain(acct.Name);
 
-            // LinkedIn
+            String liHandle = 'linkedin.com/company/' + handle;
+            if (liHandle.length() > 40) liHandle = liHandle.substring(0, 40);
+
             SObject linkedin = socialType.newSObject();
-            linkedin.put('SocialNetworkProvider', 'LinkedIn');
-            linkedin.put('SocialHandle', 'linkedin.com/company/' + handle);
-            linkedin.put('ParentId', acct.Id);
+            linkedin.put('Name', acct.Name + ' LinkedIn');
+            linkedin.put('SocialPlatformProvider', 'LinkedIn');
+            linkedin.put('SocialHandleIdentifier', liHandle);
+            linkedin.put('SocialHandleName', handle);
+            linkedin.put('ParentReferenceRecordId', acct.Id);
+            linkedin.put('SourceSystemName', DEMO_TAG);
             socials.add(linkedin);
 
-            // Twitter / X
-            SObject twitter = socialType.newSObject();
-            twitter.put('SocialNetworkProvider', 'Twitter');
-            twitter.put('SocialHandle', '@' + handle);
-            twitter.put('ParentId', acct.Id);
-            socials.add(twitter);
+            String xHandle = '@' + handle;
+            if (xHandle.length() > 40) xHandle = xHandle.substring(0, 40);
+
+            SObject xRecord = socialType.newSObject();
+            xRecord.put('Name', acct.Name + ' X');
+            xRecord.put('SocialPlatformProvider', 'X');
+            xRecord.put('SocialHandleIdentifier', xHandle);
+            xRecord.put('SocialHandleName', handle);
+            xRecord.put('ParentReferenceRecordId', acct.Id);
+            xRecord.put('SourceSystemName', DEMO_TAG);
+            socials.add(xRecord);
         }
 
         return socials;
     }
 
     // ──────────────────────────────────────────────────────────
-    // Build BusinessLicense records (dynamic SObject)
+    // Build BusinessLicense records
     // ──────────────────────────────────────────────────────────
 
     private static List<SObject> buildBusinessLicenses(List<Account> accounts) {
         List<SObject> licenses = new List<SObject>();
-        Schema.SObjectType blType = Schema.getGlobalDescribe().get('BusinessLicense');
-        if (blType == null) {
-            return licenses;
-        }
+        Schema.SObjectType blType = Schema.getGlobalDescribe().get('businesslicense');
+        if (blType == null) return licenses;
 
         Integer counter = 0;
 
         for (Account acct : accounts) {
             String acctType = acct.Type;
-            if (acctType == null) {
-                continue;
-            }
+            if (acctType == null) continue;
             String acctTypeLower = acctType.toLowerCase();
 
             String country = String.isNotBlank(acct.BillingCountry) ? acct.BillingCountry : 'United States';
@@ -531,29 +507,31 @@ public with sharing class DemoContactPointController {
             if (acctTypeLower.contains('hospital') || acctTypeLower.contains('clinic') ||
                 acctTypeLower.contains('medical center') || acctTypeLower.contains('health system')) {
 
+                String licNum = generateFacilityLicenseNumber(country, state, counter++);
                 SObject bl = blType.newSObject();
                 bl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' Facility License');
-                bl.put('LicenseNumber', generateFacilityLicenseNumber(country, state, counter++));
+                bl.put('LicenseNumber', licNum);
                 bl.put('Status', 'Active');
                 bl.put('LicenseClass', 'Healthcare');
                 bl.put('Description', 'Medical Facility');
                 bl.put('IssueDate', Date.today().addYears(-2));
                 bl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(3), Time.newInstance(0, 0, 0, 0)));
-                bl.put('Identifier', DEMO_TAG);
+                bl.put('Identifier', DEMO_TAG + '-' + licNum);
                 bl.put('AccountId', acct.Id);
                 licenses.add(bl);
 
             } else if (acctTypeLower.contains('pharmacy')) {
 
+                String licNum = generatePharmacyLicenseNumber(country, state, counter++);
                 SObject bl = blType.newSObject();
                 bl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' Pharmacy License');
-                bl.put('LicenseNumber', generatePharmacyLicenseNumber(country, state, counter++));
+                bl.put('LicenseNumber', licNum);
                 bl.put('Status', 'Active');
                 bl.put('LicenseClass', 'Pharmaceutical');
                 bl.put('Description', 'Pharmacy');
                 bl.put('IssueDate', Date.today().addYears(-1));
                 bl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(2), Time.newInstance(0, 0, 0, 0)));
-                bl.put('Identifier', DEMO_TAG);
+                bl.put('Identifier', DEMO_TAG + '-' + licNum);
                 bl.put('AccountId', acct.Id);
                 licenses.add(bl);
             }
@@ -564,58 +542,46 @@ public with sharing class DemoContactPointController {
 
     private static String generateFacilityLicenseNumber(String country, String state, Integer seed) {
         String seq = String.valueOf(100000 + seed * 731).substring(0, 6);
-
-        if (country == 'United Kingdom' || country == 'UK' || country == 'GB') {
-            return 'CQC-' + seq;
-        } else if (country == 'France' || country == 'FR') {
-            return 'FINESS-' + seq;
-        } else if (country == 'Germany' || country == 'DE') {
-            return 'IK-' + seq;
-        } else if (country == 'Italy' || country == 'IT') {
-            return 'SSN-' + seq;
-        } else if (country == 'Spain' || country == 'ES') {
-            return 'REGA-' + seq;
-        } else {
-            // US: state-specific
-            String stateAbbr = (state != null && state.length() >= 2) ? state.substring(0, 2).toUpperCase() : 'CA';
-            return stateAbbr + '-MFL-' + seq;
-        }
+        if (country == 'United Kingdom' || country == 'UK' || country == 'GB') return 'CQC-' + seq;
+        if (country == 'France' || country == 'FR') return 'FINESS-' + seq;
+        if (country == 'Germany' || country == 'DE') return 'IK-' + seq;
+        if (country == 'Italy' || country == 'IT') return 'SSN-' + seq;
+        if (country == 'Spain' || country == 'ES') return 'REGA-' + seq;
+        String stateAbbr = (state != null && state.length() >= 2) ? state.substring(0, 2).toUpperCase() : 'CA';
+        return stateAbbr + '-MFL-' + seq;
     }
 
     private static String generatePharmacyLicenseNumber(String country, String state, Integer seed) {
         String seq = String.valueOf(200000 + seed * 419).substring(0, 6);
-
-        if (country == 'United Kingdom' || country == 'UK' || country == 'GB') {
-            return 'GPhC-' + seq;
-        } else if (country == 'France' || country == 'FR') {
-            return 'RPPS-' + seq;
-        } else if (country == 'Germany' || country == 'DE') {
-            return 'ApoG-' + seq;
-        } else if (country == 'Italy' || country == 'IT') {
-            return 'FOFI-' + seq;
-        } else if (country == 'Spain' || country == 'ES') {
-            return 'COF-' + seq;
-        } else {
-            String stateAbbr = (state != null && state.length() >= 2) ? state.substring(0, 2).toUpperCase() : 'CA';
-            return stateAbbr + '-PHY-' + seq;
-        }
+        if (country == 'United Kingdom' || country == 'UK' || country == 'GB') return 'GPhC-' + seq;
+        if (country == 'France' || country == 'FR') return 'RPPS-' + seq;
+        if (country == 'Germany' || country == 'DE') return 'ApoG-' + seq;
+        if (country == 'Italy' || country == 'IT') return 'FOFI-' + seq;
+        if (country == 'Spain' || country == 'ES') return 'COF-' + seq;
+        String stateAbbr = (state != null && state.length() >= 2) ? state.substring(0, 2).toUpperCase() : 'CA';
+        return stateAbbr + '-PHY-' + seq;
     }
 
     // ──────────────────────────────────────────────────────────
     // Utility methods
     // ──────────────────────────────────────────────────────────
 
+    private static String batchResult(Integer created, Integer attempted, Boolean hasMore, List<String> errors) {
+        return JSON.serialize(new Map<String, Object>{
+            'created' => created,
+            'attempted' => attempted,
+            'hasMore' => hasMore,
+            'errors' => errors
+        });
+    }
+
     private static String sanitizeDomain(String name) {
-        if (String.isBlank(name)) {
-            return 'unknown';
-        }
+        if (String.isBlank(name)) return 'unknown';
         return name.replaceAll('[^a-zA-Z0-9]', '').toLowerCase();
     }
 
     private static String extractLastName(String fullName) {
-        if (String.isBlank(fullName)) {
-            return 'provider';
-        }
+        if (String.isBlank(fullName)) return 'provider';
         List<String> parts = fullName.split('\\s+');
         return parts[parts.size() - 1].replaceAll('[^a-zA-Z]', '');
     }
@@ -623,19 +589,25 @@ public with sharing class DemoContactPointController {
     private static Integer countSuccesses(List<Database.SaveResult> results) {
         Integer count = 0;
         for (Database.SaveResult sr : results) {
-            if (sr.isSuccess()) {
-                count++;
-            }
+            if (sr.isSuccess()) count++;
         }
         return count;
+    }
+
+    private static void collectErrors(Database.SaveResult[] results, List<SObject> records, List<String> errors) {
+        for (Integer i = 0; i < results.size(); i++) {
+            if (!results[i].isSuccess() && errors.size() < 5) {
+                String name = '';
+                try { name = (String) records[i].get('Name'); } catch (Exception ex) { name = 'record ' + i; }
+                errors.add(name + ': ' + results[i].getErrors()[0].getMessage());
+            }
+        }
     }
 
     private static Integer countDeleteSuccesses(List<Database.DeleteResult> results) {
         Integer count = 0;
         for (Database.DeleteResult dr : results) {
-            if (dr.isSuccess()) {
-                count++;
-            }
+            if (dr.isSuccess()) count++;
         }
         return count;
     }

@@ -1,53 +1,69 @@
 /**
  * DemoAccountProviderController
  * Creates realistic demo data for Accounts and Healthcare Providers across 6 countries.
+ * Uses proper record types:
+ *   - Health_Care_Organization for hospitals, clinics, pharmacies, payers
+ *   - Health_Care_Provider (PersonAccount) for individual doctors
  * Tagging strategy:
- *   - Account.Site = 'AFLSCE-Demo-Data' (filterable string field)
+ *   - Account.Site = 'AFLSCE-Demo-Data'
  *   - HealthcareProvider.SourceSystem = 'AFLSCE-Demo-Data'
  *   - HealthcareProviderNpi.SourceSystem = 'AFLSCE-Demo-Data'
  *   - HealthcareProviderSpecialty.SourceSystem = 'AFLSCE-Demo-Data'
  *   - ProviderAffiliation.SourceSystemName = 'AFLSCE-Demo-Data'
  *   - CareSpecialty.Description = 'AFLSCE-Demo-Data'
- * All Health Cloud objects accessed dynamically via Schema.getGlobalDescribe().
  */
 public with sharing class DemoAccountProviderController {
 
     private static final String DEMO_TAG = 'AFLSCE-Demo-Data';
 
-    // ---------------------------------------------------------------------------
-    // AuraEnabled entry points
-    // ---------------------------------------------------------------------------
-
     @AuraEnabled
     public static String createAccountsAndProviders() {
         try {
-            List<Account> accounts = buildAccounts();
-            Database.SaveResult[] acctResults = Database.insert(accounts, false);
+            Id hcoRtId = Schema.SObjectType.Account.getRecordTypeInfosByDeveloperName().get('Health_Care_Organization').getRecordTypeId();
+            Id hcpRtId = Schema.SObjectType.Account.getRecordTypeInfosByDeveloperName().get('Health_Care_Provider').getRecordTypeId();
 
-            Map<String, Id> acctNameToId = new Map<String, Id>();
-            for (Integer i = 0; i < accounts.size(); i++) {
-                if (acctResults[i].isSuccess()) {
-                    acctNameToId.put(accounts[i].Name, acctResults[i].getId());
+            // 1. Create organization accounts (hospitals, clinics, payers, pharmacies)
+            List<Account> orgAccounts = buildOrganizationAccounts(hcoRtId);
+            Database.SaveResult[] orgResults = Database.insert(orgAccounts, false);
+
+            Map<String, Id> orgNameToId = new Map<String, Id>();
+            List<String> errors = new List<String>();
+            for (Integer i = 0; i < orgAccounts.size(); i++) {
+                if (orgResults[i].isSuccess()) {
+                    orgNameToId.put(orgAccounts[i].Name, orgResults[i].getId());
+                } else if (errors.size() < 5) {
+                    errors.add(orgAccounts[i].Name + ': ' + orgResults[i].getErrors()[0].getMessage());
                 }
             }
-            Integer acctSuccess = acctNameToId.size();
 
-            // Healthcare Provider objects (Health Cloud)
+            // 2. Create doctor PersonAccounts
+            List<Account> doctorAccounts = buildDoctorAccounts(hcpRtId);
+            Database.SaveResult[] docResults = Database.insert(doctorAccounts, false);
+
+            // PersonAccount Name = "FirstName LastName", key by full name
+            Map<String, Id> doctorNameToId = new Map<String, Id>();
+            for (Integer i = 0; i < doctorAccounts.size(); i++) {
+                if (docResults[i].isSuccess()) {
+                    String fullName = doctorAccounts[i].FirstName + ' ' + doctorAccounts[i].LastName;
+                    doctorNameToId.put(fullName, docResults[i].getId());
+                } else if (errors.size() < 5) {
+                    errors.add(doctorAccounts[i].LastName + ': ' + docResults[i].getErrors()[0].getMessage());
+                }
+            }
+
+            // Health Cloud objects
             Integer hcpSuccess = 0;
             Integer npiSuccess = 0;
             Integer specSuccess = 0;
             Integer afflSuccess = 0;
 
-            Boolean hasHCP = Schema.getGlobalDescribe().containsKey('healthcareprovider');
-            Boolean hasNpi = Schema.getGlobalDescribe().containsKey('healthcareprovidernpi');
-            Boolean hasSpec = Schema.getGlobalDescribe().containsKey('healthcareproviderspecialty');
-            Boolean hasAffl = Schema.getGlobalDescribe().containsKey('provideraffiliation');
-            Boolean hasCareSpec = Schema.getGlobalDescribe().containsKey('carespecialty');
+            Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
 
             Map<String, Id> hcpNameToId = new Map<String, Id>();
 
-            if (hasHCP) {
-                List<SObject> hcpRecords = buildHealthcareProviders(acctNameToId);
+            if (gd.containsKey('healthcareprovider')) {
+                // 3. Create HealthcareProvider records linked to doctor PersonAccounts
+                List<SObject> hcpRecords = buildHealthcareProviders(doctorNameToId);
                 Database.SaveResult[] hcpResults = Database.insert(hcpRecords, false);
                 for (Integer i = 0; i < hcpRecords.size(); i++) {
                     if (hcpResults[i].isSuccess()) {
@@ -56,16 +72,21 @@ public with sharing class DemoAccountProviderController {
                     }
                 }
 
-                if (hasNpi) {
+                // 4. NPIs
+                if (gd.containsKey('healthcareprovidernpi')) {
                     List<SObject> npiRecords = buildNpiRecords(hcpNameToId);
                     Database.SaveResult[] npiResults = Database.insert(npiRecords, false);
-                    for (Database.SaveResult sr : npiResults) {
-                        if (sr.isSuccess()) npiSuccess++;
+                    for (Integer i = 0; i < npiRecords.size(); i++) {
+                        if (npiResults[i].isSuccess()) {
+                            npiSuccess++;
+                        } else if (errors.size() < 10) {
+                            errors.add('NPI ' + npiRecords[i].get('Name') + ': ' + npiResults[i].getErrors()[0].getMessage());
+                        }
                     }
                 }
 
-                if (hasSpec && hasCareSpec) {
-                    // Create CareSpecialty records first, then link via SpecialtyId
+                // 5. Specialties
+                if (gd.containsKey('healthcareproviderspecialty') && gd.containsKey('carespecialty')) {
                     Map<String, Id> specNameToId = createCareSpecialties();
                     List<SObject> specRecords = buildSpecialtyRecords(hcpNameToId, specNameToId);
                     Database.SaveResult[] specResults = Database.insert(specRecords, false);
@@ -74,24 +95,25 @@ public with sharing class DemoAccountProviderController {
                     }
                 }
 
-                if (hasAffl) {
-                    List<SObject> afflRecords = buildAffiliations(hcpNameToId, acctNameToId);
-                    Database.SaveResult[] afflResults = Database.insert(afflRecords, false);
-                    for (Database.SaveResult sr : afflResults) {
-                        if (sr.isSuccess()) afflSuccess++;
-                    }
+                // 6. Affiliations: doctor PersonAccount -> organization
+                // Delegated to separate class due to Schema visibility issue
+                try {
+                    afflSuccess = DemoAffiliationHelper.createAffiliations(doctorNameToId, orgNameToId);
+                } catch (Exception afflEx) {
+                    errors.add('Affiliations: ' + afflEx.getMessage());
                 }
             }
 
-            String result = 'Demo data created successfully. '
-                + 'Accounts: ' + acctSuccess
+            String result = 'Demo data created. '
+                + 'Orgs: ' + orgNameToId.size()
+                + ', Doctors: ' + doctorNameToId.size()
                 + ', HCPs: ' + hcpSuccess
                 + ', NPIs: ' + npiSuccess
                 + ', Specialties: ' + specSuccess
                 + ', Affiliations: ' + afflSuccess;
 
-            if (!hasHCP) {
-                result += ' (HealthcareProvider objects not available in this org)';
+            if (!errors.isEmpty()) {
+                result += ' | Errors: ' + String.join(errors, '; ');
             }
             return result;
         } catch (Exception e) {
@@ -105,25 +127,28 @@ public with sharing class DemoAccountProviderController {
     @AuraEnabled(cacheable=true)
     public static String getStatus() {
         try {
-            Integer acctCount = [SELECT COUNT() FROM Account WHERE Site = :DEMO_TAG];
+            Integer orgCount = [SELECT COUNT() FROM Account WHERE Site = :DEMO_TAG AND IsPersonAccount = false];
+            Integer docCount = [SELECT COUNT() FROM Account WHERE Site = :DEMO_TAG AND IsPersonAccount = true];
 
-            String result = 'Demo Accounts: ' + acctCount;
+            String result = 'Orgs: ' + orgCount + ', Doctors: ' + docCount;
 
-            if (Schema.getGlobalDescribe().containsKey('healthcareprovider')) {
+            Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+            if (gd.containsKey('healthcareprovider')) {
                 String soql = 'SELECT COUNT() FROM HealthcareProvider WHERE SourceSystem = \'' + String.escapeSingleQuotes(DEMO_TAG) + '\'';
                 result += ', HCPs: ' + Database.countQuery(soql);
             }
-            if (Schema.getGlobalDescribe().containsKey('healthcareprovidernpi')) {
+            if (gd.containsKey('healthcareprovidernpi')) {
                 String soql = 'SELECT COUNT() FROM HealthcareProviderNpi WHERE SourceSystem = \'' + String.escapeSingleQuotes(DEMO_TAG) + '\'';
                 result += ', NPIs: ' + Database.countQuery(soql);
             }
-            if (Schema.getGlobalDescribe().containsKey('healthcareproviderspecialty')) {
+            if (gd.containsKey('healthcareproviderspecialty')) {
                 String soql = 'SELECT COUNT() FROM HealthcareProviderSpecialty WHERE SourceSystem = \'' + String.escapeSingleQuotes(DEMO_TAG) + '\'';
                 result += ', Specialties: ' + Database.countQuery(soql);
             }
-            if (Schema.getGlobalDescribe().containsKey('provideraffiliation')) {
-                String soql = 'SELECT COUNT() FROM ProviderAffiliation WHERE SourceSystemName = \'' + String.escapeSingleQuotes(DEMO_TAG) + '\'';
-                result += ', Affiliations: ' + Database.countQuery(soql);
+            try {
+                result += ', Affiliations: ' + DemoAffiliationHelper.countAffiliations();
+            } catch (Exception e) {
+                // Object not available
             }
             return result;
         } catch (Exception e) {
@@ -137,58 +162,46 @@ public with sharing class DemoAccountProviderController {
             Integer deleted = 0;
             String escapedTag = String.escapeSingleQuotes(DEMO_TAG);
 
-            // Delete child objects first (reverse order of creation)
-            // 1. Affiliations
-            if (Schema.getGlobalDescribe().containsKey('provideraffiliation')) {
-                String soql = 'SELECT Id FROM ProviderAffiliation WHERE SourceSystemName = \'' + escapedTag + '\'';
-                List<SObject> recs = Database.query(soql);
+            // Delete child objects first (reverse order)
+            try {
+                deleted += DemoAffiliationHelper.deleteAffiliations();
+            } catch (Exception e) { /* Object not available */ }
+
+            Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+
+            if (gd.containsKey('healthcareproviderspecialty')) {
+                List<SObject> recs = Database.query('SELECT Id FROM HealthcareProviderSpecialty WHERE SourceSystem = \'' + escapedTag + '\'');
                 if (!recs.isEmpty()) {
                     Database.DeleteResult[] dr = Database.delete(recs, false);
                     for (Database.DeleteResult r : dr) { if (r.isSuccess()) deleted++; }
                 }
             }
 
-            // 2. Specialties
-            if (Schema.getGlobalDescribe().containsKey('healthcareproviderspecialty')) {
-                String soql = 'SELECT Id FROM HealthcareProviderSpecialty WHERE SourceSystem = \'' + escapedTag + '\'';
-                List<SObject> recs = Database.query(soql);
+            if (gd.containsKey('healthcareprovidernpi')) {
+                List<SObject> recs = Database.query('SELECT Id FROM HealthcareProviderNpi WHERE SourceSystem = \'' + escapedTag + '\'');
                 if (!recs.isEmpty()) {
                     Database.DeleteResult[] dr = Database.delete(recs, false);
                     for (Database.DeleteResult r : dr) { if (r.isSuccess()) deleted++; }
                 }
             }
 
-            // 3. NPIs
-            if (Schema.getGlobalDescribe().containsKey('healthcareprovidernpi')) {
-                String soql = 'SELECT Id FROM HealthcareProviderNpi WHERE SourceSystem = \'' + escapedTag + '\'';
-                List<SObject> recs = Database.query(soql);
+            if (gd.containsKey('healthcareprovider')) {
+                List<SObject> recs = Database.query('SELECT Id FROM HealthcareProvider WHERE SourceSystem = \'' + escapedTag + '\'');
                 if (!recs.isEmpty()) {
                     Database.DeleteResult[] dr = Database.delete(recs, false);
                     for (Database.DeleteResult r : dr) { if (r.isSuccess()) deleted++; }
                 }
             }
 
-            // 4. HCPs
-            if (Schema.getGlobalDescribe().containsKey('healthcareprovider')) {
-                String soql = 'SELECT Id FROM HealthcareProvider WHERE SourceSystem = \'' + escapedTag + '\'';
-                List<SObject> recs = Database.query(soql);
+            if (gd.containsKey('carespecialty')) {
+                List<SObject> recs = Database.query('SELECT Id FROM CareSpecialty WHERE Description = \'' + escapedTag + '\'');
                 if (!recs.isEmpty()) {
                     Database.DeleteResult[] dr = Database.delete(recs, false);
                     for (Database.DeleteResult r : dr) { if (r.isSuccess()) deleted++; }
                 }
             }
 
-            // 5. CareSpecialty records
-            if (Schema.getGlobalDescribe().containsKey('carespecialty')) {
-                String soql = 'SELECT Id FROM CareSpecialty WHERE Description = \'' + escapedTag + '\'';
-                List<SObject> recs = Database.query(soql);
-                if (!recs.isEmpty()) {
-                    Database.DeleteResult[] dr = Database.delete(recs, false);
-                    for (Database.DeleteResult r : dr) { if (r.isSuccess()) deleted++; }
-                }
-            }
-
-            // 6. Accounts
+            // Delete accounts last (both orgs and person accounts)
             List<Account> accts = [SELECT Id FROM Account WHERE Site = :DEMO_TAG];
             if (!accts.isEmpty()) {
                 Database.DeleteResult[] dr = Database.delete(accts, false);
@@ -202,147 +215,176 @@ public with sharing class DemoAccountProviderController {
     }
 
     // ---------------------------------------------------------------------------
-    // Account builders
+    // Organization Account builders (Health_Care_Organization record type)
     // ---------------------------------------------------------------------------
 
-    private static List<Account> buildAccounts() {
+    private static List<Account> buildOrganizationAccounts(Id hcoRtId) {
         List<Account> accts = new List<Account>();
 
         // ---- United States ----
-        accts.add(makeAccount('Massachusetts General Hospital', '55 Fruit Street', 'Boston', 'MA', '02114', 'US', '+1 (617) 726-2000', 'https://www.massgeneral.org', 'Hospital', 'Premier academic medical center and teaching hospital of Harvard Medical School.'));
-        accts.add(makeAccount('Johns Hopkins Hospital', '1800 Orleans Street', 'Baltimore', 'MD', '21287', 'US', '+1 (410) 955-5000', 'https://www.hopkinsmedicine.org', 'Hospital', 'World-renowned research and teaching hospital.'));
-        accts.add(makeAccount('Cleveland Clinic', '9500 Euclid Avenue', 'Cleveland', 'OH', '44195', 'US', '+1 (216) 444-2200', 'https://www.clevelandclinic.org', 'Hospital', 'Nonprofit multispecialty academic medical center.'));
-        accts.add(makeAccount('Mayo Clinic', '200 First Street SW', 'Rochester', 'MN', '55905', 'US', '+1 (507) 284-2511', 'https://www.mayoclinic.org', 'Hospital', 'Academic medical center focused on integrated health care, education, and research.'));
-        accts.add(makeAccount('Memorial Sloan Kettering Cancer Center', '1275 York Avenue', 'New York', 'NY', '10065', 'US', '+1 (212) 639-2000', 'https://www.mskcc.org', 'Hospital', 'World-leading cancer treatment and research center.'));
-        accts.add(makeAccount('MD Anderson Cancer Center', '1515 Holcombe Boulevard', 'Houston', 'TX', '77030', 'US', '+1 (713) 792-2121', 'https://www.mdanderson.org', 'Hospital', 'Leading cancer center ranked #1 in cancer care.'));
-        accts.add(makeAccount('Kaiser Permanente', '1 Kaiser Plaza', 'Oakland', 'CA', '94612', 'US', '+1 (510) 271-5910', 'https://www.kaiserpermanente.org', 'Insurance', 'Largest managed care organization in the United States.'));
-        accts.add(makeAccount('UnitedHealth Group', '9900 Bren Road East', 'Minnetonka', 'MN', '55343', 'US', '+1 (952) 936-1300', 'https://www.unitedhealthgroup.com', 'Insurance', 'Diversified health care company and largest health insurer in the US.'));
-        accts.add(makeAccount('CVS Health', '1 CVS Drive', 'Woonsocket', 'RI', '02895', 'US', '+1 (401) 765-1500', 'https://www.cvshealth.com', 'Pharmacy', 'Largest pharmacy health care provider in the United States.'));
-        accts.add(makeAccount('Midtown Oncology Associates', '450 East 63rd Street', 'New York', 'NY', '10065', 'US', '+1 (212) 305-5098', 'https://www.midtownoncology.com', 'Clinic', 'Specialized oncology clinic offering comprehensive cancer care.'));
+        accts.add(makeOrg(hcoRtId, 'Massachusetts General Hospital', '55 Fruit Street', 'Boston', 'MA', '02114', 'US', '+1 (617) 726-2000', 'https://www.massgeneral.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Johns Hopkins Hospital', '1800 Orleans Street', 'Baltimore', 'MD', '21287', 'US', '+1 (410) 955-5000', 'https://www.hopkinsmedicine.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Cleveland Clinic', '9500 Euclid Avenue', 'Cleveland', 'OH', '44195', 'US', '+1 (216) 444-2200', 'https://www.clevelandclinic.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Mayo Clinic', '200 First Street SW', 'Rochester', 'MN', '55905', 'US', '+1 (507) 284-2511', 'https://www.mayoclinic.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Memorial Sloan Kettering Cancer Center', '1275 York Avenue', 'New York', 'NY', '10065', 'US', '+1 (212) 639-2000', 'https://www.mskcc.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'MD Anderson Cancer Center', '1515 Holcombe Boulevard', 'Houston', 'TX', '77030', 'US', '+1 (713) 792-2121', 'https://www.mdanderson.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Kaiser Permanente', '1 Kaiser Plaza', 'Oakland', 'CA', '94612', 'US', '+1 (510) 271-5910', 'https://www.kaiserpermanente.org', 'Insurance'));
+        accts.add(makeOrg(hcoRtId, 'UnitedHealth Group', '9900 Bren Road East', 'Minnetonka', 'MN', '55343', 'US', '+1 (952) 936-1300', 'https://www.unitedhealthgroup.com', 'Insurance'));
+        accts.add(makeOrg(hcoRtId, 'CVS Health', '1 CVS Drive', 'Woonsocket', 'RI', '02895', 'US', '+1 (401) 765-1500', 'https://www.cvshealth.com', 'Pharmacy'));
+        accts.add(makeOrg(hcoRtId, 'Midtown Oncology Associates', '450 East 63rd Street', 'New York', 'NY', '10065', 'US', '+1 (212) 305-5098', 'https://www.midtownoncology.com', 'Clinic'));
 
         // ---- United Kingdom ----
-        accts.add(makeAccount('Royal London Hospital', 'Whitechapel Road', 'London', 'England', 'E1 1FR', 'GB', '+44 20 7377 7000', 'https://www.bartshealth.nhs.uk', 'Hospital', 'Major teaching hospital and part of Barts Health NHS Trust.'));
-        accts.add(makeAccount('St Thomas\' Hospital', 'Westminster Bridge Road', 'London', 'England', 'SE1 7EH', 'GB', '+44 20 7188 7188', 'https://www.guysandstthomas.nhs.uk', 'Hospital', 'Leading NHS foundation trust teaching hospital.'));
-        accts.add(makeAccount('Addenbrooke\'s Hospital', 'Hills Road', 'Cambridge', 'England', 'CB2 0QQ', 'GB', '+44 1223 245151', 'https://www.cuh.nhs.uk', 'Hospital', 'Major university teaching hospital affiliated with Cambridge University.'));
-        accts.add(makeAccount('NHS England', 'Skipton House, 80 London Road', 'London', 'England', 'SE1 6LH', 'GB', '+44 300 311 2233', 'https://www.england.nhs.uk', 'Insurance', 'National health commissioning body for England.'));
-        accts.add(makeAccount('BUPA', '1 Angel Court', 'London', 'England', 'EC2R 7HJ', 'GB', '+44 345 600 8822', 'https://www.bupa.co.uk', 'Insurance', 'International healthcare group providing private medical insurance.'));
-        accts.add(makeAccount('Boots UK', 'Thane Road', 'Nottingham', 'England', 'NG2 3AA', 'GB', '+44 115 950 6111', 'https://www.boots.com', 'Pharmacy', 'Largest pharmacy chain in the United Kingdom.'));
+        accts.add(makeOrg(hcoRtId, 'Royal London Hospital', 'Whitechapel Road', 'London', null, 'E1 1FR', 'GB', '+44 20 7377 7000', 'https://www.bartshealth.nhs.uk', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'St Thomas\' Hospital', 'Westminster Bridge Road', 'London', null, 'SE1 7EH', 'GB', '+44 20 7188 7188', 'https://www.guysandstthomas.nhs.uk', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Addenbrooke\'s Hospital', 'Hills Road', 'Cambridge', null, 'CB2 0QQ', 'GB', '+44 1223 245151', 'https://www.cuh.nhs.uk', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'NHS England', 'Skipton House, 80 London Road', 'London', null, 'SE1 6LH', 'GB', '+44 300 311 2233', 'https://www.england.nhs.uk', 'Insurance'));
+        accts.add(makeOrg(hcoRtId, 'BUPA', '1 Angel Court', 'London', null, 'EC2R 7HJ', 'GB', '+44 345 600 8822', 'https://www.bupa.co.uk', 'Insurance'));
+        accts.add(makeOrg(hcoRtId, 'Boots UK', 'Thane Road', 'Nottingham', null, 'NG2 3AA', 'GB', '+44 115 950 6111', 'https://www.boots.com', 'Pharmacy'));
 
         // ---- France ----
-        accts.add(makeAccount('Hôpital Pitié-Salpêtrière', '47-83 Boulevard de l\'Hôpital', 'Paris', 'Île-de-France', '75013', 'FR', '+33 1 42 16 00 00', 'https://www.aphp.fr/pitie-salpetriere', 'Hospital', 'Largest teaching hospital in France, part of AP-HP.'));
-        accts.add(makeAccount('Hôpital Européen Georges-Pompidou', '20 Rue Leblanc', 'Paris', 'Île-de-France', '75015', 'FR', '+33 1 56 09 20 00', 'https://www.aphp.fr/hegp', 'Hospital', 'Modern university hospital specializing in cardiovascular care.'));
-        accts.add(makeAccount('Centre Hospitalier Universitaire de Lyon', '3 Quai des Célestins', 'Lyon', 'Auvergne-Rhône-Alpes', '69002', 'FR', '+33 4 72 11 69 11', 'https://www.chu-lyon.fr', 'Hospital', 'Major university hospital center in Lyon.'));
-        accts.add(makeAccount('Institut Gustave Roussy', '114 Rue Édouard-Vaillant', 'Villejuif', 'Île-de-France', '94805', 'FR', '+33 1 42 11 42 11', 'https://www.gustaveroussy.fr', 'Hospital', 'Leading European cancer research and treatment center.'));
-        accts.add(makeAccount('Assurance Maladie (CNAM)', '50 Avenue du Professeur André Lemierre', 'Paris', 'Île-de-France', '75020', 'FR', '+33 1 72 60 10 00', 'https://www.ameli.fr', 'Insurance', 'French national health insurance fund.'));
-        accts.add(makeAccount('Pharmacie du Forum des Halles', '101 Rue Berger', 'Paris', 'Île-de-France', '75001', 'FR', '+33 1 42 36 00 00', 'https://www.pharmacieforum.fr', 'Pharmacy', 'Large central Paris pharmacy.'));
+        accts.add(makeOrg(hcoRtId, 'Hôpital Pitié-Salpêtrière', '47-83 Boulevard de l\'Hôpital', 'Paris', null, '75013', 'FR', '+33 1 42 16 00 00', 'https://www.aphp.fr/pitie-salpetriere', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Hôpital Européen Georges-Pompidou', '20 Rue Leblanc', 'Paris', null, '75015', 'FR', '+33 1 56 09 20 00', 'https://www.aphp.fr/hegp', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Centre Hospitalier Universitaire de Lyon', '3 Quai des Célestins', 'Lyon', null, '69002', 'FR', '+33 4 72 11 69 11', 'https://www.chu-lyon.fr', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Institut Gustave Roussy', '114 Rue Édouard-Vaillant', 'Villejuif', null, '94805', 'FR', '+33 1 42 11 42 11', 'https://www.gustaveroussy.fr', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Assurance Maladie (CNAM)', '50 Avenue du Professeur André Lemierre', 'Paris', null, '75020', 'FR', '+33 1 72 60 10 00', 'https://www.ameli.fr', 'Insurance'));
+        accts.add(makeOrg(hcoRtId, 'Pharmacie du Forum des Halles', '101 Rue Berger', 'Paris', null, '75001', 'FR', '+33 1 42 36 00 00', 'https://www.pharmacieforum.fr', 'Pharmacy'));
 
         // ---- Germany ----
-        accts.add(makeAccount('Charité - Universitätsmedizin Berlin', 'Charitéplatz 1', 'Berlin', 'Berlin', '10117', 'DE', '+49 30 450 50', 'https://www.charite.de', 'Hospital', 'Largest university hospital in Europe.'));
-        accts.add(makeAccount('Universitätsklinikum Heidelberg', 'Im Neuenheimer Feld 672', 'Heidelberg', 'Baden-Württemberg', '69120', 'DE', '+49 6221 56 0', 'https://www.klinikum.uni-heidelberg.de', 'Hospital', 'Leading German university hospital with extensive research programs.'));
-        accts.add(makeAccount('Universitätsklinikum Hamburg-Eppendorf', 'Martinistraße 52', 'Hamburg', 'Hamburg', '20246', 'DE', '+49 40 7410 0', 'https://www.uke.de', 'Hospital', 'Renowned university medical center in Hamburg.'));
-        accts.add(makeAccount('Munich Heart Centre', 'Lazarettstraße 36', 'Munich', 'Bavaria', '80636', 'DE', '+49 89 1218 0', 'https://www.dhm.mhn.de', 'Clinic', 'Specialized cardiac center and clinic in Munich.'));
-        accts.add(makeAccount('AOK - Die Gesundheitskasse', 'Rosenthaler Straße 31', 'Berlin', 'Berlin', '10178', 'DE', '+49 800 265 0800', 'https://www.aok.de', 'Insurance', 'Largest statutory health insurance provider in Germany.'));
-        accts.add(makeAccount('DocMorris', 'Carl-Zeiss-Ring 4', 'Heerlen', 'North Rhine-Westphalia', '52078', 'DE', '+49 800 444 0200', 'https://www.docmorris.de', 'Pharmacy', 'Largest online pharmacy in Germany.'));
+        accts.add(makeOrg(hcoRtId, 'Charité - Universitätsmedizin Berlin', 'Charitéplatz 1', 'Berlin', null, '10117', 'DE', '+49 30 450 50', 'https://www.charite.de', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Universitätsklinikum Heidelberg', 'Im Neuenheimer Feld 672', 'Heidelberg', null, '69120', 'DE', '+49 6221 56 0', 'https://www.klinikum.uni-heidelberg.de', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Universitätsklinikum Hamburg-Eppendorf', 'Martinistraße 52', 'Hamburg', null, '20246', 'DE', '+49 40 7410 0', 'https://www.uke.de', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Munich Heart Centre', 'Lazarettstraße 36', 'Munich', null, '80636', 'DE', '+49 89 1218 0', 'https://www.dhm.mhn.de', 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'AOK - Die Gesundheitskasse', 'Rosenthaler Straße 31', 'Berlin', null, '10178', 'DE', '+49 800 265 0800', 'https://www.aok.de', 'Insurance'));
+        accts.add(makeOrg(hcoRtId, 'DocMorris', 'Carl-Zeiss-Ring 4', 'Heerlen', null, '52078', 'DE', '+49 800 444 0200', 'https://www.docmorris.de', 'Pharmacy'));
 
         // ---- Italy ----
-        accts.add(makeAccount('Policlinico Agostino Gemelli', 'Largo Agostino Gemelli 8', 'Rome', 'Lazio', '00168', 'IT', '+39 06 3015 1', 'https://www.policlinicogemelli.it', 'Hospital', 'Leading Italian teaching hospital associated with Università Cattolica.'));
-        accts.add(makeAccount('Ospedale San Raffaele', 'Via Olgettina 60', 'Milan', 'Lombardy', '20132', 'IT', '+39 02 2643 2643', 'https://www.hsr.it', 'Hospital', 'Renowned research hospital and university in Milan.'));
-        accts.add(makeAccount('Istituto Europeo di Oncologia', 'Via Ripamonti 435', 'Milan', 'Lombardy', '20141', 'IT', '+39 02 5748 9001', 'https://www.ieo.it', 'Hospital', 'Comprehensive cancer center founded by Umberto Veronesi.'));
-        accts.add(makeAccount('Azienda Ospedaliera di Padova', 'Via Giustiniani 2', 'Padua', 'Veneto', '35128', 'IT', '+39 049 821 1111', 'https://www.aopd.veneto.it', 'Hospital', 'Major university hospital in the Veneto region.'));
-        accts.add(makeAccount('ASL Roma 1', 'Borgo Santo Spirito 3', 'Rome', 'Lazio', '00193', 'IT', '+39 06 6835 1', 'https://www.aslroma1.it', 'Insurance', 'Local health authority managing public health services in Rome.'));
-        accts.add(makeAccount('Farmacia del Corso', 'Corso Buenos Aires 4', 'Milan', 'Lombardy', '20124', 'IT', '+39 02 2951 4380', 'https://www.farmaciadelcorso.it', 'Pharmacy', 'Historic pharmacy in central Milan.'));
+        accts.add(makeOrg(hcoRtId, 'Policlinico Agostino Gemelli', 'Largo Agostino Gemelli 8', 'Rome', 'RM', '00168', 'IT', '+39 06 3015 1', 'https://www.policlinicogemelli.it', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Ospedale San Raffaele', 'Via Olgettina 60', 'Milan', 'MI', '20132', 'IT', '+39 02 2643 2643', 'https://www.hsr.it', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Istituto Europeo di Oncologia', 'Via Ripamonti 435', 'Milan', 'MI', '20141', 'IT', '+39 02 5748 9001', 'https://www.ieo.it', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Azienda Ospedaliera di Padova', 'Via Giustiniani 2', 'Padua', 'PD', '35128', 'IT', '+39 049 821 1111', 'https://www.aopd.veneto.it', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'ASL Roma 1', 'Borgo Santo Spirito 3', 'Rome', 'RM', '00193', 'IT', '+39 06 6835 1', 'https://www.aslroma1.it', 'Insurance'));
+        accts.add(makeOrg(hcoRtId, 'Farmacia del Corso', 'Corso Buenos Aires 4', 'Milan', 'MI', '20124', 'IT', '+39 02 2951 4380', 'https://www.farmaciadelcorso.it', 'Pharmacy'));
 
         // ---- Spain ----
-        accts.add(makeAccount('Hospital Clínic de Barcelona', 'Carrer de Villarroel 170', 'Barcelona', 'Catalonia', '08036', 'ES', '+34 93 227 54 00', 'https://www.clinicbarcelona.org', 'Hospital', 'Top-ranked Spanish university hospital and research center.'));
-        accts.add(makeAccount('Hospital Universitario La Paz', 'Paseo de la Castellana 261', 'Madrid', 'Community of Madrid', '28046', 'ES', '+34 91 727 70 00', 'https://www.comunidad.madrid/hospital/lapaz', 'Hospital', 'Largest public hospital in Spain.'));
-        accts.add(makeAccount('Hospital Universitario Vall d\'Hebron', 'Passeig de la Vall d\'Hebron 119-129', 'Barcelona', 'Catalonia', '08035', 'ES', '+34 93 274 60 00', 'https://www.vallhebron.com', 'Hospital', 'Major university hospital and research campus in Barcelona.'));
-        accts.add(makeAccount('Centro Médico Teknon', 'Carrer de Vilana 12', 'Barcelona', 'Catalonia', '08022', 'ES', '+34 93 290 62 00', 'https://www.teknon.es', 'Clinic', 'Private medical center with comprehensive specialty services.'));
-        accts.add(makeAccount('Sanitas', 'Ribera del Loira 52', 'Madrid', 'Community of Madrid', '28042', 'ES', '+34 91 585 29 00', 'https://www.sanitas.es', 'Insurance', 'Leading private health insurance provider in Spain.'));
-        accts.add(makeAccount('Farmacia Ortopedia Gaztambide', 'Calle de Gaztambide 55', 'Madrid', 'Community of Madrid', '28015', 'ES', '+34 91 549 42 60', 'https://www.farmaciagaztambide.com', 'Pharmacy', 'Well-known pharmacy in central Madrid.'));
+        accts.add(makeOrg(hcoRtId, 'Hospital Clínic de Barcelona', 'Carrer de Villarroel 170', 'Barcelona', null, '08036', 'ES', '+34 93 227 54 00', 'https://www.clinicbarcelona.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Hospital Universitario La Paz', 'Paseo de la Castellana 261', 'Madrid', null, '28046', 'ES', '+34 91 727 70 00', 'https://www.comunidad.madrid/hospital/lapaz', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Hospital Universitario Vall d\'Hebron', 'Passeig de la Vall d\'Hebron 119-129', 'Barcelona', null, '08035', 'ES', '+34 93 274 60 00', 'https://www.vallhebron.com', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Centro Médico Teknon', 'Carrer de Vilana 12', 'Barcelona', null, '08022', 'ES', '+34 93 290 62 00', 'https://www.teknon.es', 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'Sanitas', 'Ribera del Loira 52', 'Madrid', null, '28042', 'ES', '+34 91 585 29 00', 'https://www.sanitas.es', 'Insurance'));
+        accts.add(makeOrg(hcoRtId, 'Farmacia Ortopedia Gaztambide', 'Calle de Gaztambide 55', 'Madrid', null, '28015', 'ES', '+34 91 549 42 60', 'https://www.farmaciagaztambide.com', 'Pharmacy'));
 
         return accts;
     }
 
-    private static Account makeAccount(String name, String street, String city, String state, String postalCode, String country, String phone, String website, String acctType, String description) {
+    private static Account makeOrg(Id rtId, String name, String street, String city, String stateCode, String postalCode, String countryCode, String phone, String website, String acctType) {
         Account a = new Account();
+        a.RecordTypeId = rtId;
         a.Name = name;
         a.BillingStreet = street;
         a.BillingCity = city;
-        a.BillingState = state;
         a.BillingPostalCode = postalCode;
-        a.BillingCountry = country;
+        a.BillingCountryCode = countryCode;
+        if (String.isNotBlank(stateCode)) {
+            a.BillingStateCode = stateCode;
+        }
         a.Phone = phone;
         a.Website = website;
         a.Industry = 'Healthcare';
         a.Type = acctType;
         a.Site = DEMO_TAG;
-        a.Description = description;
         return a;
     }
 
     // ---------------------------------------------------------------------------
-    // HealthcareProvider builders
+    // Doctor PersonAccount builders (Health_Care_Provider record type)
     // ---------------------------------------------------------------------------
 
-    private static List<SObject> buildHealthcareProviders(Map<String, Id> acctNameToId) {
+    private static List<Account> buildDoctorAccounts(Id hcpRtId) {
+        List<Account> docs = new List<Account>();
+
+        // US Doctors
+        docs.add(makeDoctor(hcpRtId, 'Sarah', 'Mitchell', 'sarah.mitchell@massgeneral.example.com', '+1 (617) 726-2001', 'Boston', 'MA', '02114', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'James', 'Patterson', 'james.patterson@jhmi.example.com', '+1 (410) 955-5001', 'Baltimore', 'MD', '21287', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Emily', 'Chen', 'emily.chen@ccf.example.com', '+1 (216) 444-2201', 'Cleveland', 'OH', '44195', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Michael', 'Rodriguez', 'michael.rodriguez@mayo.example.com', '+1 (507) 284-2512', 'Rochester', 'MN', '55905', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Jennifer', 'Goldstein', 'jennifer.goldstein@mskcc.example.com', '+1 (212) 639-2001', 'New York', 'NY', '10065', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'David', 'Kumar', 'david.kumar@mdanderson.example.com', '+1 (713) 792-2122', 'Houston', 'TX', '77030', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Robert', 'Washington', 'robert.washington@midtownonc.example.com', '+1 (212) 305-5099', 'New York', 'NY', '10065', 'US'));
+
+        // UK Doctors
+        docs.add(makeDoctor(hcpRtId, 'William', 'Hartley', 'william.hartley@nhs.example.com', '+44 20 7377 7001', 'London', null, 'E1 1FR', 'GB'));
+        docs.add(makeDoctor(hcpRtId, 'Eleanor', 'Blackwood', 'eleanor.blackwood@gstt.example.com', '+44 20 7188 7189', 'London', null, 'SE1 7EH', 'GB'));
+        docs.add(makeDoctor(hcpRtId, 'Oliver', 'Pemberton', 'oliver.pemberton@cuh.example.com', '+44 1223 245152', 'Cambridge', null, 'CB2 0QQ', 'GB'));
+        docs.add(makeDoctor(hcpRtId, 'Charlotte', 'Ainsworth', 'charlotte.ainsworth@nhs.example.com', '+44 20 7377 7002', 'London', null, 'E1 1FR', 'GB'));
+        docs.add(makeDoctor(hcpRtId, 'George', 'Whitfield', 'george.whitfield@gstt.example.com', '+44 20 7188 7190', 'London', null, 'SE1 7EH', 'GB'));
+
+        // France Doctors
+        docs.add(makeDoctor(hcpRtId, 'Pierre', 'Lefèvre', 'pierre.lefevre@aphp.example.com', '+33 1 42 16 00 01', 'Paris', null, '75013', 'FR'));
+        docs.add(makeDoctor(hcpRtId, 'Marie-Claire', 'Dubois', 'marie.dubois@aphp.example.com', '+33 1 56 09 20 01', 'Paris', null, '75015', 'FR'));
+        docs.add(makeDoctor(hcpRtId, 'François', 'Moreau', 'francois.moreau@chu-lyon.example.com', '+33 4 72 11 69 12', 'Lyon', null, '69002', 'FR'));
+        docs.add(makeDoctor(hcpRtId, 'Camille', 'Rousseau', 'camille.rousseau@igr.example.com', '+33 1 42 11 42 12', 'Villejuif', null, '94805', 'FR'));
+        docs.add(makeDoctor(hcpRtId, 'Jean-Luc', 'Bernard', 'jeanluc.bernard@aphp.example.com', '+33 1 42 16 00 02', 'Paris', null, '75013', 'FR'));
+
+        // Germany Doctors
+        docs.add(makeDoctor(hcpRtId, 'Klaus', 'Müller', 'klaus.mueller@charite.example.com', '+49 30 450 51', 'Berlin', null, '10117', 'DE'));
+        docs.add(makeDoctor(hcpRtId, 'Anna', 'Schneider', 'anna.schneider@ukl-hd.example.com', '+49 6221 56 1', 'Heidelberg', null, '69120', 'DE'));
+        docs.add(makeDoctor(hcpRtId, 'Stefan', 'Weber', 'stefan.weber@uke.example.com', '+49 40 7410 1', 'Hamburg', null, '20246', 'DE'));
+        docs.add(makeDoctor(hcpRtId, 'Katrin', 'Fischer', 'katrin.fischer@charite.example.com', '+49 30 450 52', 'Berlin', null, '10117', 'DE'));
+        docs.add(makeDoctor(hcpRtId, 'Hans-Peter', 'Braun', 'hp.braun@dhm.example.com', '+49 89 1218 1', 'Munich', null, '80636', 'DE'));
+
+        // Italy Doctors
+        docs.add(makeDoctor(hcpRtId, 'Marco', 'Rossi', 'marco.rossi@gemelli.example.com', '+39 06 3015 2', 'Rome', 'RM', '00168', 'IT'));
+        docs.add(makeDoctor(hcpRtId, 'Giulia', 'Bianchi', 'giulia.bianchi@ieo.example.com', '+39 02 5748 9002', 'Milan', 'MI', '20141', 'IT'));
+        docs.add(makeDoctor(hcpRtId, 'Alessandro', 'Conti', 'alessandro.conti@hsr.example.com', '+39 02 2643 2644', 'Milan', 'MI', '20132', 'IT'));
+        docs.add(makeDoctor(hcpRtId, 'Francesca', 'Romano', 'francesca.romano@aopd.example.com', '+39 049 821 1112', 'Padua', 'PD', '35128', 'IT'));
+        docs.add(makeDoctor(hcpRtId, 'Luca', 'Ferretti', 'luca.ferretti@hsr.example.com', '+39 02 2643 2645', 'Milan', 'MI', '20132', 'IT'));
+
+        // Spain Doctors
+        docs.add(makeDoctor(hcpRtId, 'Carlos', 'García López', 'carlos.garcia@clinic.example.com', '+34 93 227 54 01', 'Barcelona', null, '08036', 'ES'));
+        docs.add(makeDoctor(hcpRtId, 'María', 'Fernández Ruiz', 'maria.fernandez@lapaz.example.com', '+34 91 727 70 01', 'Madrid', null, '28046', 'ES'));
+        docs.add(makeDoctor(hcpRtId, 'Alejandro', 'Martínez Soto', 'alejandro.martinez@vhebron.example.com', '+34 93 274 60 01', 'Barcelona', null, '08035', 'ES'));
+        docs.add(makeDoctor(hcpRtId, 'Isabel', 'Navarro Díaz', 'isabel.navarro@teknon.example.com', '+34 93 290 62 01', 'Barcelona', null, '08022', 'ES'));
+        docs.add(makeDoctor(hcpRtId, 'Pablo', 'Herrera Molina', 'pablo.herrera@clinic.example.com', '+34 93 227 54 02', 'Barcelona', null, '08036', 'ES'));
+
+        return docs;
+    }
+
+    private static Account makeDoctor(Id rtId, String firstName, String lastName, String email, String phone, String city, String stateCode, String postalCode, String countryCode) {
+        Account a = new Account();
+        a.RecordTypeId = rtId;
+        a.Salutation = 'Dr.';
+        a.FirstName = firstName;
+        a.LastName = lastName;
+        a.PersonEmail = email;
+        a.Phone = phone;
+        a.BillingCity = city;
+        a.BillingPostalCode = postalCode;
+        a.BillingCountryCode = countryCode;
+        if (String.isNotBlank(stateCode)) {
+            a.BillingStateCode = stateCode;
+        }
+        a.Site = DEMO_TAG;
+        return a;
+    }
+
+    // ---------------------------------------------------------------------------
+    // HealthcareProvider builders (linked to doctor PersonAccounts)
+    // ---------------------------------------------------------------------------
+
+    private static List<SObject> buildHealthcareProviders(Map<String, Id> doctorNameToId) {
         List<SObject> providers = new List<SObject>();
         Schema.SObjectType hcpType = Schema.getGlobalDescribe().get('healthcareprovider');
 
-        // US Providers
-        providers.add(makeHCP(hcpType, 'Dr. Sarah Mitchell', 'Oncology', acctNameToId.get('Massachusetts General Hospital')));
-        providers.add(makeHCP(hcpType, 'Dr. James Patterson', 'Cardiology', acctNameToId.get('Johns Hopkins Hospital')));
-        providers.add(makeHCP(hcpType, 'Dr. Emily Chen', 'Neurology', acctNameToId.get('Cleveland Clinic')));
-        providers.add(makeHCP(hcpType, 'Dr. Michael Rodriguez', 'Internal Medicine', acctNameToId.get('Mayo Clinic')));
-        providers.add(makeHCP(hcpType, 'Dr. Jennifer Goldstein', 'Oncology', acctNameToId.get('Memorial Sloan Kettering Cancer Center')));
-        providers.add(makeHCP(hcpType, 'Dr. David Kumar', 'Oncology', acctNameToId.get('MD Anderson Cancer Center')));
-        providers.add(makeHCP(hcpType, 'Dr. Robert Washington', 'Gastroenterology', acctNameToId.get('Midtown Oncology Associates')));
-
-        // UK Providers
-        providers.add(makeHCP(hcpType, 'Dr. William Hartley', 'Cardiology', acctNameToId.get('Royal London Hospital')));
-        providers.add(makeHCP(hcpType, 'Dr. Eleanor Blackwood', 'Pulmonology', acctNameToId.get('St Thomas\' Hospital')));
-        providers.add(makeHCP(hcpType, 'Dr. Oliver Pemberton', 'Endocrinology', acctNameToId.get('Addenbrooke\'s Hospital')));
-        providers.add(makeHCP(hcpType, 'Dr. Charlotte Ainsworth', 'Dermatology', acctNameToId.get('Royal London Hospital')));
-        providers.add(makeHCP(hcpType, 'Dr. George Whitfield', 'Orthopedics', acctNameToId.get('St Thomas\' Hospital')));
-
-        // France Providers
-        providers.add(makeHCP(hcpType, 'Dr. Pierre Lefèvre', 'Neurology', acctNameToId.get('Hôpital Pitié-Salpêtrière')));
-        providers.add(makeHCP(hcpType, 'Dr. Marie-Claire Dubois', 'Cardiology', acctNameToId.get('Hôpital Européen Georges-Pompidou')));
-        providers.add(makeHCP(hcpType, 'Dr. François Moreau', 'Internal Medicine', acctNameToId.get('Centre Hospitalier Universitaire de Lyon')));
-        providers.add(makeHCP(hcpType, 'Dr. Camille Rousseau', 'Oncology', acctNameToId.get('Institut Gustave Roussy')));
-        providers.add(makeHCP(hcpType, 'Dr. Jean-Luc Bernard', 'Immunology', acctNameToId.get('Hôpital Pitié-Salpêtrière')));
-
-        // Germany Providers
-        providers.add(makeHCP(hcpType, 'Dr. Klaus Müller', 'Oncology', acctNameToId.get('Charité - Universitätsmedizin Berlin')));
-        providers.add(makeHCP(hcpType, 'Dr. Anna Schneider', 'Neurology', acctNameToId.get('Universitätsklinikum Heidelberg')));
-        providers.add(makeHCP(hcpType, 'Dr. Stefan Weber', 'Cardiology', acctNameToId.get('Universitätsklinikum Hamburg-Eppendorf')));
-        providers.add(makeHCP(hcpType, 'Dr. Katrin Fischer', 'Pediatrics', acctNameToId.get('Charité - Universitätsmedizin Berlin')));
-        providers.add(makeHCP(hcpType, 'Dr. Hans-Peter Braun', 'Cardiology', acctNameToId.get('Munich Heart Centre')));
-
-        // Italy Providers
-        providers.add(makeHCP(hcpType, 'Dr. Marco Rossi', 'Gastroenterology', acctNameToId.get('Policlinico Agostino Gemelli')));
-        providers.add(makeHCP(hcpType, 'Dr. Giulia Bianchi', 'Oncology', acctNameToId.get('Istituto Europeo di Oncologia')));
-        providers.add(makeHCP(hcpType, 'Dr. Alessandro Conti', 'Cardiology', acctNameToId.get('Ospedale San Raffaele')));
-        providers.add(makeHCP(hcpType, 'Dr. Francesca Romano', 'Dermatology', acctNameToId.get('Azienda Ospedaliera di Padova')));
-        providers.add(makeHCP(hcpType, 'Dr. Luca Ferretti', 'Pulmonology', acctNameToId.get('Ospedale San Raffaele')));
-
-        // Spain Providers
-        providers.add(makeHCP(hcpType, 'Dr. Carlos García López', 'Immunology', acctNameToId.get('Hospital Clínic de Barcelona')));
-        providers.add(makeHCP(hcpType, 'Dr. María Fernández Ruiz', 'Oncology', acctNameToId.get('Hospital Universitario La Paz')));
-        providers.add(makeHCP(hcpType, 'Dr. Alejandro Martínez Soto', 'Neurology', acctNameToId.get('Hospital Universitario Vall d\'Hebron')));
-        providers.add(makeHCP(hcpType, 'Dr. Isabel Navarro Díaz', 'Endocrinology', acctNameToId.get('Centro Médico Teknon')));
-        providers.add(makeHCP(hcpType, 'Dr. Pablo Herrera Molina', 'Family Medicine', acctNameToId.get('Hospital Clínic de Barcelona')));
+        // Each HCP record is named "Dr. FirstName LastName" and linked to the PersonAccount
+        for (String fullName : doctorNameToId.keySet()) {
+            SObject hcp = hcpType.newSObject();
+            hcp.put('Name', 'Dr. ' + fullName);
+            hcp.put('AccountId', doctorNameToId.get(fullName));
+            hcp.put('SourceSystem', DEMO_TAG);
+            providers.add(hcp);
+        }
 
         return providers;
-    }
-
-    private static SObject makeHCP(Schema.SObjectType hcpType, String name, String classification, Id accountId) {
-        SObject hcp = hcpType.newSObject();
-        hcp.put('Name', name);
-        hcp.put('SourceSystem', DEMO_TAG);
-        if (accountId != null) {
-            hcp.put('AccountId', accountId);
-        }
-        return hcp;
     }
 
     // ---------------------------------------------------------------------------
@@ -371,7 +413,7 @@ public with sharing class DemoAccountProviderController {
             'Dr. François Moreau' => '3456789014',
             'Dr. Camille Rousseau' => '3456789015',
             'Dr. Jean-Luc Bernard' => '3456789016',
-            'Dr. Klaus Müller' => '4567890123',
+            'Dr. Klaus Müller' => '4567890128',
             'Dr. Anna Schneider' => '4567890124',
             'Dr. Stefan Weber' => '4567890125',
             'Dr. Katrin Fischer' => '4567890126',
@@ -411,16 +453,10 @@ public with sharing class DemoAccountProviderController {
     // CareSpecialty + HealthcareProviderSpecialty builders
     // ---------------------------------------------------------------------------
 
-    /**
-     * Creates CareSpecialty records for each unique specialty used by our providers.
-     * Returns a map of specialty name -> CareSpecialty Id.
-     */
     private static Map<String, Id> createCareSpecialties() {
         Map<String, Id> specNameToId = new Map<String, Id>();
         Schema.SObjectType csType = Schema.getGlobalDescribe().get('carespecialty');
-        if (csType == null) {
-            return specNameToId;
-        }
+        if (csType == null) return specNameToId;
 
         Set<String> specialtyNames = new Set<String>{
             'Oncology', 'Cardiology', 'Neurology', 'Internal Medicine',
@@ -506,62 +542,142 @@ public with sharing class DemoAccountProviderController {
     }
 
     // ---------------------------------------------------------------------------
-    // Affiliation builders
+    // Territory Assignment
     // ---------------------------------------------------------------------------
 
-    private static List<SObject> buildAffiliations(Map<String, Id> hcpNameToId, Map<String, Id> acctNameToId) {
-        List<SObject> affls = new List<SObject>();
-        Schema.SObjectType afflType = Schema.getGlobalDescribe().get('provideraffiliation');
+    @AuraEnabled
+    public static String assignTerritories() {
+        try {
+            List<Account> demoAccounts = [
+                SELECT Id, Name, BillingCity, BillingCountryCode
+                FROM Account
+                WHERE Site = :DEMO_TAG
+            ];
+            if (demoAccounts.isEmpty()) return 'No demo accounts found.';
 
-        // Map: provider name -> hospital account name -> role
-        List<List<String>> affiliationData = new List<List<String>>{
-            new List<String>{'Dr. Sarah Mitchell', 'Massachusetts General Hospital', 'Attending Physician'},
-            new List<String>{'Dr. James Patterson', 'Johns Hopkins Hospital', 'Attending Physician'},
-            new List<String>{'Dr. Emily Chen', 'Cleveland Clinic', 'Attending Physician'},
-            new List<String>{'Dr. Michael Rodriguez', 'Mayo Clinic', 'Attending Physician'},
-            new List<String>{'Dr. Jennifer Goldstein', 'Memorial Sloan Kettering Cancer Center', 'Attending Physician'},
-            new List<String>{'Dr. David Kumar', 'MD Anderson Cancer Center', 'Attending Physician'},
-            new List<String>{'Dr. Robert Washington', 'Midtown Oncology Associates', 'Attending Physician'},
-            new List<String>{'Dr. William Hartley', 'Royal London Hospital', 'Consultant'},
-            new List<String>{'Dr. Eleanor Blackwood', 'St Thomas\' Hospital', 'Consultant'},
-            new List<String>{'Dr. Oliver Pemberton', 'Addenbrooke\'s Hospital', 'Consultant'},
-            new List<String>{'Dr. Charlotte Ainsworth', 'Royal London Hospital', 'Consultant'},
-            new List<String>{'Dr. George Whitfield', 'St Thomas\' Hospital', 'Consultant'},
-            new List<String>{'Dr. Pierre Lefèvre', 'Hôpital Pitié-Salpêtrière', 'Attending Physician'},
-            new List<String>{'Dr. Marie-Claire Dubois', 'Hôpital Européen Georges-Pompidou', 'Attending Physician'},
-            new List<String>{'Dr. François Moreau', 'Centre Hospitalier Universitaire de Lyon', 'Attending Physician'},
-            new List<String>{'Dr. Camille Rousseau', 'Institut Gustave Roussy', 'Attending Physician'},
-            new List<String>{'Dr. Jean-Luc Bernard', 'Hôpital Pitié-Salpêtrière', 'Attending Physician'},
-            new List<String>{'Dr. Klaus Müller', 'Charité - Universitätsmedizin Berlin', 'Attending Physician'},
-            new List<String>{'Dr. Anna Schneider', 'Universitätsklinikum Heidelberg', 'Attending Physician'},
-            new List<String>{'Dr. Stefan Weber', 'Universitätsklinikum Hamburg-Eppendorf', 'Attending Physician'},
-            new List<String>{'Dr. Katrin Fischer', 'Charité - Universitätsmedizin Berlin', 'Attending Physician'},
-            new List<String>{'Dr. Hans-Peter Braun', 'Munich Heart Centre', 'Attending Physician'},
-            new List<String>{'Dr. Marco Rossi', 'Policlinico Agostino Gemelli', 'Attending Physician'},
-            new List<String>{'Dr. Giulia Bianchi', 'Istituto Europeo di Oncologia', 'Attending Physician'},
-            new List<String>{'Dr. Alessandro Conti', 'Ospedale San Raffaele', 'Attending Physician'},
-            new List<String>{'Dr. Francesca Romano', 'Azienda Ospedaliera di Padova', 'Attending Physician'},
-            new List<String>{'Dr. Luca Ferretti', 'Ospedale San Raffaele', 'Attending Physician'},
-            new List<String>{'Dr. Carlos García López', 'Hospital Clínic de Barcelona', 'Attending Physician'},
-            new List<String>{'Dr. María Fernández Ruiz', 'Hospital Universitario La Paz', 'Attending Physician'},
-            new List<String>{'Dr. Alejandro Martínez Soto', 'Hospital Universitario Vall d\'Hebron', 'Attending Physician'},
-            new List<String>{'Dr. Isabel Navarro Díaz', 'Centro Médico Teknon', 'Attending Physician'},
-            new List<String>{'Dr. Pablo Herrera Molina', 'Hospital Clínic de Barcelona', 'Attending Physician'}
-        };
-
-        for (List<String> row : affiliationData) {
-            Id acctId = acctNameToId.get(row[1]);
-            if (acctId != null) {
-                SObject affl = afflType.newSObject();
-                affl.put('AccountId', acctId);
-                affl.put('Role', row[2]);
-                affl.put('IsPrimary', true);
-                affl.put('IsActive', true);
-                affl.put('SourceSystemName', DEMO_TAG);
-                affls.add(affl);
+            // Build territory lookup: DeveloperName -> Id
+            Map<String, Id> terrByDev = new Map<String, Id>();
+            for (Territory2 t : [SELECT Id, DeveloperName FROM Territory2]) {
+                terrByDev.put(t.DeveloperName, t.Id);
             }
-        }
 
-        return affls;
+            // Remove existing demo-account territory associations
+            Set<Id> acctIds = new Set<Id>();
+            for (Account a : demoAccounts) acctIds.add(a.Id);
+            List<ObjectTerritory2Association> existing = [
+                SELECT Id FROM ObjectTerritory2Association
+                WHERE ObjectId IN :acctIds
+            ];
+            if (!existing.isEmpty()) Database.delete(existing, false);
+
+            // Build city->territory mapping
+            Map<String, String> cityTerrMap = buildCityTerritoryMap();
+
+            // Country fallback mapping
+            Map<String, String> countryTerrMap = new Map<String, String>{
+                'US' => 'US_COUNTRY',
+                'GB' => 'GB_COUNTRY',
+                'FR' => 'FR_COUNTRY',
+                'DE' => 'DE_COUNTRY',
+                'IT' => 'IT_COUNTRY',
+                'ES' => 'ES_COUNTRY'
+            };
+
+            List<ObjectTerritory2Association> associations = new List<ObjectTerritory2Association>();
+            Integer matched = 0;
+            Integer fallback = 0;
+
+            for (Account acct : demoAccounts) {
+                String city = acct.BillingCity;
+                String country = acct.BillingCountryCode;
+                String terrDev = null;
+
+                // Try city-level match
+                if (String.isNotBlank(city)) {
+                    String key = (String.isNotBlank(country) ? country : '') + ':' + city;
+                    terrDev = cityTerrMap.get(key);
+                }
+
+                // Fallback to country level
+                if (terrDev == null && String.isNotBlank(country)) {
+                    terrDev = countryTerrMap.get(country);
+                    if (terrDev != null) fallback++;
+                } else if (terrDev != null) {
+                    matched++;
+                }
+
+                if (terrDev != null && terrByDev.containsKey(terrDev)) {
+                    ObjectTerritory2Association ota = new ObjectTerritory2Association();
+                    ota.ObjectId = acct.Id;
+                    ota.Territory2Id = terrByDev.get(terrDev);
+                    ota.AssociationCause = 'Territory2Manual';
+                    associations.add(ota);
+                }
+            }
+
+            if (associations.isEmpty()) return 'No territory matches found.';
+
+            Database.SaveResult[] results = Database.insert(associations, false);
+            Integer success = 0;
+            List<String> errors = new List<String>();
+            for (Integer i = 0; i < results.size(); i++) {
+                if (results[i].isSuccess()) {
+                    success++;
+                } else if (errors.size() < 5) {
+                    errors.add(demoAccounts[i].Name + ': ' + results[i].getErrors()[0].getMessage());
+                }
+            }
+
+            String result = 'Territory assignments: ' + success + '/' + associations.size()
+                + ' (city match: ' + matched + ', country fallback: ' + fallback + ')';
+            if (!errors.isEmpty()) result += ' | Errors: ' + String.join(errors, '; ');
+            return result;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error assigning territories: ' + e.getMessage());
+        }
     }
+
+    private static Map<String, String> buildCityTerritoryMap() {
+        Map<String, String> m = new Map<String, String>();
+
+        // US cities
+        m.put('US:Boston', 'US_NE_Boston');
+        m.put('US:Baltimore', 'US_NE_Washington_DC');
+        m.put('US:Cleveland', 'US_MW_Chicago');
+        m.put('US:Rochester', 'US_MW_Minneapolis');
+        m.put('US:New York', 'US_NE_New_York');
+        m.put('US:Houston', 'US_SE_Nashville');
+        m.put('US:Oakland', 'US_W_San_Francisco');
+        m.put('US:Minnetonka', 'US_MW_Minneapolis');
+        m.put('US:Woonsocket', 'US_NE_Boston');
+
+        // GB cities
+        m.put('GB:London', 'GB_England_London');
+        m.put('GB:Cambridge', 'GB_England_London');
+        m.put('GB:Nottingham', 'GB_England_Birmingham');
+
+        // FR cities
+        m.put('FR:Paris', 'FR_Ile_de_France_Paris');
+        m.put('FR:Villejuif', 'FR_Ile_de_France_Paris');
+        m.put('FR:Lyon', 'FR_Auvergne_Lyon');
+
+        // DE cities
+        m.put('DE:Berlin', 'DE_Berlin_Berlin');
+        m.put('DE:Heidelberg', 'DE_Hesse_Frankfurt');
+        m.put('DE:Hamburg', 'DE_Hamburg_Hamburg');
+        m.put('DE:Munich', 'DE_Bavaria_Munich');
+        m.put('DE:Heerlen', 'DE_NRW_Dusseldorf');
+
+        // IT cities
+        m.put('IT:Rome', 'IT_Lazio_Rome');
+        m.put('IT:Milan', 'IT_Lombardy_Milan');
+        m.put('IT:Padua', 'IT_Veneto_Venice');
+
+        // ES cities
+        m.put('ES:Barcelona', 'ES_Catalonia_Barcelona');
+        m.put('ES:Madrid', 'ES_Madrid_Madrid');
+
+        return m;
+    }
+
 }

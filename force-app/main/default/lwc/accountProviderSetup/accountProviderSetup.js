@@ -4,6 +4,7 @@ import { refreshApex } from '@salesforce/apex';
 import getStatus from '@salesforce/apex/DemoAccountProviderController.getStatus';
 import createAccountsAndProviders from '@salesforce/apex/DemoAccountProviderController.createAccountsAndProviders';
 import deleteAccountsAndProviders from '@salesforce/apex/DemoAccountProviderController.deleteAccountsAndProviders';
+import assignTerritories from '@salesforce/apex/DemoAccountProviderController.assignTerritories';
 
 export default class AccountProviderSetup extends LightningElement {
     statusData;
@@ -48,6 +49,36 @@ export default class AccountProviderSetup extends LightningElement {
         } catch (error) {
             this.isSuccess = false;
             this.resultMessage = error.body ? error.body.message : 'An error occurred while creating accounts and providers.';
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Error',
+                    message: this.resultMessage,
+                    variant: 'error'
+                })
+            );
+        } finally {
+            this.isLoading = false;
+            await refreshApex(this.wiredStatusResult);
+        }
+    }
+
+    async handleAssignTerritories() {
+        this.isLoading = true;
+        this.resultMessage = undefined;
+        try {
+            const result = await assignTerritories();
+            this.isSuccess = true;
+            this.resultMessage = result;
+            this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Success',
+                    message: 'Territory assignments completed.',
+                    variant: 'success'
+                })
+            );
+        } catch (error) {
+            this.isSuccess = false;
+            this.resultMessage = error.body ? error.body.message : 'An error occurred assigning territories.';
             this.dispatchEvent(
                 new ShowToastEvent({
                     title: 'Error',

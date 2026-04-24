@@ -59,6 +59,9 @@
                 <div class="slds-is-relative slds-m-bottom_medium" style="height: 60px;">
                     <lightning-spinner alternative-text="Processing..." size="medium"></lightning-spinner>
                 </div>
+                <template if:true={progressMessage}>
+                    <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_small">{progressMessage}</p>
+                </template>
             </template>
 
             <!-- Status Messages -->

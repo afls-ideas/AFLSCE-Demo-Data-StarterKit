@@ -41,6 +41,15 @@
                     aria-label="Create accounts and healthcare providers">
                 </lightning-button>
                 <lightning-button
+                    variant="neutral"
+                    label="Assign Territories"
+                    icon-name="utility:location"
+                    onclick={handleAssignTerritories}
+                    disabled={isLoading}
+                    class="slds-m-right_small"
+                    aria-label="Assign accounts to matching territories">
+                </lightning-button>
+                <lightning-button
                     variant="destructive"
                     label="Delete Accounts &amp; Providers"
                     icon-name="utility:delete"
