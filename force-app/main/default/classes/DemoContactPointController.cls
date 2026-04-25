@@ -125,7 +125,7 @@ public with sharing class DemoContactPointController {
             if (batch.isEmpty()) return batchResult(0, 0, false, new List<String>());
             Integer total = countDemoAccounts();
 
-            List<SObject> records = buildBusinessLicenses(batch);
+            List<SObject> records = buildBusinessLicenses(batch, batchOffset);
             if (records.isEmpty()) {
                 Boolean hasMore = (batchOffset + BATCH_SIZE) < total;
                 return batchResult(0, 0, hasMore, new List<String>());
@@ -558,12 +558,12 @@ public with sharing class DemoContactPointController {
     // Build BusinessLicense records
     // ──────────────────────────────────────────────────────────
 
-    private static List<SObject> buildBusinessLicenses(List<Account> accounts) {
+    private static List<SObject> buildBusinessLicenses(List<Account> accounts, Integer batchOffset) {
         List<SObject> licenses = new List<SObject>();
         Schema.SObjectType blType = Schema.getGlobalDescribe().get('businesslicense');
         if (blType == null) return licenses;
 
-        Integer counter = 0;
+        Integer counter = batchOffset;
 
         for (Account acct : accounts) {
             String country = String.isNotBlank(acct.BillingCountry) ? acct.BillingCountry : 'United States';

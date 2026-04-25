@@ -23,6 +23,10 @@
         <apexClass>DemoScenarioController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>DemoProductAlignmentController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
     <objectPermissions>
         <allowCreate>true</allowCreate>
         <allowDelete>true</allowDelete>
@@ -100,6 +104,10 @@
         <allowRead>true</allowRead>
         <object>BusinessLicense</object>
     </objectPermissions>
+    <applicationVisibilities>
+        <application>AFLS_Powertool</application>
+        <visible>true</visible>
+    </applicationVisibilities>
     <tabSettings>
         <tab>AFLSCE_Demo_Data</tab>
         <visibility>Visible</visibility>

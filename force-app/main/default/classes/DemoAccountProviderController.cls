@@ -1158,13 +1158,14 @@ public with sharing class DemoAccountProviderController {
         List<SObject> summaryRecords = new List<SObject>();
         List<Id> summaryTerritoryIds = new List<Id>();
 
-        // Build territory-to-user map (pick first user per territory)
+        // Build territory-to-users map (all users per territory)
         Set<Id> uniqueTerrIds = new Set<Id>(territoryIds);
-        Map<Id, Id> terrToUserId = new Map<Id, Id>();
+        Map<Id, List<Id>> terrToUserIds = new Map<Id, List<Id>>();
         for (UserTerritory2Association uta : [SELECT UserId, Territory2Id FROM UserTerritory2Association WHERE Territory2Id IN :uniqueTerrIds]) {
-            if (!terrToUserId.containsKey(uta.Territory2Id)) {
-                terrToUserId.put(uta.Territory2Id, uta.UserId);
+            if (!terrToUserIds.containsKey(uta.Territory2Id)) {
+                terrToUserIds.put(uta.Territory2Id, new List<Id>());
             }
+            terrToUserIds.get(uta.Territory2Id).add(uta.UserId);
         }
 
         Map<String, List<String[]>> localizedTemplates = buildLocalizedSummaryTemplates();
@@ -1187,18 +1188,30 @@ public with sharing class DemoAccountProviderController {
                 + '{"sectionName":"Recent Publications & Accreditations","sectionData":[{"data":"'
                 + tmpl[7] + '"}]}]}';
 
-            SObject summary = summaryType.newSObject();
-            summary.put('AccountId', acct.Id);
-            summary.put('Territory2Id', territoryIds[i]);
-            Id userId = terrToUserId.get(territoryIds[i]);
-            if (userId != null) {
-                summary.put('UserId', userId);
+            List<Id> userIds = terrToUserIds.get(territoryIds[i]);
+            if (userIds == null || userIds.isEmpty()) {
+                SObject summary = summaryType.newSObject();
+                summary.put('AccountId', acct.Id);
+                summary.put('Territory2Id', territoryIds[i]);
+                summary.put('KeyInformationSummary', summaryJson);
+                summary.put('KeyInfoSummaryDateTime', Datetime.now());
+                summary.put('SourceSystemName', DEMO_TAG);
+                summaryRecords.add(summary);
+                summaryTerritoryIds.add(territoryIds[i]);
+            } else {
+                for (Id userId : userIds) {
+                    SObject summary = summaryType.newSObject();
+                    summary.put('AccountId', acct.Id);
+                    summary.put('Territory2Id', territoryIds[i]);
+                    summary.put('UserId', userId);
+                    summary.put('OwnerId', userId);
+                    summary.put('KeyInformationSummary', summaryJson);
+                    summary.put('KeyInfoSummaryDateTime', Datetime.now());
+                    summary.put('SourceSystemName', DEMO_TAG);
+                    summaryRecords.add(summary);
+                    summaryTerritoryIds.add(territoryIds[i]);
+                }
             }
-            summary.put('KeyInformationSummary', summaryJson);
-            summary.put('KeyInfoSummaryDateTime', Datetime.now());
-            summary.put('SourceSystemName', DEMO_TAG);
-            summaryRecords.add(summary);
-            summaryTerritoryIds.add(territoryIds[i]);
         }
 
         if (summaryRecords.isEmpty()) return 'Summaries: 0 created';
