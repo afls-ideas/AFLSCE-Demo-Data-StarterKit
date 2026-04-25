@@ -90,10 +90,14 @@ public with sharing class DemoAccountProviderController {
                 // 5. Specialties
                 if (gd.containsKey('healthcareproviderspecialty') && gd.containsKey('carespecialty')) {
                     Map<String, Id> specNameToId = createCareSpecialties();
-                    List<SObject> specRecords = buildSpecialtyRecords(hcpNameToId, specNameToId);
+                    List<SObject> specRecords = buildSpecialtyRecords(hcpNameToId, doctorNameToId, specNameToId);
                     Database.SaveResult[] specResults = Database.insert(specRecords, false);
                     for (Database.SaveResult sr : specResults) {
-                        if (sr.isSuccess()) specSuccess++;
+                        if (sr.isSuccess()) {
+                            specSuccess++;
+                        } else if (errors.size() < 10) {
+                            errors.add('Specialty: ' + sr.getErrors()[0].getMessage());
+                        }
                     }
                 }
 
@@ -662,7 +666,7 @@ public with sharing class DemoAccountProviderController {
         return specNameToId;
     }
 
-    private static List<SObject> buildSpecialtyRecords(Map<String, Id> hcpNameToId, Map<String, Id> specNameToId) {
+    private static List<SObject> buildSpecialtyRecords(Map<String, Id> hcpNameToId, Map<String, Id> doctorNameToId, Map<String, Id> specNameToId) {
         List<SObject> specs = new List<SObject>();
         Schema.SObjectType specType = Schema.getGlobalDescribe().get('healthcareproviderspecialty');
 
@@ -686,14 +690,35 @@ public with sharing class DemoAccountProviderController {
 
         if (hcpFieldName == null || specFieldName == null) return specs;
 
+        // PractitionerId references Contact, not HealthcareProvider.
+        // Resolve PersonContactIds from doctor accounts when needed.
+        Map<String, Id> practitionerIdMap = hcpNameToId;
+        if (hcpFieldName == 'PractitionerId') {
+            practitionerIdMap = new Map<String, Id>();
+            // hcpNameToId keys are "Dr. FirstName LastName", doctorNameToId keys are "FirstName LastName"
+            Map<Id, Id> acctToContactId = new Map<Id, Id>();
+            Set<Id> acctIds = new Set<Id>(doctorNameToId.values());
+            for (Account a : [SELECT Id, PersonContactId FROM Account WHERE Id IN :acctIds AND IsPersonAccount = true]) {
+                acctToContactId.put(a.Id, a.PersonContactId);
+            }
+            for (String hcpName : hcpNameToId.keySet()) {
+                // "Dr. FirstName LastName" → "FirstName LastName"
+                String doctorName = hcpName.startsWith('Dr. ') ? hcpName.substring(4) : hcpName;
+                Id acctId = doctorNameToId.get(doctorName);
+                if (acctId != null && acctToContactId.containsKey(acctId)) {
+                    practitionerIdMap.put(hcpName, acctToContactId.get(acctId));
+                }
+            }
+        }
+
         for (String provName : providerSpecialties.keySet()) {
-            Id hcpId = hcpNameToId.get(provName);
+            Id linkId = practitionerIdMap.get(provName);
             String specName = providerSpecialties.get(provName);
             Id careSpecId = specNameToId.get(specName);
-            if (hcpId != null && careSpecId != null) {
+            if (linkId != null && careSpecId != null) {
                 SObject spec = specType.newSObject();
                 spec.put('Name', provName + ' - ' + specName);
-                spec.put(hcpFieldName, hcpId);
+                spec.put(hcpFieldName, linkId);
                 spec.put(specFieldName, careSpecId);
                 if (specFields.containsKey('isactive')) spec.put('IsActive', true);
                 if (specFields.containsKey('isprimaryspecialty')) spec.put('IsPrimarySpecialty', true);
