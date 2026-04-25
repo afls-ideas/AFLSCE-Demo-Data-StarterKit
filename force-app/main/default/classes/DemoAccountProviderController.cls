@@ -576,13 +576,13 @@ public with sharing class DemoAccountProviderController {
     private static List<SObject> buildHealthcareProviders(Map<String, Id> doctorNameToId) {
         List<SObject> providers = new List<SObject>();
         Schema.SObjectType hcpType = Schema.getGlobalDescribe().get('healthcareprovider');
+        Map<String, Schema.SObjectField> hcpFields = hcpType.getDescribe().fields.getMap();
 
-        // Each HCP record is named "Dr. FirstName LastName" and linked to the PersonAccount
         for (String fullName : doctorNameToId.keySet()) {
             SObject hcp = hcpType.newSObject();
             hcp.put('Name', 'Dr. ' + fullName);
-            hcp.put('AccountId', doctorNameToId.get(fullName));
-            hcp.put('SourceSystem', DEMO_TAG);
+            if (hcpFields.containsKey('accountid')) hcp.put('AccountId', doctorNameToId.get(fullName));
+            if (hcpFields.containsKey('sourcesystem')) hcp.put('SourceSystem', DEMO_TAG);
             providers.add(hcp);
         }
 
@@ -596,6 +596,11 @@ public with sharing class DemoAccountProviderController {
     private static List<SObject> buildNpiRecords(Map<String, Id> hcpNameToId) {
         List<SObject> npis = new List<SObject>();
         Schema.SObjectType npiType = Schema.getGlobalDescribe().get('healthcareprovidernpi');
+        Map<String, Schema.SObjectField> npiFields = npiType.getDescribe().fields.getMap();
+
+        String hcpFieldName = npiFields.containsKey('healthcareproviderid') ? 'HealthcareProviderId'
+                            : npiFields.containsKey('practitionerid') ? 'PractitionerId' : null;
+        if (hcpFieldName == null) return npis;
 
         Map<String, String> npiMap = new Map<String, String>();
         Integer npiBase = 1000000000;
@@ -610,12 +615,12 @@ public with sharing class DemoAccountProviderController {
                 SObject npi = npiType.newSObject();
                 npi.put('Name', provName + ' NPI');
                 npi.put('Npi', npiMap.get(provName));
-                npi.put('NpiType', 'Individual');
-                npi.put('HealthcareProviderId', hcpId);
-                npi.put('EffectiveFrom', Date.newInstance(2020, 1, 1));
-                npi.put('EffectiveTo', Date.newInstance(2030, 12, 31));
-                npi.put('IsActive', true);
-                npi.put('SourceSystem', DEMO_TAG);
+                if (npiFields.containsKey('npitype')) npi.put('NpiType', 'Individual');
+                npi.put(hcpFieldName, hcpId);
+                if (npiFields.containsKey('effectivefrom')) npi.put('EffectiveFrom', Date.newInstance(2020, 1, 1));
+                if (npiFields.containsKey('effectiveto')) npi.put('EffectiveTo', Date.newInstance(2030, 12, 31));
+                if (npiFields.containsKey('isactive')) npi.put('IsActive', true);
+                if (npiFields.containsKey('sourcesystem')) npi.put('SourceSystem', DEMO_TAG);
                 npis.add(npi);
             }
         }
@@ -673,6 +678,14 @@ public with sharing class DemoAccountProviderController {
             specIdx++;
         }
 
+        Map<String, Schema.SObjectField> specFields = specType.getDescribe().fields.getMap();
+        String hcpFieldName = specFields.containsKey('healthcareproviderid') ? 'HealthcareProviderId'
+                            : specFields.containsKey('practitionerid') ? 'PractitionerId' : null;
+        String specFieldName = specFields.containsKey('specialtyid') ? 'SpecialtyId'
+                             : specFields.containsKey('carespecialtyid') ? 'CareSpecialtyId' : null;
+
+        if (hcpFieldName == null || specFieldName == null) return specs;
+
         for (String provName : providerSpecialties.keySet()) {
             Id hcpId = hcpNameToId.get(provName);
             String specName = providerSpecialties.get(provName);
@@ -680,11 +693,11 @@ public with sharing class DemoAccountProviderController {
             if (hcpId != null && careSpecId != null) {
                 SObject spec = specType.newSObject();
                 spec.put('Name', provName + ' - ' + specName);
-                spec.put('HealthcareProviderId', hcpId);
-                spec.put('SpecialtyId', careSpecId);
-                spec.put('IsActive', true);
-                spec.put('IsPrimarySpecialty', true);
-                spec.put('SourceSystem', DEMO_TAG);
+                spec.put(hcpFieldName, hcpId);
+                spec.put(specFieldName, careSpecId);
+                if (specFields.containsKey('isactive')) spec.put('IsActive', true);
+                if (specFields.containsKey('isprimaryspecialty')) spec.put('IsPrimarySpecialty', true);
+                if (specFields.containsKey('sourcesystem')) spec.put('SourceSystem', DEMO_TAG);
                 specs.add(spec);
             }
         }
