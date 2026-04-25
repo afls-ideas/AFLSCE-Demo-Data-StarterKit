@@ -493,6 +493,24 @@ public with sharing class DemoContactPointController {
         Schema.SObjectType socialType = Schema.getGlobalDescribe().get('contactpointsocial');
         if (socialType == null) return socials;
 
+        // Get valid picklist values for SocialPlatformProvider
+        Map<String, Schema.SObjectField> socialFields = socialType.getDescribe().fields.getMap();
+        Set<String> validProviders = new Set<String>();
+        if (socialFields.containsKey('socialplatformprovider')) {
+            for (Schema.PicklistEntry pe : socialFields.get('socialplatformprovider').getDescribe().getPicklistValues()) {
+                if (pe.isActive()) validProviders.add(pe.getValue());
+            }
+        }
+
+        // Map our desired providers to potential picklist values
+        String linkedInValue = null;
+        String xValue = null;
+        for (String v : validProviders) {
+            String lower = v.toLowerCase();
+            if (lower.contains('linkedin')) linkedInValue = v;
+            else if (lower == 'x' || lower == 'twitter' || lower.contains('x (')) xValue = v;
+        }
+
         for (Account acct : accounts) {
             String acctType = acct.Type;
             if (acctType == null) continue;
@@ -504,29 +522,33 @@ public with sharing class DemoContactPointController {
 
             String handle = sanitizeDomain(acct.Name);
 
-            String liHandle = 'linkedin.com/company/' + handle;
-            if (liHandle.length() > 40) liHandle = liHandle.substring(0, 40);
+            if (linkedInValue != null) {
+                String liHandle = 'linkedin.com/company/' + handle;
+                if (liHandle.length() > 40) liHandle = liHandle.substring(0, 40);
 
-            SObject linkedin = socialType.newSObject();
-            linkedin.put('Name', acct.Name + ' LinkedIn');
-            linkedin.put('SocialPlatformProvider', 'LinkedIn');
-            linkedin.put('SocialHandleIdentifier', liHandle);
-            linkedin.put('SocialHandleName', handle);
-            linkedin.put('ParentReferenceRecordId', acct.Id);
-            linkedin.put('SourceSystemName', DEMO_TAG);
-            socials.add(linkedin);
+                SObject linkedin = socialType.newSObject();
+                linkedin.put('Name', acct.Name + ' LinkedIn');
+                linkedin.put('SocialPlatformProvider', linkedInValue);
+                linkedin.put('SocialHandleIdentifier', liHandle);
+                linkedin.put('SocialHandleName', handle);
+                linkedin.put('ParentReferenceRecordId', acct.Id);
+                linkedin.put('SourceSystemName', DEMO_TAG);
+                socials.add(linkedin);
+            }
 
-            String xHandle = '@' + handle;
-            if (xHandle.length() > 40) xHandle = xHandle.substring(0, 40);
+            if (xValue != null) {
+                String xHandle = '@' + handle;
+                if (xHandle.length() > 40) xHandle = xHandle.substring(0, 40);
 
-            SObject xRecord = socialType.newSObject();
-            xRecord.put('Name', acct.Name + ' X');
-            xRecord.put('SocialPlatformProvider', 'X');
-            xRecord.put('SocialHandleIdentifier', xHandle);
-            xRecord.put('SocialHandleName', handle);
-            xRecord.put('ParentReferenceRecordId', acct.Id);
-            xRecord.put('SourceSystemName', DEMO_TAG);
-            socials.add(xRecord);
+                SObject xRecord = socialType.newSObject();
+                xRecord.put('Name', acct.Name + ' X');
+                xRecord.put('SocialPlatformProvider', xValue);
+                xRecord.put('SocialHandleIdentifier', xHandle);
+                xRecord.put('SocialHandleName', handle);
+                xRecord.put('ParentReferenceRecordId', acct.Id);
+                xRecord.put('SourceSystemName', DEMO_TAG);
+                socials.add(xRecord);
+            }
         }
 
         return socials;
@@ -640,18 +662,23 @@ public with sharing class DemoContactPointController {
     }
 
     private static String generateFacilityLicenseNumber(String country, String state, Integer seed) {
-        String seq = String.valueOf(100000 + seed * 731).substring(0, 6);
+        String seq = String.valueOf(Math.mod(seed, 900000) + 100000);
         if (country == 'United Kingdom' || country == 'UK' || country == 'GB') return 'CQC-' + seq;
         if (country == 'France' || country == 'FR') return 'FINESS-' + seq;
         if (country == 'Germany' || country == 'DE') return 'IK-' + seq;
         if (country == 'Italy' || country == 'IT') return 'SSN-' + seq;
         if (country == 'Spain' || country == 'ES') return 'REGA-' + seq;
+        if (country == 'Japan' || country == 'JP') return 'MHLWF-' + seq;
+        if (country == 'South Korea' || country == 'KR') return 'MOHWF-' + seq;
+        if (country == 'Brazil' || country == 'BR') return 'CNES-' + seq;
+        if (country == 'Mexico' || country == 'MX') return 'CLUES-' + seq;
+        if (country == 'Argentina' || country == 'AR') return 'REFES-' + seq;
         String stateAbbr = (state != null && state.length() >= 2) ? state.substring(0, 2).toUpperCase() : 'CA';
         return stateAbbr + '-MFL-' + seq;
     }
 
     private static String generateMedicalLicenseNumber(String countryCode, Integer seed) {
-        String seq = String.valueOf(300000 + seed * 547).substring(0, 6);
+        String seq = String.valueOf(Math.mod(seed, 900000) + 300000);
         if (countryCode == 'GB') return 'GMC-' + seq;
         if (countryCode == 'FR') return 'RPPS-' + seq;
         if (countryCode == 'DE') return 'LANR-' + seq;
@@ -666,12 +693,17 @@ public with sharing class DemoContactPointController {
     }
 
     private static String generatePharmacyLicenseNumber(String country, String state, Integer seed) {
-        String seq = String.valueOf(200000 + seed * 419).substring(0, 6);
+        String seq = String.valueOf(Math.mod(seed, 900000) + 200000);
         if (country == 'United Kingdom' || country == 'UK' || country == 'GB') return 'GPhC-' + seq;
-        if (country == 'France' || country == 'FR') return 'RPPS-' + seq;
+        if (country == 'France' || country == 'FR') return 'RPPS-P' + seq;
         if (country == 'Germany' || country == 'DE') return 'ApoG-' + seq;
         if (country == 'Italy' || country == 'IT') return 'FOFI-' + seq;
         if (country == 'Spain' || country == 'ES') return 'COF-' + seq;
+        if (country == 'Japan' || country == 'JP') return 'YAKKYOKU-' + seq;
+        if (country == 'South Korea' || country == 'KR') return 'KPMA-' + seq;
+        if (country == 'Brazil' || country == 'BR') return 'CRF-' + seq;
+        if (country == 'Mexico' || country == 'MX') return 'COFEPRIS-' + seq;
+        if (country == 'Argentina' || country == 'AR') return 'ANMAT-' + seq;
         String stateAbbr = (state != null && state.length() >= 2) ? state.substring(0, 2).toUpperCase() : 'CA';
         return stateAbbr + '-PHY-' + seq;
     }
@@ -691,7 +723,8 @@ public with sharing class DemoContactPointController {
 
     private static String sanitizeDomain(String name) {
         if (String.isBlank(name)) return 'unknown';
-        return name.replaceAll('[^a-zA-Z0-9]', '').toLowerCase();
+        String cleaned = name.replaceAll('[^a-zA-Z0-9]', '').toLowerCase();
+        return String.isBlank(cleaned) ? 'provider' + String.valueOf(Math.abs(name.hashCode())).left(6) : cleaned;
     }
 
     private static String extractLastName(String fullName) {
