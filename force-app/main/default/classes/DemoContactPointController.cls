@@ -31,6 +31,9 @@ public with sharing class DemoContactPointController {
             collectErrors(sr, records, errors);
             Integer created = countSuccesses(sr);
 
+            // Link new CPAs to existing ProviderAcctTerritoryInfo records as PreferredAddressId
+            linkCpaToPati(records, sr);
+
             Boolean hasMore = (batchOffset + BATCH_SIZE) < total;
             return batchResult(created, records.size(), hasMore, errors);
         } catch (Exception e) {
@@ -118,9 +121,9 @@ public with sharing class DemoContactPointController {
             Schema.SObjectType blType = Schema.getGlobalDescribe().get('businesslicense');
             if (blType == null) return batchResult(0, 0, false, new List<String>{ 'BusinessLicense not available' });
 
-            List<Account> batch = queryOrgAccountBatch(batchOffset);
+            List<Account> batch = queryAccountBatch(batchOffset);
             if (batch.isEmpty()) return batchResult(0, 0, false, new List<String>());
-            Integer total = countOrgAccounts();
+            Integer total = countDemoAccounts();
 
             List<SObject> records = buildBusinessLicenses(batch);
             if (records.isEmpty()) {
@@ -213,8 +216,9 @@ public with sharing class DemoContactPointController {
 
     private static List<Account> queryAccountBatch(Integer offset) {
         return [
-            SELECT Id, Name, BillingStreet, BillingCity, BillingState,
-                   BillingPostalCode, BillingCountry, Type, Phone, Site
+            SELECT Id, Name, BillingStreet, BillingCity, BillingState, BillingStateCode,
+                   BillingPostalCode, BillingCountry, BillingCountryCode,
+                   Type, Phone, Site, IsPersonAccount, PersonContactId
             FROM Account
             WHERE Site = :DEMO_TAG
             ORDER BY Name
@@ -254,6 +258,47 @@ public with sharing class DemoContactPointController {
     }
 
     // ──────────────────────────────────────────────────────────
+    // Link CPAs to ProviderAcctTerritoryInfo as PreferredAddressId
+    // ──────────────────────────────────────────────────────────
+
+    private static void linkCpaToPati(List<ContactPointAddress> cpas, Database.SaveResult[] results) {
+        Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+        if (!gd.containsKey('provideracctterritoryinfo')) return;
+
+        Map<Id, Id> acctToCpaId = new Map<Id, Id>();
+        for (Integer i = 0; i < cpas.size(); i++) {
+            if (results[i].isSuccess()) {
+                Id parentId = cpas[i].ParentId;
+                if (!acctToCpaId.containsKey(parentId)) {
+                    acctToCpaId.put(parentId, results[i].getId());
+                }
+            }
+        }
+        if (acctToCpaId.isEmpty()) return;
+
+        String escapedTag = String.escapeSingleQuotes(DEMO_TAG);
+        List<SObject> patiRecords = Database.query(
+            'SELECT Id, AccountId, PreferredAddressId FROM ProviderAcctTerritoryInfo ' +
+            'WHERE SourceSystemName = \'' + escapedTag + '\' AND AccountId IN (\'' +
+            String.join(new List<Id>(acctToCpaId.keySet()), '\',\'') + '\') AND PreferredAddressId = null'
+        );
+
+        List<SObject> toUpdate = new List<SObject>();
+        for (SObject pati : patiRecords) {
+            Id acctId = (Id) pati.get('AccountId');
+            Id cpaId = acctToCpaId.get(acctId);
+            if (cpaId != null) {
+                pati.put('PreferredAddressId', cpaId);
+                toUpdate.add(pati);
+            }
+        }
+
+        if (!toUpdate.isEmpty()) {
+            Database.update(toUpdate, false);
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────
     // Build ContactPointAddress records
     // ──────────────────────────────────────────────────────────
 
@@ -263,7 +308,8 @@ public with sharing class DemoContactPointController {
         for (Account acct : accounts) {
             ContactPointAddress cpa = new ContactPointAddress();
             cpa.Name = DEMO_TAG + ' - ' + acct.Name + ' Primary';
-            cpa.AddressType = 'Mailing';
+            cpa.AddressType = 'Billing';
+            cpa.UsageType = 'Work';
             cpa.ParentId = acct.Id;
 
             if (String.isNotBlank(acct.BillingCity)) {
@@ -281,6 +327,7 @@ public with sharing class DemoContactPointController {
                 cpa.Country = addr.get('country');
             }
 
+            cpa.IsActive = true;
             addresses.add(cpa);
         }
 
@@ -497,12 +544,34 @@ public with sharing class DemoContactPointController {
         Integer counter = 0;
 
         for (Account acct : accounts) {
-            String acctType = acct.Type;
-            if (acctType == null) continue;
-            String acctTypeLower = acctType.toLowerCase();
-
             String country = String.isNotBlank(acct.BillingCountry) ? acct.BillingCountry : 'United States';
-            String state = String.isNotBlank(acct.BillingState) ? acct.BillingState : 'CA';
+            String state = String.isNotBlank(acct.BillingStateCode) ? acct.BillingStateCode
+                         : (String.isNotBlank(acct.BillingState) ? acct.BillingState : 'CA');
+
+            if (acct.IsPersonAccount) {
+                String licNum = generateMedicalLicenseNumber(acct.BillingCountryCode, counter++);
+                SObject bl = blType.newSObject();
+                bl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' Medical License');
+                bl.put('LicenseNumber', licNum);
+                bl.put('Status', 'Verified');
+                bl.put('IsActive', true);
+                bl.put('VerificationStatus', 'Authorized');
+                bl.put('LicenseClass', 'Healthcare');
+                bl.put('Description', 'Medical Practitioner License');
+                bl.put('IssueDate', Date.today().addYears(-3));
+                bl.put('PeriodStart', Datetime.newInstance(Date.today().addYears(-3), Time.newInstance(0, 0, 0, 0)));
+                bl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(5), Time.newInstance(0, 0, 0, 0)));
+                bl.put('ComplianceScope', 'JurisdictionState');
+                bl.put('JurisdictionState', state);
+                bl.put('Identifier', DEMO_TAG + '-' + licNum);
+                bl.put('AccountId', acct.Id);
+                if (acct.PersonContactId != null) bl.put('ContactId', acct.PersonContactId);
+                licenses.add(bl);
+                continue;
+            }
+
+            String acctType = acct.Type;
+            String acctTypeLower = String.isNotBlank(acctType) ? acctType.toLowerCase() : '';
 
             if (acctTypeLower.contains('hospital') || acctTypeLower.contains('clinic') ||
                 acctTypeLower.contains('medical center') || acctTypeLower.contains('health system')) {
@@ -511,11 +580,16 @@ public with sharing class DemoContactPointController {
                 SObject bl = blType.newSObject();
                 bl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' Facility License');
                 bl.put('LicenseNumber', licNum);
-                bl.put('Status', 'Active');
+                bl.put('Status', 'Verified');
+                bl.put('IsActive', true);
+                bl.put('VerificationStatus', 'Authorized');
                 bl.put('LicenseClass', 'Healthcare');
                 bl.put('Description', 'Medical Facility');
                 bl.put('IssueDate', Date.today().addYears(-2));
+                bl.put('PeriodStart', Datetime.newInstance(Date.today().addYears(-2), Time.newInstance(0, 0, 0, 0)));
                 bl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(3), Time.newInstance(0, 0, 0, 0)));
+                bl.put('ComplianceScope', 'JurisdictionState');
+                bl.put('JurisdictionState', state);
                 bl.put('Identifier', DEMO_TAG + '-' + licNum);
                 bl.put('AccountId', acct.Id);
                 licenses.add(bl);
@@ -526,11 +600,36 @@ public with sharing class DemoContactPointController {
                 SObject bl = blType.newSObject();
                 bl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' Pharmacy License');
                 bl.put('LicenseNumber', licNum);
-                bl.put('Status', 'Active');
+                bl.put('Status', 'Verified');
+                bl.put('IsActive', true);
+                bl.put('VerificationStatus', 'Authorized');
                 bl.put('LicenseClass', 'Pharmaceutical');
                 bl.put('Description', 'Pharmacy');
                 bl.put('IssueDate', Date.today().addYears(-1));
+                bl.put('PeriodStart', Datetime.newInstance(Date.today().addYears(-1), Time.newInstance(0, 0, 0, 0)));
                 bl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(2), Time.newInstance(0, 0, 0, 0)));
+                bl.put('ComplianceScope', 'JurisdictionState');
+                bl.put('JurisdictionState', state);
+                bl.put('Identifier', DEMO_TAG + '-' + licNum);
+                bl.put('AccountId', acct.Id);
+                licenses.add(bl);
+
+            } else {
+                // Insurance, payers, and other org types still need a state license for green mobile icon
+                String licNum = generateFacilityLicenseNumber(country, state, counter++);
+                SObject bl = blType.newSObject();
+                bl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' State License');
+                bl.put('LicenseNumber', licNum);
+                bl.put('Status', 'Verified');
+                bl.put('IsActive', true);
+                bl.put('VerificationStatus', 'Authorized');
+                bl.put('LicenseClass', 'Healthcare');
+                bl.put('Description', 'Business License');
+                bl.put('IssueDate', Date.today().addYears(-2));
+                bl.put('PeriodStart', Datetime.newInstance(Date.today().addYears(-2), Time.newInstance(0, 0, 0, 0)));
+                bl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(3), Time.newInstance(0, 0, 0, 0)));
+                bl.put('ComplianceScope', 'JurisdictionState');
+                bl.put('JurisdictionState', state);
                 bl.put('Identifier', DEMO_TAG + '-' + licNum);
                 bl.put('AccountId', acct.Id);
                 licenses.add(bl);
@@ -549,6 +648,21 @@ public with sharing class DemoContactPointController {
         if (country == 'Spain' || country == 'ES') return 'REGA-' + seq;
         String stateAbbr = (state != null && state.length() >= 2) ? state.substring(0, 2).toUpperCase() : 'CA';
         return stateAbbr + '-MFL-' + seq;
+    }
+
+    private static String generateMedicalLicenseNumber(String countryCode, Integer seed) {
+        String seq = String.valueOf(300000 + seed * 547).substring(0, 6);
+        if (countryCode == 'GB') return 'GMC-' + seq;
+        if (countryCode == 'FR') return 'RPPS-' + seq;
+        if (countryCode == 'DE') return 'LANR-' + seq;
+        if (countryCode == 'IT') return 'OMC-' + seq;
+        if (countryCode == 'ES') return 'COM-' + seq;
+        if (countryCode == 'JP') return 'MHLW-' + seq;
+        if (countryCode == 'KR') return 'MOHW-' + seq;
+        if (countryCode == 'BR') return 'CRM-' + seq;
+        if (countryCode == 'MX') return 'CESS-' + seq;
+        if (countryCode == 'AR') return 'MN-' + seq;
+        return 'MED-' + seq;
     }
 
     private static String generatePharmacyLicenseNumber(String country, String state, Integer seed) {

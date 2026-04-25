@@ -398,6 +398,7 @@ public with sharing class DemoAccountProviderController {
         a.Industry = 'Healthcare';
         a.Type = acctType;
         a.Site = DEMO_TAG;
+        a.IsActive = true;
         return a;
     }
 
@@ -564,6 +565,7 @@ public with sharing class DemoAccountProviderController {
             a.PersonMailingStateCode = stateCode;
         }
         a.Site = DEMO_TAG;
+        a.IsActive = true;
         return a;
     }
 
@@ -886,7 +888,7 @@ public with sharing class DemoAccountProviderController {
             share.put('ParentId', patiResults[i].getId());
             share.put('UserOrGroupId', groupId);
             share.put('AccessLevel', 'Edit');
-            share.put('RowCause', 'Manual');
+            share.put('RowCause', 'LSC4CEAutoShare');
             shares.add(share);
         }
 
