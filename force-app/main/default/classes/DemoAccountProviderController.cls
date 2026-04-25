@@ -263,6 +263,111 @@ public with sharing class DemoAccountProviderController {
         accts.add(makeOrg(hcoRtId, 'CVS Health', '1 CVS Drive', 'Woonsocket', 'RI', '02895', 'US', '+1 (401) 765-1500', 'https://www.cvshealth.com', 'Pharmacy'));
         accts.add(makeOrg(hcoRtId, 'Midtown Oncology Associates', '450 East 63rd Street', 'New York', 'NY', '10065', 'US', '+1 (212) 305-5098', 'https://www.midtownoncology.com', 'Clinic'));
 
+        // ---- Additional US organizations (by territory) ----
+
+        // US_NE_Boston (+4)
+        accts.add(makeOrg(hcoRtId, 'Brigham and Women\'s Hospital', '75 Francis Street', 'Boston', 'MA', '02115', 'US', '+1 (617) 732-5500', 'https://www.brighamandwomens.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Dana-Farber Cancer Institute', '450 Brookline Avenue', 'Boston', 'MA', '02215', 'US', '+1 (617) 632-3000', 'https://www.dana-farber.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Boston Children\'s Hospital', '300 Longwood Avenue', 'Boston', 'MA', '02115', 'US', '+1 (617) 355-6000', 'https://www.childrenshospital.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Blue Cross Blue Shield of Massachusetts', '101 Huntington Avenue', 'Boston', 'MA', '02199', 'US', '+1 (800) 262-2583', 'https://www.bluecrossma.com', 'Insurance'));
+
+        // US_NE_New_York (+3)
+        accts.add(makeOrg(hcoRtId, 'NYU Langone Health', '550 First Avenue', 'New York', 'NY', '10016', 'US', '+1 (212) 263-7300', 'https://www.nyulangone.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'NewYork-Presbyterian Hospital', '525 East 68th Street', 'New York', 'NY', '10065', 'US', '+1 (212) 746-5454', 'https://www.nyp.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Mount Sinai Hospital', '1 Gustave L. Levy Place', 'New York', 'NY', '10029', 'US', '+1 (212) 241-6500', 'https://www.mountsinai.org', 'Hospital'));
+
+        // US_NE_Philadelphia (+5)
+        accts.add(makeOrg(hcoRtId, 'Hospital of the University of Pennsylvania', '3400 Spruce Street', 'Philadelphia', 'PA', '19104', 'US', '+1 (215) 662-4000', 'https://www.pennmedicine.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Children\'s Hospital of Philadelphia', '3401 Civic Center Boulevard', 'Philadelphia', 'PA', '19104', 'US', '+1 (215) 590-1000', 'https://www.chop.edu', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Thomas Jefferson University Hospital', '111 South 11th Street', 'Philadelphia', 'PA', '19107', 'US', '+1 (215) 955-6000', 'https://www.jeffersonhealth.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Rittenhouse Oncology Associates', '1800 Lombard Street', 'Philadelphia', 'PA', '19146', 'US', '+1 (215) 735-7992', 'https://www.rittenhouse-onc.com', 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'Independence Blue Cross', '1901 Market Street', 'Philadelphia', 'PA', '19103', 'US', '+1 (215) 241-2400', 'https://www.ibx.com', 'Insurance'));
+
+        // US_NE_Washington_DC (+4)
+        accts.add(makeOrg(hcoRtId, 'MedStar Georgetown University Hospital', '3800 Reservoir Road NW', 'Washington', 'DC', '20007', 'US', '+1 (202) 444-2000', 'https://www.medstarhealth.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'George Washington University Hospital', '900 23rd Street NW', 'Washington', 'DC', '20037', 'US', '+1 (202) 715-4000', 'https://www.gwhospital.com', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Walter Reed National Military Medical Center', '8901 Wisconsin Avenue', 'Bethesda', 'MD', '20889', 'US', '+1 (301) 295-4611', 'https://www.wrnmmc.health.mil', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'CareFirst BlueCross BlueShield', '10455 Mill Run Circle', 'Washington', 'DC', '20007', 'US', '+1 (202) 479-8000', 'https://www.carefirst.com', 'Insurance'));
+
+        // US_SE_Atlanta (+5)
+        accts.add(makeOrg(hcoRtId, 'Emory University Hospital', '1364 Clifton Road NE', 'Atlanta', 'GA', '30322', 'US', '+1 (404) 712-2000', 'https://www.emoryhealthcare.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Grady Memorial Hospital', '80 Jesse Hill Jr Drive SE', 'Atlanta', 'GA', '30303', 'US', '+1 (404) 616-1000', 'https://www.gradyhealth.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Piedmont Atlanta Hospital', '1968 Peachtree Road NW', 'Atlanta', 'GA', '30309', 'US', '+1 (404) 605-5000', 'https://www.piedmont.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Atlanta Cancer Care', '5670 Peachtree Dunwoody Road', 'Atlanta', 'GA', '30342', 'US', '+1 (404) 256-4662', 'https://www.atlantacancercare.com', 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'Anthem Blue Cross Georgia', '3350 Peachtree Road NE', 'Atlanta', 'GA', '30326', 'US', '+1 (404) 842-8000', 'https://www.anthem.com', 'Insurance'));
+
+        // US_SE_Miami (+5)
+        accts.add(makeOrg(hcoRtId, 'Jackson Memorial Hospital', '1611 NW 12th Avenue', 'Miami', 'FL', '33136', 'US', '+1 (305) 585-1111', 'https://www.jacksonhealth.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Baptist Health South Florida', '8900 North Kendall Drive', 'Miami', 'FL', '33176', 'US', '+1 (786) 596-1960', 'https://www.baptisthealth.net', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'University of Miami Hospital', '1400 NW 12th Avenue', 'Miami', 'FL', '33136', 'US', '+1 (305) 325-5511', 'https://www.umiamihospital.com', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Miami Cancer Institute', '8900 North Kendall Drive', 'Miami', 'FL', '33176', 'US', '+1 (786) 596-2000', 'https://www.baptisthealth.net/cancer', 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'Florida Blue', '4800 Deerwood Campus Parkway', 'Jacksonville', 'FL', '32246', 'US', '+1 (800) 352-2583', 'https://www.floridablue.com', 'Insurance'));
+
+        // US_SE_Charlotte (+5)
+        accts.add(makeOrg(hcoRtId, 'Atrium Health Carolinas Medical Center', '1000 Blythe Boulevard', 'Charlotte', 'NC', '28203', 'US', '+1 (704) 355-2000', 'https://www.atriumhealth.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Novant Health Presbyterian', '200 Hawthorne Lane', 'Charlotte', 'NC', '28204', 'US', '+1 (704) 384-4000', 'https://www.novanthealth.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Levine Cancer Institute', '1021 Morehead Medical Drive', 'Charlotte', 'NC', '28204', 'US', '+1 (704) 355-2884', 'https://www.atriumhealth.org/levine', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Charlotte Gastroenterology Associates', '1025 Morehead Medical Drive', 'Charlotte', 'NC', '28204', 'US', '+1 (704) 372-7974', 'https://www.charlottegastro.com', 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'Blue Cross Blue Shield of North Carolina', '4505 Emperor Boulevard', 'Durham', 'NC', '27703', 'US', '+1 (919) 765-4500', 'https://www.bluecrossnc.com', 'Insurance'));
+
+        // US_SE_Nashville (+4)
+        accts.add(makeOrg(hcoRtId, 'Vanderbilt University Medical Center', '1211 Medical Center Drive', 'Nashville', 'TN', '37232', 'US', '+1 (615) 322-5000', 'https://www.vumc.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'St. Jude Children\'s Research Hospital', '262 Danny Thomas Place', 'Memphis', 'TN', '38105', 'US', '+1 (901) 595-3300', 'https://www.stjude.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Sarah Cannon Cancer Institute', '250 25th Avenue North', 'Nashville', 'TN', '37203', 'US', '+1 (615) 329-7274', 'https://www.sarahcannon.com', 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'BlueCross BlueShield of Tennessee', '1 Cameron Hill Circle', 'Chattanooga', 'TN', '37402', 'US', '+1 (423) 535-5600', 'https://www.bcbst.com', 'Insurance'));
+
+        // US_MW_Chicago (+4)
+        accts.add(makeOrg(hcoRtId, 'Northwestern Memorial Hospital', '251 East Huron Street', 'Chicago', 'IL', '60611', 'US', '+1 (312) 926-2000', 'https://www.nm.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Rush University Medical Center', '1653 West Congress Parkway', 'Chicago', 'IL', '60612', 'US', '+1 (312) 942-5000', 'https://www.rush.edu', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'University of Chicago Medicine', '5841 South Maryland Avenue', 'Chicago', 'IL', '60637', 'US', '+1 (773) 702-1000', 'https://www.uchicagomedicine.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Robert H. Lurie Cancer Center', '675 North Saint Clair Street', 'Chicago', 'IL', '60611', 'US', '+1 (312) 695-0990', 'https://www.cancer.northwestern.edu', 'Clinic'));
+
+        // US_MW_Detroit (+5)
+        accts.add(makeOrg(hcoRtId, 'Henry Ford Hospital', '2799 West Grand Boulevard', 'Detroit', 'MI', '48202', 'US', '+1 (313) 916-2600', 'https://www.henryford.com', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Beaumont Hospital Royal Oak', '3601 West Thirteen Mile Road', 'Royal Oak', 'MI', '48073', 'US', '+1 (248) 898-5000', 'https://www.beaumont.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Michigan Medicine', '1500 East Medical Center Drive', 'Ann Arbor', 'MI', '48109', 'US', '+1 (734) 936-4000', 'https://www.uofmhealth.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Karmanos Cancer Institute', '4100 John R Street', 'Detroit', 'MI', '48201', 'US', '+1 (313) 576-8720', 'https://www.karmanos.org', 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'Blue Cross Blue Shield of Michigan', '600 East Lafayette Boulevard', 'Detroit', 'MI', '48226', 'US', '+1 (313) 225-9000', 'https://www.bcbsm.com', 'Insurance'));
+
+        // US_MW_Minneapolis (+3)
+        accts.add(makeOrg(hcoRtId, 'Abbott Northwestern Hospital', '800 East 28th Street', 'Minneapolis', 'MN', '55407', 'US', '+1 (612) 863-4000', 'https://www.allinahealth.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'University of Minnesota Medical Center', '500 Harvard Street SE', 'Minneapolis', 'MN', '55455', 'US', '+1 (612) 273-3000', 'https://www.mhealth.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Masonic Cancer Center', '425 East River Parkway', 'Minneapolis', 'MN', '55455', 'US', '+1 (612) 624-2620', 'https://www.cancer.umn.edu', 'Clinic'));
+
+        // US_MW_Kansas_City (+5)
+        accts.add(makeOrg(hcoRtId, 'University of Kansas Medical Center', '3901 Rainbow Boulevard', 'Kansas City', 'KS', '66160', 'US', '+1 (913) 588-5000', 'https://www.kumc.edu', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Saint Luke\'s Hospital', '4401 Wornall Road', 'Kansas City', 'MO', '64111', 'US', '+1 (816) 932-2000', 'https://www.saintlukeskc.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Children\'s Mercy Kansas City', '2401 Gillham Road', 'Kansas City', 'MO', '64108', 'US', '+1 (816) 234-3000', 'https://www.childrensmercy.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Kansas City Cancer Center', '4600 Broadway', 'Kansas City', 'MO', '64111', 'US', '+1 (816) 756-1212', 'https://www.kccancercenter.com', 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'Blue Cross Blue Shield of Kansas City', '2301 Main Street', 'Kansas City', 'MO', '64108', 'US', '+1 (816) 395-2222', 'https://www.bluekc.com', 'Insurance'));
+
+        // US_W_Los_Angeles (+5)
+        accts.add(makeOrg(hcoRtId, 'Cedars-Sinai Medical Center', '8700 Beverly Boulevard', 'Los Angeles', 'CA', '90048', 'US', '+1 (310) 423-3277', 'https://www.cedars-sinai.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'UCLA Medical Center', '757 Westwood Plaza', 'Los Angeles', 'CA', '90095', 'US', '+1 (310) 825-9111', 'https://www.uclahealth.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'City of Hope', '1500 East Duarte Road', 'Duarte', 'CA', '91010', 'US', '+1 (626) 218-2000', 'https://www.cityofhope.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'LA Cancer Associates', '8631 West Third Street', 'Los Angeles', 'CA', '90048', 'US', '+1 (310) 657-9999', 'https://www.lacancer.com', 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'Health Net California', '21281 Burbank Boulevard', 'Los Angeles', 'CA', '91367', 'US', '+1 (800) 291-6911', 'https://www.healthnet.com', 'Insurance'));
+
+        // US_W_San_Francisco (+4)
+        accts.add(makeOrg(hcoRtId, 'UCSF Medical Center', '505 Parnassus Avenue', 'San Francisco', 'CA', '94143', 'US', '+1 (415) 476-1000', 'https://www.ucsfhealth.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Stanford Health Care', '300 Pasteur Drive', 'Palo Alto', 'CA', '94304', 'US', '+1 (650) 723-4000', 'https://www.stanfordhealthcare.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Sutter Health CPMC', '2333 Buchanan Street', 'San Francisco', 'CA', '94115', 'US', '+1 (415) 600-6000', 'https://www.sutterhealth.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Pacific Oncology Associates', '2100 Webster Street', 'San Francisco', 'CA', '94115', 'US', '+1 (415) 775-9500', 'https://www.pacificonc.com', 'Clinic'));
+
+        // US_W_Seattle (+5)
+        accts.add(makeOrg(hcoRtId, 'UW Medical Center', '1959 NE Pacific Street', 'Seattle', 'WA', '98195', 'US', '+1 (206) 598-3300', 'https://www.uwmedicine.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Swedish Medical Center', '747 Broadway', 'Seattle', 'WA', '98122', 'US', '+1 (206) 386-6000', 'https://www.swedish.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Seattle Children\'s Hospital', '4800 Sand Point Way NE', 'Seattle', 'WA', '98105', 'US', '+1 (206) 987-2000', 'https://www.seattlechildrens.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Fred Hutchinson Cancer Center', '1100 Fairview Avenue N', 'Seattle', 'WA', '98109', 'US', '+1 (206) 667-5000', 'https://www.fredhutch.org', 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'Premera Blue Cross', '7001 220th Street SW', 'Seattle', 'WA', '98043', 'US', '+1 (800) 722-1471', 'https://www.premera.com', 'Insurance'));
+
+        // US_W_Denver (+5)
+        accts.add(makeOrg(hcoRtId, 'UCHealth University of Colorado Hospital', '12605 East 16th Avenue', 'Aurora', 'CO', '80045', 'US', '+1 (720) 848-0000', 'https://www.uchealth.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Denver Health Medical Center', '777 Bannock Street', 'Denver', 'CO', '80204', 'US', '+1 (303) 436-6000', 'https://www.denverhealth.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'National Jewish Health', '1400 Jackson Street', 'Denver', 'CO', '80206', 'US', '+1 (303) 388-4461', 'https://www.nationaljewish.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Rocky Mountain Cancer Centers', '2055 High Street', 'Denver', 'CO', '80205', 'US', '+1 (303) 388-4876', 'https://www.rockymountaincancercenters.com', 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'Anthem Blue Cross Colorado', '700 Broadway', 'Denver', 'CO', '80273', 'US', '+1 (800) 331-1476', 'https://www.anthem.com', 'Insurance'));
+
         // ---- United Kingdom (10) ----
         accts.add(makeOrg(hcoRtId, 'Royal London Hospital', 'Whitechapel Road', 'London', null, 'E1 1FR', 'GB', '+44 20 7377 7000', 'https://www.bartshealth.nhs.uk', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'St Thomas\' Hospital', 'Westminster Bridge Road', 'London', null, 'SE1 7EH', 'GB', '+44 20 7188 7188', 'https://www.guysandstthomas.nhs.uk', 'Hospital'));
@@ -424,6 +529,114 @@ public with sharing class DemoAccountProviderController {
         docs.add(makeDoctor(hcpRtId, 'Lisa', 'Thornton', 'lisa.thornton@kaiser.example.com', '+1 (510) 271-5911', '1 Kaiser Plaza', 'Oakland', 'CA', '94612', 'US'));
         docs.add(makeDoctor(hcpRtId, 'Andrew', 'Nakamura', 'andrew.nakamura@mayo.example.com', '+1 (507) 284-2513', '200 First Street SW', 'Rochester', 'MN', '55905', 'US'));
         docs.add(makeDoctor(hcpRtId, 'Rachel', 'Okonkwo', 'rachel.okonkwo@mskcc.example.com', '+1 (212) 639-2002', '1275 York Avenue', 'New York', 'NY', '10065', 'US'));
+
+        // Additional US Doctors (by territory)
+
+        // US_NE_Boston (+4)
+        docs.add(makeDoctor(hcpRtId, 'Thomas', 'Brennan', 'thomas.brennan@bwh.example.com', '+1 (617) 732-5501', '75 Francis Street', 'Boston', 'MA', '02115', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Margaret', 'Sullivan', 'margaret.sullivan@dfci.example.com', '+1 (617) 632-3001', '450 Brookline Avenue', 'Boston', 'MA', '02215', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Christopher', 'O\'Malley', 'christopher.omalley@bch.example.com', '+1 (617) 355-6001', '300 Longwood Avenue', 'Boston', 'MA', '02115', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Priya', 'Patel', 'priya.patel@dfci.example.com', '+1 (617) 632-3002', '450 Brookline Avenue', 'Boston', 'MA', '02215', 'US'));
+
+        // US_NE_New_York (+3)
+        docs.add(makeDoctor(hcpRtId, 'Samuel', 'Greenberg', 'samuel.greenberg@nyulangone.example.com', '+1 (212) 263-7301', '550 First Avenue', 'New York', 'NY', '10016', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Diana', 'Chow', 'diana.chow@nyp.example.com', '+1 (212) 746-5455', '525 East 68th Street', 'New York', 'NY', '10065', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Marcus', 'Thompson', 'marcus.thompson@mountsinai.example.com', '+1 (212) 241-6501', '1 Gustave L. Levy Place', 'New York', 'NY', '10029', 'US'));
+
+        // US_NE_Philadelphia (+5)
+        docs.add(makeDoctor(hcpRtId, 'Elizabeth', 'Harper', 'elizabeth.harper@pennmed.example.com', '+1 (215) 662-4001', '3400 Spruce Street', 'Philadelphia', 'PA', '19104', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Daniel', 'Rivera', 'daniel.rivera@chop.example.com', '+1 (215) 590-1001', '3401 Civic Center Boulevard', 'Philadelphia', 'PA', '19104', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Karen', 'Whitfield', 'karen.whitfield@jefferson.example.com', '+1 (215) 955-6001', '111 South 11th Street', 'Philadelphia', 'PA', '19107', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Jason', 'Kim', 'jason.kim@pennmed.example.com', '+1 (215) 662-4002', '3400 Spruce Street', 'Philadelphia', 'PA', '19104', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Andrea', 'Simmons', 'andrea.simmons@rittenhouse.example.com', '+1 (215) 735-7993', '1800 Lombard Street', 'Philadelphia', 'PA', '19146', 'US'));
+
+        // US_NE_Washington_DC (+5)
+        docs.add(makeDoctor(hcpRtId, 'William', 'Foster', 'william.foster@georgetown.example.com', '+1 (202) 444-2001', '3800 Reservoir Road NW', 'Washington', 'DC', '20007', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Catherine', 'Morales', 'catherine.morales@gwu.example.com', '+1 (202) 715-4001', '900 23rd Street NW', 'Washington', 'DC', '20037', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Richard', 'Allen', 'richard.allen@wrnmmc.example.com', '+1 (301) 295-4612', '8901 Wisconsin Avenue', 'Bethesda', 'MD', '20889', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Sophia', 'Bennett', 'sophia.bennett@jhmi.example.com', '+1 (410) 955-5002', '1800 Orleans Street', 'Baltimore', 'MD', '21287', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Gregory', 'Park', 'gregory.park@georgetown.example.com', '+1 (202) 444-2002', '3800 Reservoir Road NW', 'Washington', 'DC', '20007', 'US'));
+
+        // US_SE_Atlanta (+5)
+        docs.add(makeDoctor(hcpRtId, 'Michelle', 'Banks', 'michelle.banks@emory.example.com', '+1 (404) 712-2001', '1364 Clifton Road NE', 'Atlanta', 'GA', '30322', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Terrence', 'Williams', 'terrence.williams@grady.example.com', '+1 (404) 616-1001', '80 Jesse Hill Jr Drive SE', 'Atlanta', 'GA', '30303', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Nicole', 'Davis', 'nicole.davis@piedmont.example.com', '+1 (404) 605-5001', '1968 Peachtree Road NW', 'Atlanta', 'GA', '30309', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Kevin', 'Jackson', 'kevin.jackson@emory.example.com', '+1 (404) 712-2002', '1364 Clifton Road NE', 'Atlanta', 'GA', '30322', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Amanda', 'Stewart', 'amanda.stewart@atl-cancer.example.com', '+1 (404) 256-4663', '5670 Peachtree Dunwoody Road', 'Atlanta', 'GA', '30342', 'US'));
+
+        // US_SE_Miami (+5)
+        docs.add(makeDoctor(hcpRtId, 'Carlos', 'Mendez', 'carlos.mendez@jackson.example.com', '+1 (305) 585-1112', '1611 NW 12th Avenue', 'Miami', 'FL', '33136', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Maria', 'Santos', 'maria.santos@baptist.example.com', '+1 (786) 596-1961', '8900 North Kendall Drive', 'Miami', 'FL', '33176', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Roberto', 'Cruz', 'roberto.cruz@umhealth.example.com', '+1 (305) 325-5512', '1400 NW 12th Avenue', 'Miami', 'FL', '33136', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Ana', 'Delgado', 'ana.delgado@mci.example.com', '+1 (786) 596-2001', '8900 North Kendall Drive', 'Miami', 'FL', '33176', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Luis', 'Fernandez', 'luis.fernandez@jackson.example.com', '+1 (305) 585-1113', '1611 NW 12th Avenue', 'Miami', 'FL', '33136', 'US'));
+
+        // US_SE_Charlotte (+5)
+        docs.add(makeDoctor(hcpRtId, 'Patricia', 'Reynolds', 'patricia.reynolds@atrium.example.com', '+1 (704) 355-2001', '1000 Blythe Boulevard', 'Charlotte', 'NC', '28203', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Brian', 'Coleman', 'brian.coleman@novant.example.com', '+1 (704) 384-4001', '200 Hawthorne Lane', 'Charlotte', 'NC', '28204', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Lauren', 'Mitchell', 'lauren.mitchell@levine.example.com', '+1 (704) 355-2885', '1021 Morehead Medical Drive', 'Charlotte', 'NC', '28204', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Steven', 'Harris', 'steven.harris@atrium.example.com', '+1 (704) 355-2002', '1000 Blythe Boulevard', 'Charlotte', 'NC', '28203', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Heather', 'Ross', 'heather.ross@charlottegastro.example.com', '+1 (704) 372-7975', '1025 Morehead Medical Drive', 'Charlotte', 'NC', '28204', 'US'));
+
+        // US_SE_Nashville (+5)
+        docs.add(makeDoctor(hcpRtId, 'Jonathan', 'Clark', 'jonathan.clark@vumc.example.com', '+1 (615) 322-5001', '1211 Medical Center Drive', 'Nashville', 'TN', '37232', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Sharon', 'Wright', 'sharon.wright@stjude.example.com', '+1 (901) 595-3301', '262 Danny Thomas Place', 'Memphis', 'TN', '38105', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Timothy', 'Baker', 'timothy.baker@vumc.example.com', '+1 (615) 322-5002', '1211 Medical Center Drive', 'Nashville', 'TN', '37232', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Rebecca', 'Moore', 'rebecca.moore@sarahcannon.example.com', '+1 (615) 329-7275', '250 25th Avenue North', 'Nashville', 'TN', '37203', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Eric', 'Nelson', 'eric.nelson@mdanderson.example.com', '+1 (713) 792-2123', '1515 Holcombe Boulevard', 'Houston', 'TX', '77030', 'US'));
+
+        // US_MW_Chicago (+5)
+        docs.add(makeDoctor(hcpRtId, 'Christine', 'Walsh', 'christine.walsh@northwestern.example.com', '+1 (312) 926-2001', '251 East Huron Street', 'Chicago', 'IL', '60611', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Raymond', 'Lee', 'raymond.lee@rush.example.com', '+1 (312) 942-5001', '1653 West Congress Parkway', 'Chicago', 'IL', '60612', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Susan', 'Chen', 'susan.chen@uchicago.example.com', '+1 (773) 702-1001', '5841 South Maryland Avenue', 'Chicago', 'IL', '60637', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Patrick', 'O\'Brien', 'patrick.obrien@lurie.example.com', '+1 (312) 695-0991', '675 North Saint Clair Street', 'Chicago', 'IL', '60611', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Angela', 'Martinez', 'angela.martinez@ccf.example.com', '+1 (216) 444-2202', '9500 Euclid Avenue', 'Cleveland', 'OH', '44195', 'US'));
+
+        // US_MW_Detroit (+5)
+        docs.add(makeDoctor(hcpRtId, 'Mark', 'Henderson', 'mark.henderson@henryford.example.com', '+1 (313) 916-2601', '2799 West Grand Boulevard', 'Detroit', 'MI', '48202', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Sandra', 'Cooper', 'sandra.cooper@beaumont.example.com', '+1 (248) 898-5001', '3601 West Thirteen Mile Road', 'Royal Oak', 'MI', '48073', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Jeffrey', 'Phillips', 'jeffrey.phillips@umich.example.com', '+1 (734) 936-4001', '1500 East Medical Center Drive', 'Ann Arbor', 'MI', '48109', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Laura', 'Taylor', 'laura.taylor@karmanos.example.com', '+1 (313) 576-8721', '4100 John R Street', 'Detroit', 'MI', '48201', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Robert', 'Campbell', 'robert.campbell@henryford.example.com', '+1 (313) 916-2602', '2799 West Grand Boulevard', 'Detroit', 'MI', '48202', 'US'));
+
+        // US_MW_Minneapolis (+3)
+        docs.add(makeDoctor(hcpRtId, 'Amy', 'Anderson', 'amy.anderson@abbott.example.com', '+1 (612) 863-4001', '800 East 28th Street', 'Minneapolis', 'MN', '55407', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Brian', 'Larson', 'brian.larson@umn.example.com', '+1 (612) 273-3001', '500 Harvard Street SE', 'Minneapolis', 'MN', '55455', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Jennifer', 'Olson', 'jennifer.olson@masonic.example.com', '+1 (612) 624-2621', '425 East River Parkway', 'Minneapolis', 'MN', '55455', 'US'));
+
+        // US_MW_Kansas_City (+5)
+        docs.add(makeDoctor(hcpRtId, 'David', 'Morgan', 'david.morgan@kumc.example.com', '+1 (913) 588-5001', '3901 Rainbow Boulevard', 'Kansas City', 'KS', '66160', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Nancy', 'Wilson', 'nancy.wilson@saintlukes.example.com', '+1 (816) 932-2001', '4401 Wornall Road', 'Kansas City', 'MO', '64111', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Michael', 'Evans', 'michael.evans@childrensmercy.example.com', '+1 (816) 234-3001', '2401 Gillham Road', 'Kansas City', 'MO', '64108', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Stephanie', 'Hall', 'stephanie.hall@kumc.example.com', '+1 (913) 588-5002', '3901 Rainbow Boulevard', 'Kansas City', 'KS', '66160', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Ryan', 'Peterson', 'ryan.peterson@kccancer.example.com', '+1 (816) 756-1213', '4600 Broadway', 'Kansas City', 'MO', '64111', 'US'));
+
+        // US_W_Los_Angeles (+5)
+        docs.add(makeDoctor(hcpRtId, 'Jessica', 'Stone', 'jessica.stone@cedars.example.com', '+1 (310) 423-3278', '8700 Beverly Boulevard', 'Los Angeles', 'CA', '90048', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Anthony', 'Nguyen', 'anthony.nguyen@ucla.example.com', '+1 (310) 825-9112', '757 Westwood Plaza', 'Los Angeles', 'CA', '90095', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Katherine', 'Adams', 'katherine.adams@cityofhope.example.com', '+1 (626) 218-2001', '1500 East Duarte Road', 'Duarte', 'CA', '91010', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Benjamin', 'Ramirez', 'benjamin.ramirez@cedars.example.com', '+1 (310) 423-3279', '8700 Beverly Boulevard', 'Los Angeles', 'CA', '90048', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Victoria', 'Wu', 'victoria.wu@lacancer.example.com', '+1 (310) 657-9991', '8631 West Third Street', 'Los Angeles', 'CA', '90048', 'US'));
+
+        // US_W_San_Francisco (+4)
+        docs.add(makeDoctor(hcpRtId, 'Matthew', 'Wong', 'matthew.wong@ucsf.example.com', '+1 (415) 476-1001', '505 Parnassus Avenue', 'San Francisco', 'CA', '94143', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Natalie', 'Brooks', 'natalie.brooks@stanford.example.com', '+1 (650) 723-4001', '300 Pasteur Drive', 'Palo Alto', 'CA', '94304', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Peter', 'Chang', 'peter.chang@sutter.example.com', '+1 (415) 600-6001', '2333 Buchanan Street', 'San Francisco', 'CA', '94115', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Diane', 'Yamamoto', 'diane.yamamoto@pacificonc.example.com', '+1 (415) 775-9501', '2100 Webster Street', 'San Francisco', 'CA', '94115', 'US'));
+
+        // US_W_Seattle (+5)
+        docs.add(makeDoctor(hcpRtId, 'James', 'Murphy', 'james.murphy@uwmed.example.com', '+1 (206) 598-3301', '1959 NE Pacific Street', 'Seattle', 'WA', '98195', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Emily', 'Johnson', 'emily.johnson@swedish.example.com', '+1 (206) 386-6001', '747 Broadway', 'Seattle', 'WA', '98122', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Alexander', 'Scott', 'alexander.scott@seattlechildrens.example.com', '+1 (206) 987-2001', '4800 Sand Point Way NE', 'Seattle', 'WA', '98105', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Rachel', 'Green', 'rachel.green@fredhutch.example.com', '+1 (206) 667-5001', '1100 Fairview Avenue N', 'Seattle', 'WA', '98109', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Kevin', 'Lewis', 'kevin.lewis@uwmed.example.com', '+1 (206) 598-3302', '1959 NE Pacific Street', 'Seattle', 'WA', '98195', 'US'));
+
+        // US_W_Denver (+5)
+        docs.add(makeDoctor(hcpRtId, 'Sarah', 'Miller', 'sarah.miller@uchealth.example.com', '+1 (720) 848-0001', '12605 East 16th Avenue', 'Aurora', 'CO', '80045', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Christopher', 'Taylor', 'christopher.taylor@denverhealth.example.com', '+1 (303) 436-6001', '777 Bannock Street', 'Denver', 'CO', '80204', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Jennifer', 'Anderson', 'jennifer.anderson@njhealth.example.com', '+1 (303) 388-4462', '1400 Jackson Street', 'Denver', 'CO', '80206', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Daniel', 'Martinez', 'daniel.martinez@rmcc.example.com', '+1 (303) 388-4877', '2055 High Street', 'Denver', 'CO', '80205', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Michelle', 'Roberts', 'michelle.roberts@uchealth.example.com', '+1 (720) 848-0002', '12605 East 16th Avenue', 'Aurora', 'CO', '80045', 'US'));
 
         // UK Doctors (10)
         docs.add(makeDoctor(hcpRtId, 'William', 'Hartley', 'william.hartley@nhs.example.com', '+44 20 7377 7001', 'Whitechapel Road', 'London', null, 'E1 1FR', 'GB'));
@@ -1346,16 +1559,43 @@ public with sharing class DemoAccountProviderController {
     private static Map<String, String> buildCityTerritoryMap() {
         Map<String, String> m = new Map<String, String>();
 
-        // US cities
+        // US cities — Northeast
         m.put('US:Boston', 'US_NE_Boston');
-        m.put('US:Baltimore', 'US_NE_Washington_DC');
-        m.put('US:Cleveland', 'US_MW_Chicago');
-        m.put('US:Rochester', 'US_MW_Minneapolis');
-        m.put('US:New York', 'US_NE_New_York');
-        m.put('US:Houston', 'US_SE_Nashville');
-        m.put('US:Oakland', 'US_W_San_Francisco');
-        m.put('US:Minnetonka', 'US_MW_Minneapolis');
         m.put('US:Woonsocket', 'US_NE_Boston');
+        m.put('US:New York', 'US_NE_New_York');
+        m.put('US:Philadelphia', 'US_NE_Philadelphia');
+        m.put('US:Baltimore', 'US_NE_Washington_DC');
+        m.put('US:Washington', 'US_NE_Washington_DC');
+        m.put('US:Bethesda', 'US_NE_Washington_DC');
+        // US cities — Southeast
+        m.put('US:Atlanta', 'US_SE_Atlanta');
+        m.put('US:Miami', 'US_SE_Miami');
+        m.put('US:Jacksonville', 'US_SE_Miami');
+        m.put('US:Charlotte', 'US_SE_Charlotte');
+        m.put('US:Durham', 'US_SE_Charlotte');
+        m.put('US:Nashville', 'US_SE_Nashville');
+        m.put('US:Memphis', 'US_SE_Nashville');
+        m.put('US:Houston', 'US_SE_Nashville');
+        m.put('US:Chattanooga', 'US_SE_Nashville');
+        // US cities — Midwest
+        m.put('US:Chicago', 'US_MW_Chicago');
+        m.put('US:Cleveland', 'US_MW_Chicago');
+        m.put('US:Detroit', 'US_MW_Detroit');
+        m.put('US:Royal Oak', 'US_MW_Detroit');
+        m.put('US:Ann Arbor', 'US_MW_Detroit');
+        m.put('US:Minneapolis', 'US_MW_Minneapolis');
+        m.put('US:Rochester', 'US_MW_Minneapolis');
+        m.put('US:Minnetonka', 'US_MW_Minneapolis');
+        m.put('US:Kansas City', 'US_MW_Kansas_City');
+        // US cities — West
+        m.put('US:Los Angeles', 'US_W_Los_Angeles');
+        m.put('US:Duarte', 'US_W_Los_Angeles');
+        m.put('US:San Francisco', 'US_W_San_Francisco');
+        m.put('US:Palo Alto', 'US_W_San_Francisco');
+        m.put('US:Oakland', 'US_W_San_Francisco');
+        m.put('US:Seattle', 'US_W_Seattle');
+        m.put('US:Denver', 'US_W_Denver');
+        m.put('US:Aurora', 'US_W_Denver');
 
         // GB cities
         m.put('GB:London', 'GB_England_London');
