@@ -20,7 +20,7 @@ sf project deploy start --source-dir force-app --target-org YOUR_ORG_ALIAS
 
 1. Assign the **AFLSCE Demo Data Admin** permission set to your user
 2. Open the **AFLSCE Demo Data** app from the App Launcher
-3. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Scenario Builder
+3. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Inventory Replenishment → Scenario Builder
 
 ## What Gets Created
 
@@ -93,7 +93,13 @@ All records use manual sharing (Private OWD) for PTA, ProductionBatch, and Produ
 > 1. `DbSchema_ProductTerritoryAvailability` — SOQL Filter: `AlignmentType = 'Territory and Subordinates Inclusion'` (without `Territory.Name = '{USER.TERRITORY}'`)
 > 2. `DbSchema_ProductBatchItem` — no SOQL filter condition (required for production batch dropdown on visits)
 
-### Tab 6: Scenario Builder (Layered)
+### Tab 6: Inventory Replenishment
+
+Simulates non-user-initiated warehouse-to-rep shipments. Creates `Shipment`, `ShipmentItem`, `InventoryOperation` (TransferIn), and `ProductTransfer` records for each rep. Records are created in a pending state so reps can acknowledge receipt on the Sample Inventory Management page.
+
+See [README-InventoryReplenishment.md](README-InventoryReplenishment.md) for full details on field values, the acknowledgement flow, and troubleshooting.
+
+### Tab 7: Scenario Builder (Layered)
 Pick your company type to layer therapy-area-specific data on top of base records:
 
 | Scenario | HCPs Created | Specialty Accounts | Agentforce Personas |
@@ -129,6 +135,10 @@ All created records are tagged for safe cleanup:
 | Address (inventory) | via ParentId | (child of Location) |
 | TimePeriod | `Name` | `Sample Period *` |
 | ProviderSampleLimit | via ProductId | (linked to tagged LifeSciMarketableProduct) |
+| Shipment | `TrackingNumber` | `AFLSCE-Replenishment` |
+| InventoryOperation | `Comment` | `AFLSCE-Replenishment` |
+| ShipmentItem | via ShipmentId | (child of tagged Shipment) |
+| ProductTransfer | via ShipmentId | (child of tagged Shipment) |
 
 Every tab has a **Delete** button that removes only the records created by this tool. Your existing org data is never touched.
 
@@ -151,6 +161,7 @@ force-app/main/default/
 │   ├── DemoContactPointController     Contact points & business licenses (batched)
 │   ├── DemoProductAlignmentController Product hierarchy & territory alignment (PTA/PTDA)
 │   ├── DemoSampleController           Sample products, batches, inventory, sharing
+│   ├── DemoReplenishmentController    Warehouse-to-rep inventory replenishment
 │   └── DemoScenarioController         Therapy-area scenario layering
 ├── lwc/                  Lightning Web Components
 │   ├── demoDataAdmin           Main tabbed UI
@@ -159,6 +170,7 @@ force-app/main/default/
 │   ├── contactPointSetup       Contact points & licenses (batched UI with progress)
 │   ├── productAlignmentSetup   Product hierarchy & territory alignment
 │   ├── sampleSetup             Sample products, batches & inventory for mobile visits
+│   ├── replenishmentSetup      Warehouse-to-rep inventory replenishment
 │   └── scenarioBuilder         Therapy-area scenario layering
 ├── permissionsets/       AFLSCE Demo Data Admin
 └── tabs/                 AFLSCE Demo Data tab

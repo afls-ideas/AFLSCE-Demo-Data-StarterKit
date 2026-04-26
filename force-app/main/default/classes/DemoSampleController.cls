@@ -812,7 +812,8 @@ public without sharing class DemoSampleController {
                         items.add(new ProductItem(
                             Product2Id = product2Id,
                             LocationId = loc.Id,
-                            QuantityOnHand = 100
+                            QuantityOnHand = 100,
+                            QuantityUnitOfMeasure = 'Each'
                         ));
                         itemCountries.add(new Set<String>{ cc });
                         existingPiKeys.add(piKey);
@@ -1288,7 +1289,7 @@ public without sharing class DemoSampleController {
             if (ai.containsKey('StateCode')) {
                 addr.StateCode = ai.get('StateCode');
             }
-            addr.LocationType = 'Site';
+            addr.LocationType = 'User Inventory';
             addrs.add(addr);
         }
 
