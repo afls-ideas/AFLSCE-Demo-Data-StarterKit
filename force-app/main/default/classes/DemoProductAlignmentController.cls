@@ -268,19 +268,44 @@ public without sharing class DemoProductAlignmentController {
             }
 
             Integer ptaSuccess = 0;
+            List<SObject> insertedPtas = new List<SObject>();
             if (!ptas.isEmpty()) {
                 Database.SaveResult[] ptaResults = Database.insert(ptas, false);
                 for (Integer i = 0; i < ptaResults.size(); i++) {
                     if (ptaResults[i].isSuccess()) {
                         ptaSuccess++;
+                        insertedPtas.add(ptas[i]);
                     } else if (errors.size() < 10) {
                         errors.add('PTA: ' + ptaResults[i].getErrors()[0].getMessage());
                     }
                 }
             }
 
-            String result = 'Products: ' + productSuccess + ', PTAs: ' + ptaSuccess
-                + '. Run Product Alignment Job from Admin Console to generate detail records (PTDAs).';
+            // 4b. Share PTAs with territory groups
+            if (!insertedPtas.isEmpty()) {
+                sharePtasWithTerritoryGroups(insertedPtas, errors);
+            }
+
+            // 5. Trigger the alignment batch job to publish Draft PTAs and generate PTDAs
+            String alignmentStatus = '';
+            if (ptaSuccess > 0) {
+                try {
+                    Invocable.Action action = Invocable.Action.createCustomAction(
+                        'batchJobAction', 'lsc4ce_flow__PublishDraftProductTerritoryAlignment'
+                    );
+                    List<Invocable.Action.Result> actionResults = action.invoke();
+                    if (!actionResults.isEmpty() && actionResults[0].isSuccess()) {
+                        alignmentStatus = 'Alignment job submitted (PTDAs will be generated shortly).';
+                    } else {
+                        alignmentStatus = 'Alignment job failed — run manually from Product Alignment Jobs in Setup.';
+                    }
+                } catch (Exception ae) {
+                    alignmentStatus = 'Could not trigger alignment job: ' + ae.getMessage()
+                        + '. Run manually from Product Alignment Jobs in Setup.';
+                }
+            }
+
+            String result = 'Products: ' + productSuccess + ', PTAs: ' + ptaSuccess + '. ' + alignmentStatus;
             if (!errors.isEmpty()) result += ' | Errors: ' + String.join(errors, '; ');
             return result;
         } catch (Exception e) {
@@ -296,16 +321,6 @@ public without sharing class DemoProductAlignmentController {
             Integer deleted = 0;
 
             Set<Id> taggedProductIds = getTaggedProductIds();
-
-            if (objectExists('ProductTerrDtlAvailability') && !taggedProductIds.isEmpty()) {
-                List<SObject> ptdas = Database.query(
-                    'SELECT Id FROM ProductTerrDtlAvailability WHERE ProductId IN :taggedProductIds'
-                );
-                if (!ptdas.isEmpty()) {
-                    Database.DeleteResult[] dr = Database.delete(ptdas, false);
-                    for (Database.DeleteResult r : dr) { if (r.isSuccess()) deleted++; }
-                }
-            }
 
             if (objectExists('ProductTerritoryAvailability') && !taggedProductIds.isEmpty()) {
                 List<SObject> ptas = Database.query(
@@ -344,5 +359,66 @@ public without sharing class DemoProductAlignmentController {
             }
         }
         return ids;
+    }
+
+    private static void sharePtasWithTerritoryGroups(List<SObject> ptaRecords, List<String> errors) {
+        Set<Id> parentTerritoryIds = new Set<Id>();
+        for (SObject pta : ptaRecords) {
+            parentTerritoryIds.add((Id) pta.get('TerritoryId'));
+        }
+
+        Map<Id, Set<Id>> parentToAllChildren = new Map<Id, Set<Id>>();
+        for (Id parentId : parentTerritoryIds) {
+            parentToAllChildren.put(parentId, new Set<Id>{ parentId });
+        }
+        Set<Id> currentLevel = parentTerritoryIds;
+        for (Integer depth = 0; depth < 3 && !currentLevel.isEmpty(); depth++) {
+            Set<Id> nextLevel = new Set<Id>();
+            for (Territory2 child : [SELECT Id, ParentTerritory2Id FROM Territory2 WHERE ParentTerritory2Id IN :currentLevel]) {
+                nextLevel.add(child.Id);
+                for (Id parentId : parentTerritoryIds) {
+                    if (parentToAllChildren.get(parentId).contains(child.ParentTerritory2Id)) {
+                        parentToAllChildren.get(parentId).add(child.Id);
+                    }
+                }
+            }
+            currentLevel = nextLevel;
+        }
+
+        Set<Id> allTerritoryIds = new Set<Id>();
+        for (Set<Id> children : parentToAllChildren.values()) {
+            allTerritoryIds.addAll(children);
+        }
+        Map<Id, Id> terrToGroup = new Map<Id, Id>();
+        for (Group g : [SELECT Id, RelatedId FROM Group WHERE Type = 'Territory' AND RelatedId IN :allTerritoryIds]) {
+            terrToGroup.put(g.RelatedId, g.Id);
+        }
+
+        List<ProductTerritoryAvailabilityShare> shares = new List<ProductTerritoryAvailabilityShare>();
+        for (SObject pta : ptaRecords) {
+            Id ptaTerritoryId = (Id) pta.get('TerritoryId');
+            Set<Id> allTerrs = parentToAllChildren.get(ptaTerritoryId);
+            if (allTerrs == null) continue;
+            for (Id terrId : allTerrs) {
+                Id groupId = terrToGroup.get(terrId);
+                if (groupId != null) {
+                    ProductTerritoryAvailabilityShare share = new ProductTerritoryAvailabilityShare();
+                    share.ParentId = pta.Id;
+                    share.UserOrGroupId = groupId;
+                    share.AccessLevel = 'Read';
+                    share.RowCause = Schema.ProductTerritoryAvailabilityShare.RowCause.Manual;
+                    shares.add(share);
+                }
+            }
+        }
+
+        if (!shares.isEmpty()) {
+            Database.SaveResult[] shareResults = Database.insert(shares, false);
+            for (Integer i = 0; i < shareResults.size(); i++) {
+                if (!shareResults[i].isSuccess() && errors.size() < 15) {
+                    errors.add('PTA Share: ' + shareResults[i].getErrors()[0].getMessage());
+                }
+            }
+        }
     }
 }

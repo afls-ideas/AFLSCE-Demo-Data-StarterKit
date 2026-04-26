@@ -1,17 +1,32 @@
 <template>
-    <lightning-card title="Contact Points &amp; Business Licenses" icon-name="standard:contact">
+    <lightning-card title="Samples" icon-name="standard:product_item">
         <div class="slds-p-horizontal_medium slds-p-bottom_medium">
             <p class="slds-text-body_regular slds-m-bottom_small">
-                Creates addresses, email addresses, phone numbers, social profiles, and
-                facility/pharmacy business licenses for all demo accounts.
+                Creates Immunexis sample products (10mg and 15mg) for each country,
+                with two production batches per product (expiring in 1 and 2 years).
+                Also creates LifeSciMarketableProduct and ProductTerritoryAvailability
+                records so samples are visible to reps in their territories.
             </p>
+
+            <!-- DB Schema guidance -->
             <div class="slds-box slds-box_xx-small slds-theme_info slds-m-bottom_medium">
                 <div class="slds-grid slds-gutters_x-small slds-grid_vertical-align-start">
                     <div class="slds-col slds-no-flex">
                         <lightning-icon icon-name="utility:warning" size="x-small" variant="inverse" class="slds-m-right_xx-small"></lightning-icon>
                     </div>
                     <div class="slds-col">
-                        <p class="slds-text-body_small"><strong>Prerequisite:</strong> Accounts &amp; Providers must be created first.</p>
+                        <p class="slds-text-body_small"><strong>DB Schema Configuration Required:</strong>
+                            For samples to sync to the mobile app, verify that the
+                            <strong>DbSchema_ProductTerritoryAvailability</strong> SOQL Filter Condition
+                            is set to:</p>
+                        <p class="slds-text-body_small slds-m-top_xx-small" style="font-family: monospace; background: rgba(255,255,255,0.2); padding: 4px 8px; border-radius: 4px;">
+                            AlignmentType = 'Territory and Subordinates Inclusion'
+                        </p>
+                        <p class="slds-text-body_small slds-m-top_xx-small">
+                            Do not include <span style="font-family: monospace;">Territory.Name = '&#123;USER.TERRITORY&#125;'</span>
+                            &mdash; record sharing already controls which PTAs each rep can see.
+                            Then regenerate the metadata cache and have reps re-sync.
+                        </p>
                     </div>
                 </div>
             </div>
@@ -43,20 +58,20 @@
             <div class="slds-m-bottom_medium">
                 <lightning-button
                     variant="brand"
-                    label="Create Contact Points & Licenses"
+                    label="Create Samples"
                     icon-name="utility:add"
                     onclick={handleCreate}
                     disabled={isLoading}
                     class="slds-m-right_small"
-                    aria-label="Create contact points and business licenses">
+                    aria-label="Create sample products and production batches">
                 </lightning-button>
                 <lightning-button
                     variant="destructive"
-                    label="Delete Contact Points & Licenses"
+                    label="Delete Samples"
                     icon-name="utility:delete"
                     onclick={handleDelete}
                     disabled={isLoading}
-                    aria-label="Delete contact points and business licenses">
+                    aria-label="Delete sample products and production batches">
                 </lightning-button>
             </div>
 
@@ -65,9 +80,6 @@
                 <div class="slds-is-relative slds-m-bottom_medium" style="height: 60px;">
                     <lightning-spinner alternative-text="Processing..." size="medium"></lightning-spinner>
                 </div>
-                <template if:true={progressMessage}>
-                    <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_small">{progressMessage}</p>
-                </template>
             </template>
 
             <!-- Status Messages -->

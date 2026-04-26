@@ -30,12 +30,19 @@
             </div>
 
             <!-- Territory Warning -->
-            <div class="slds-box slds-theme_error slds-m-bottom_medium" style="background-color: #c23934; color: white;">
-                <lightning-icon icon-name="utility:error" size="xx-small" variant="inverse" class="slds-m-right_x-small"></lightning-icon>
-                <strong>Before running "Assign Territories":</strong> Assign users to their territories first
-                (Setup &gt; Territory Models &gt; LSC Territory Model &gt; each leaf territory &gt; Manage Users).
-                The Provider Account Territory Summary (PATS) record is created per user per territory &mdash;
-                if no users are assigned, reps will see "No data available" on the Provider Summary card in mobile.
+            <div class="slds-box slds-box_xx-small slds-theme_info slds-m-bottom_medium">
+                <div class="slds-grid slds-gutters_x-small slds-grid_vertical-align-start">
+                    <div class="slds-col slds-no-flex">
+                        <lightning-icon icon-name="utility:warning" size="x-small" variant="inverse" class="slds-m-right_xx-small"></lightning-icon>
+                    </div>
+                    <div class="slds-col">
+                        <p class="slds-text-body_small"><strong>Before running "Assign Territories":</strong>
+                            Assign users to their territories first
+                            (Setup &gt; Territory Models &gt; LSC Territory Model &gt; each leaf territory &gt; Manage Users).
+                            The Provider Account Territory Summary (PATS) record is created per user per territory &mdash;
+                            if no users are assigned, reps will see "No data available" on the Provider Summary card in mobile.</p>
+                    </div>
+                </div>
             </div>
 
             <!-- Action Buttons -->
