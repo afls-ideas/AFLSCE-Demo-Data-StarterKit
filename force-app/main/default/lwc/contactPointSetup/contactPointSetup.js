@@ -17,6 +17,7 @@ export default class ContactPointSetup extends LightningElement {
     isSuccess = false;
     wiredStatusResult;
     progressMessage;
+    activityLog = [];
 
     @wire(getStatus)
     wiredStatus(result) {
@@ -36,20 +37,55 @@ export default class ContactPointSetup extends LightningElement {
             : 'slds-box slds-theme_error slds-p-around_small slds-m-bottom_small';
     }
 
+    get hasActivityLog() {
+        return this.activityLog.length > 0;
+    }
+
+    addLog(message, type) {
+        const t = type || 'info';
+        this.activityLog = [
+            ...this.activityLog,
+            {
+                id: this.activityLog.length,
+                message,
+                isHeader: t === 'header',
+                isSuccess: t === 'success',
+                isError: t === 'error',
+                isDetail: t === 'detail',
+                isInfo: t === 'info'
+            }
+        ];
+    }
+
     async runBatchedCreate(apexFn, label) {
         let offset = 0;
         let totalCreated = 0;
         let totalAttempted = 0;
         const allErrors = [];
 
+        this.addLog(`── ${label} ──`, 'header');
+
         // eslint-disable-next-line no-constant-condition
         while (true) {
             this.progressMessage = `Creating ${label} (batch at offset ${offset})...`;
             const raw = await apexFn({ batchOffset: offset });
             const result = JSON.parse(raw);
+
+            if (result.details) {
+                for (const detail of result.details) {
+                    this.addLog(detail, 'detail');
+                }
+            }
+
             totalCreated += result.created;
             totalAttempted += result.attempted;
+            if (result.created > 0) {
+                this.addLog(`Created ${result.created}/${result.attempted} records`, 'success');
+            }
             if (result.errors) {
+                for (const err of result.errors) {
+                    this.addLog(err, 'error');
+                }
                 allErrors.push(...result.errors);
             }
             if (!result.hasMore) break;
@@ -60,6 +96,7 @@ export default class ContactPointSetup extends LightningElement {
         if (allErrors.length > 0) {
             summary += ` (${allErrors.slice(0, 3).join('; ')})`;
         }
+        this.addLog(`${label} complete: ${totalCreated} created`, 'success');
         return summary;
     }
 
@@ -67,13 +104,14 @@ export default class ContactPointSetup extends LightningElement {
         this.isLoading = true;
         this.resultMessage = undefined;
         this.progressMessage = undefined;
+        this.activityLog = [];
 
         const steps = [
-            { fn: createAddressBatch, label: 'Addresses' },
-            { fn: createEmailBatch, label: 'Emails' },
-            { fn: createPhoneBatch, label: 'Phones' },
-            { fn: createSocialBatch, label: 'Socials' },
-            { fn: createLicenseBatch, label: 'Business Licenses' }
+            { fn: createAddressBatch, label: 'ContactPointAddress' },
+            { fn: createEmailBatch, label: 'ContactPointEmail' },
+            { fn: createPhoneBatch, label: 'ContactPointPhone' },
+            { fn: createSocialBatch, label: 'ContactPointSocial' },
+            { fn: createLicenseBatch, label: 'BusinessLicense' }
         ];
 
         const results = [];
@@ -86,6 +124,7 @@ export default class ContactPointSetup extends LightningElement {
             } catch (error) {
                 const msg = error.body ? error.body.message : `Error creating ${step.label}`;
                 results.push(`${step.label}: FAILED - ${msg}`);
+                this.addLog(`FAILED: ${msg}`, 'error');
                 hasError = true;
             }
         }
@@ -108,6 +147,7 @@ export default class ContactPointSetup extends LightningElement {
         this.isLoading = true;
         this.resultMessage = undefined;
         this.progressMessage = undefined;
+        this.activityLog = [];
 
         const objectTypes = [
             'ContactPointAddress',
@@ -123,14 +163,21 @@ export default class ContactPointSetup extends LightningElement {
 
         for (const objType of objectTypes) {
             this.progressMessage = `Deleting ${objType}...`;
+            this.addLog(`Deleting ${objType}...`, 'info');
             try {
                 const count = await deleteContactPointBatch({ objectType: objType });
                 const num = parseInt(count, 10);
                 totalDeleted += num;
-                if (num > 0) results.push(`${objType}: ${num}`);
+                if (num > 0) {
+                    results.push(`${objType}: ${num}`);
+                    this.addLog(`Deleted ${num} ${objType} records`, 'success');
+                } else {
+                    this.addLog(`No ${objType} records to delete`, 'info');
+                }
             } catch (error) {
                 hasError = true;
                 results.push(`${objType}: FAILED`);
+                this.addLog(`Failed to delete ${objType}`, 'error');
             }
         }
 

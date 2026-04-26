@@ -26,16 +26,26 @@ public with sharing class DemoContactPointController {
             Integer total = countDemoAccounts();
 
             List<ContactPointAddress> records = buildAddresses(batch);
+            List<String> details = new List<String>();
+            Set<String> countries = new Set<String>();
+            for (Account a : batch) {
+                if (String.isNotBlank(a.BillingCountryCode)) countries.add(a.BillingCountryCode);
+            }
+            details.add('Creating ContactPointAddress for ' + batch.size() + ' accounts (' + String.join(new List<String>(countries), ', ') + ')');
+            details.add('Each address uses the account\'s BillingAddress and is linked via ParentId');
+
             Database.SaveResult[] sr = Database.insert(records, false);
             List<String> errors = new List<String>();
             collectErrors(sr, records, errors);
             Integer created = countSuccesses(sr);
 
-            // Link new CPAs to existing ProviderAcctTerritoryInfo records as PreferredAddressId
             linkCpaToPati(records, sr);
+            if (created > 0) {
+                details.add('Linked ContactPointAddresses to ProviderAcctTerritoryInfo as PreferredAddressId (required for mobile offline sync)');
+            }
 
             Boolean hasMore = (batchOffset + BATCH_SIZE) < total;
-            return batchResult(created, records.size(), hasMore, errors);
+            return batchResult(created, records.size(), hasMore, errors, details);
         } catch (Exception e) {
             throw new AuraHandledException('Error creating addresses: ' + e.getMessage());
         }
@@ -50,7 +60,10 @@ public with sharing class DemoContactPointController {
 
             Integer totalAccts = countDemoAccounts();
             Integer totalHcps = countDemoHcps();
-            Integer totalRecords = totalAccts + totalHcps;
+
+            List<String> details = new List<String>();
+            if (!batch.isEmpty()) details.add('Creating ContactPointEmail for ' + batch.size() + ' org accounts (general + department emails)');
+            if (!hcpBatch.isEmpty()) details.add('Creating ContactPointEmail for ' + hcpBatch.size() + ' HCP providers (personal email via PersonContactId)');
 
             List<ContactPointEmail> records = buildEmails(batch, hcpBatch);
             Database.SaveResult[] sr = Database.insert(records, false);
@@ -59,7 +72,7 @@ public with sharing class DemoContactPointController {
             Integer created = countSuccesses(sr);
 
             Boolean hasMore = (batchOffset + BATCH_SIZE) < Math.max(totalAccts, totalHcps);
-            return batchResult(created, records.size(), hasMore, errors);
+            return batchResult(created, records.size(), hasMore, errors, details);
         } catch (Exception e) {
             throw new AuraHandledException('Error creating emails: ' + e.getMessage());
         }
@@ -75,6 +88,10 @@ public with sharing class DemoContactPointController {
             Integer totalAccts = countDemoAccounts();
             Integer totalHcps = countDemoHcps();
 
+            List<String> details = new List<String>();
+            if (!batch.isEmpty()) details.add('Creating ContactPointPhone for ' + batch.size() + ' org accounts (main + department lines with country-formatted numbers)');
+            if (!hcpBatch.isEmpty()) details.add('Creating ContactPointPhone for ' + hcpBatch.size() + ' HCP providers (office + mobile numbers)');
+
             List<ContactPointPhone> records = buildPhones(batch, hcpBatch);
             Database.SaveResult[] sr = Database.insert(records, false);
             List<String> errors = new List<String>();
@@ -82,7 +99,7 @@ public with sharing class DemoContactPointController {
             Integer created = countSuccesses(sr);
 
             Boolean hasMore = (batchOffset + BATCH_SIZE) < Math.max(totalAccts, totalHcps);
-            return batchResult(created, records.size(), hasMore, errors);
+            return batchResult(created, records.size(), hasMore, errors, details);
         } catch (Exception e) {
             throw new AuraHandledException('Error creating phones: ' + e.getMessage());
         }
@@ -98,10 +115,13 @@ public with sharing class DemoContactPointController {
             if (batch.isEmpty()) return batchResult(0, 0, false, new List<String>());
             Integer total = countOrgAccounts();
 
+            List<String> details = new List<String>();
+            details.add('Creating ContactPointSocial for ' + batch.size() + ' org accounts (LinkedIn + X/Twitter handles)');
+
             List<SObject> records = buildSocials(batch);
             if (records.isEmpty()) {
                 Boolean hasMore = (batchOffset + BATCH_SIZE) < total;
-                return batchResult(0, 0, hasMore, new List<String>());
+                return batchResult(0, 0, hasMore, new List<String>(), details);
             }
             Database.SaveResult[] sr = Database.insert(records, false);
             List<String> errors = new List<String>();
@@ -109,7 +129,7 @@ public with sharing class DemoContactPointController {
             Integer created = countSuccesses(sr);
 
             Boolean hasMore = (batchOffset + BATCH_SIZE) < total;
-            return batchResult(created, records.size(), hasMore, errors);
+            return batchResult(created, records.size(), hasMore, errors, details);
         } catch (Exception e) {
             throw new AuraHandledException('Error creating socials: ' + e.getMessage());
         }
@@ -125,18 +145,55 @@ public with sharing class DemoContactPointController {
             if (batch.isEmpty()) return batchResult(0, 0, false, new List<String>());
             Integer total = countDemoAccounts();
 
+            List<String> details = new List<String>();
+            Set<String> stateCountries = new Set<String>();
+            Set<String> nationalCountries = new Set<String>();
+            Integer hcpCount = 0;
+            Integer facilityCount = 0;
+            Integer pharmacyCount = 0;
+            Integer otherCount = 0;
+            for (Account a : batch) {
+                String cc = String.isNotBlank(a.BillingCountryCode) ? a.BillingCountryCode : 'US';
+                if (cc == 'US') { stateCountries.add(cc); } else { nationalCountries.add(cc); }
+                if (a.IsPersonAccount) { hcpCount++; }
+                else {
+                    String t = String.isNotBlank(a.Type) ? a.Type.toLowerCase() : '';
+                    if (t.contains('hospital') || t.contains('clinic') || t.contains('medical center') || t.contains('health system')) facilityCount++;
+                    else if (t.contains('pharmacy')) pharmacyCount++;
+                    else otherCount++;
+                }
+            }
+            details.add('Creating BusinessLicense for ' + batch.size() + ' accounts: '
+                + hcpCount + ' HCP medical licenses, ' + facilityCount + ' facility licenses, '
+                + pharmacyCount + ' pharmacy licenses, ' + otherCount + ' business licenses');
+            if (!stateCountries.isEmpty()) {
+                details.add('US accounts: ComplianceScope = JurisdictionState (state-level licensing — license must match the visit address state)');
+            }
+            if (!nationalCountries.isEmpty()) {
+                List<String> sorted = new List<String>(nationalCountries);
+                sorted.sort();
+                details.add(String.join(sorted, ', ') + ' accounts: ComplianceScope = Address (address-level — validates against the account address, no state restriction)');
+            }
+            details.add('All licenses set with PeriodStart/PeriodEnd, IsActive=true, VerificationStatus=Authorized, and IsLicenseValidated via CPA trigger');
+
             List<SObject> records = buildBusinessLicenses(batch, batchOffset);
             if (records.isEmpty()) {
                 Boolean hasMore = (batchOffset + BATCH_SIZE) < total;
-                return batchResult(0, 0, hasMore, new List<String>());
+                return batchResult(0, 0, hasMore, new List<String>(), details);
             }
             Database.SaveResult[] sr = Database.insert(records, false);
             List<String> errors = new List<String>();
             collectErrors(sr, records, errors);
             Integer created = countSuccesses(sr);
 
+            // Post-insert: link Address-scoped licenses to their account's CPA and validate
+            Integer linked = linkLicensesToCpa(records, sr, errors);
+            if (linked > 0) {
+                details.add('SUCCESS:Linked ' + linked + ' Address-scoped licenses to ContactPointAddress (IsLicenseValidated auto-computed from CPA + PeriodStart)');
+            }
+
             Boolean hasMore = (batchOffset + BATCH_SIZE) < total;
-            return batchResult(created, records.size(), hasMore, errors);
+            return batchResult(created, records.size(), hasMore, errors, details);
         } catch (Exception e) {
             throw new AuraHandledException('Error creating licenses: ' + e.getMessage());
         }
@@ -567,28 +624,50 @@ public with sharing class DemoContactPointController {
 
         for (Account acct : accounts) {
             String country = String.isNotBlank(acct.BillingCountry) ? acct.BillingCountry : 'United States';
+            String countryCode = String.isNotBlank(acct.BillingCountryCode) ? acct.BillingCountryCode : 'US';
             String state = String.isNotBlank(acct.BillingStateCode) ? acct.BillingStateCode
                          : (String.isNotBlank(acct.BillingState) ? acct.BillingState : 'CA');
+            Boolean useStateJurisdiction = (countryCode == 'US');
 
             if (acct.IsPersonAccount) {
-                String licNum = generateMedicalLicenseNumber(acct.BillingCountryCode, counter++);
-                SObject bl = blType.newSObject();
-                bl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' Medical License');
-                bl.put('LicenseNumber', licNum);
-                bl.put('Status', 'Verified');
-                bl.put('IsActive', true);
-                bl.put('VerificationStatus', 'Authorized');
-                bl.put('LicenseClass', 'Healthcare');
-                bl.put('Description', 'Medical Practitioner License');
-                bl.put('IssueDate', Date.today().addYears(-3));
-                bl.put('PeriodStart', Datetime.newInstance(Date.today().addYears(-3), Time.newInstance(0, 0, 0, 0)));
-                bl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(5), Time.newInstance(0, 0, 0, 0)));
-                bl.put('ComplianceScope', 'JurisdictionState');
-                bl.put('JurisdictionState', state);
-                bl.put('Identifier', DEMO_TAG + '-' + licNum);
-                bl.put('AccountId', acct.Id);
-                if (acct.PersonContactId != null) bl.put('ContactId', acct.PersonContactId);
-                licenses.add(bl);
+                // State license (JurisdictionState scope)
+                String stateLicNum = generateMedicalLicenseNumber(acct.BillingCountryCode, counter++);
+                SObject stateBl = blType.newSObject();
+                stateBl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' STATE - ' + state);
+                stateBl.put('LicenseNumber', stateLicNum);
+                stateBl.put('Status', 'Verified');
+                stateBl.put('IsActive', true);
+                stateBl.put('VerificationStatus', 'Authorized');
+                stateBl.put('LicenseClass', 'Healthcare');
+                stateBl.put('Description', acct.Name + ' STATE License - ' + state);
+                stateBl.put('IssueDate', Date.today().addYears(-3));
+                stateBl.put('PeriodStart', Datetime.newInstance(Date.today().addYears(-3), Time.newInstance(0, 0, 0, 0)));
+                stateBl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(5), Time.newInstance(0, 0, 0, 0)));
+                stateBl.put('ComplianceScope', 'JurisdictionState');
+                stateBl.put('JurisdictionState', state);
+                stateBl.put('Identifier', DEMO_TAG + '-' + stateLicNum);
+                stateBl.put('AccountId', acct.Id);
+                if (acct.PersonContactId != null) stateBl.put('ContactId', acct.PersonContactId);
+                licenses.add(stateBl);
+
+                // DEA license (Address scope)
+                String deaLicNum = 'DEA-' + stateLicNum;
+                SObject deaBl = blType.newSObject();
+                deaBl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' DEA');
+                deaBl.put('LicenseNumber', deaLicNum);
+                deaBl.put('Status', 'Verified');
+                deaBl.put('IsActive', true);
+                deaBl.put('VerificationStatus', 'Authorized');
+                deaBl.put('LicenseClass', 'Healthcare');
+                deaBl.put('Description', acct.Name + ' DEA License');
+                deaBl.put('IssueDate', Date.today().addYears(-3));
+                deaBl.put('PeriodStart', Datetime.newInstance(Date.today().addYears(-3), Time.newInstance(0, 0, 0, 0)));
+                deaBl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(5), Time.newInstance(0, 0, 0, 0)));
+                deaBl.put('ComplianceScope', 'Address');
+                deaBl.put('Identifier', DEMO_TAG + '-' + deaLicNum);
+                deaBl.put('AccountId', acct.Id);
+                if (acct.PersonContactId != null) deaBl.put('ContactId', acct.PersonContactId);
+                licenses.add(deaBl);
                 continue;
             }
 
@@ -610,8 +689,12 @@ public with sharing class DemoContactPointController {
                 bl.put('IssueDate', Date.today().addYears(-2));
                 bl.put('PeriodStart', Datetime.newInstance(Date.today().addYears(-2), Time.newInstance(0, 0, 0, 0)));
                 bl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(3), Time.newInstance(0, 0, 0, 0)));
-                bl.put('ComplianceScope', 'JurisdictionState');
-                bl.put('JurisdictionState', state);
+                if (useStateJurisdiction) {
+                    bl.put('ComplianceScope', 'JurisdictionState');
+                    bl.put('JurisdictionState', state);
+                } else {
+                    bl.put('ComplianceScope', 'Address');
+                }
                 bl.put('Identifier', DEMO_TAG + '-' + licNum);
                 bl.put('AccountId', acct.Id);
                 licenses.add(bl);
@@ -630,17 +713,20 @@ public with sharing class DemoContactPointController {
                 bl.put('IssueDate', Date.today().addYears(-1));
                 bl.put('PeriodStart', Datetime.newInstance(Date.today().addYears(-1), Time.newInstance(0, 0, 0, 0)));
                 bl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(2), Time.newInstance(0, 0, 0, 0)));
-                bl.put('ComplianceScope', 'JurisdictionState');
-                bl.put('JurisdictionState', state);
+                if (useStateJurisdiction) {
+                    bl.put('ComplianceScope', 'JurisdictionState');
+                    bl.put('JurisdictionState', state);
+                } else {
+                    bl.put('ComplianceScope', 'Address');
+                }
                 bl.put('Identifier', DEMO_TAG + '-' + licNum);
                 bl.put('AccountId', acct.Id);
                 licenses.add(bl);
 
             } else {
-                // Insurance, payers, and other org types still need a state license for green mobile icon
                 String licNum = generateFacilityLicenseNumber(country, state, counter++);
                 SObject bl = blType.newSObject();
-                bl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' State License');
+                bl.put('Name', DEMO_TAG + ' - ' + acct.Name + (useStateJurisdiction ? ' State License' : ' National License'));
                 bl.put('LicenseNumber', licNum);
                 bl.put('Status', 'Verified');
                 bl.put('IsActive', true);
@@ -650,8 +736,12 @@ public with sharing class DemoContactPointController {
                 bl.put('IssueDate', Date.today().addYears(-2));
                 bl.put('PeriodStart', Datetime.newInstance(Date.today().addYears(-2), Time.newInstance(0, 0, 0, 0)));
                 bl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(3), Time.newInstance(0, 0, 0, 0)));
-                bl.put('ComplianceScope', 'JurisdictionState');
-                bl.put('JurisdictionState', state);
+                if (useStateJurisdiction) {
+                    bl.put('ComplianceScope', 'JurisdictionState');
+                    bl.put('JurisdictionState', state);
+                } else {
+                    bl.put('ComplianceScope', 'Address');
+                }
                 bl.put('Identifier', DEMO_TAG + '-' + licNum);
                 bl.put('AccountId', acct.Id);
                 licenses.add(bl);
@@ -659,6 +749,69 @@ public with sharing class DemoContactPointController {
         }
 
         return licenses;
+    }
+
+    private static Integer linkLicensesToCpa(List<SObject> records, Database.SaveResult[] sr, List<String> errors) {
+        // Collect successfully inserted Address-scoped licenses
+        Set<Id> accountIds = new Set<Id>();
+        List<SObject> addressLicenses = new List<SObject>();
+        for (Integer i = 0; i < sr.size(); i++) {
+            if (sr[i].isSuccess() && (String) records[i].get('ComplianceScope') == 'Address') {
+                addressLicenses.add(records[i]);
+                accountIds.add((Id) records[i].get('AccountId'));
+            }
+        }
+        if (addressLicenses.isEmpty()) return 0;
+
+        // Find each account's first CPA (our demo-tagged ones)
+        String escapedTag = String.escapeSingleQuotes(DEMO_TAG);
+        Map<Id, Id> accountToCpa = new Map<Id, Id>();
+        for (ContactPointAddress cpa : [
+            SELECT Id, ParentId FROM ContactPointAddress
+            WHERE ParentId IN :accountIds AND Name LIKE :('%' + DEMO_TAG + '%')
+            ORDER BY CreatedDate ASC
+        ]) {
+            if (!accountToCpa.containsKey(cpa.ParentId)) {
+                accountToCpa.put(cpa.ParentId, cpa.Id);
+            }
+        }
+        // Fallback: any CPA on the account
+        if (accountToCpa.size() < accountIds.size()) {
+            Set<Id> missing = new Set<Id>(accountIds);
+            missing.removeAll(accountToCpa.keySet());
+            for (ContactPointAddress cpa : [
+                SELECT Id, ParentId FROM ContactPointAddress
+                WHERE ParentId IN :missing
+                ORDER BY CreatedDate ASC
+            ]) {
+                if (!accountToCpa.containsKey(cpa.ParentId)) {
+                    accountToCpa.put(cpa.ParentId, cpa.Id);
+                }
+            }
+        }
+
+        // Update licenses with CPA link and validate
+        List<SObject> toUpdate = new List<SObject>();
+        Schema.SObjectType blType = Schema.getGlobalDescribe().get('businesslicense');
+        for (SObject bl : addressLicenses) {
+            Id acctId = (Id) bl.get('AccountId');
+            Id cpaId = accountToCpa.get(acctId);
+            if (cpaId != null) {
+                SObject upd = blType.newSObject(bl.Id);
+                upd.put('ContactPointAddressId', cpaId);
+                toUpdate.add(upd);
+            }
+        }
+
+        Integer linked = 0;
+        if (!toUpdate.isEmpty()) {
+            Database.SaveResult[] updateResults = Database.update(toUpdate, false);
+            for (Database.SaveResult r : updateResults) {
+                if (r.isSuccess()) { linked++; }
+                else if (errors.size() < 15) { errors.add('License CPA link: ' + r.getErrors()[0].getMessage()); }
+            }
+        }
+        return linked;
     }
 
     private static String generateFacilityLicenseNumber(String country, String state, Integer seed) {
@@ -713,11 +866,16 @@ public with sharing class DemoContactPointController {
     // ──────────────────────────────────────────────────────────
 
     private static String batchResult(Integer created, Integer attempted, Boolean hasMore, List<String> errors) {
+        return batchResult(created, attempted, hasMore, errors, new List<String>());
+    }
+
+    private static String batchResult(Integer created, Integer attempted, Boolean hasMore, List<String> errors, List<String> details) {
         return JSON.serialize(new Map<String, Object>{
             'created' => created,
             'attempted' => attempted,
             'hasMore' => hasMore,
-            'errors' => errors
+            'errors' => errors,
+            'details' => details
         });
     }
 

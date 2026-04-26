@@ -25,7 +25,14 @@
                         <p class="slds-text-body_small slds-m-top_xx-small">
                             Do not include <span style="font-family: monospace;">Territory.Name = '&#123;USER.TERRITORY&#125;'</span>
                             &mdash; record sharing already controls which PTAs each rep can see.
-                            Then regenerate the metadata cache and have reps re-sync.
+                        </p>
+                        <p class="slds-text-body_small slds-m-top_small"><strong>DB Schema for ProductBatchItem:</strong>
+                            The production batch dropdown on visits requires <strong>ProductBatchItem</strong> records
+                            to be synced to the mobile device. Verify that a DB Schema entry exists for
+                            <strong>DbSchema_ProductBatchItem</strong> in Admin Console &gt; DB Schema.
+                            If missing, add it with no SOQL filter condition.</p>
+                        <p class="slds-text-body_small slds-m-top_small">
+                            After configuring both DB Schema entries, regenerate the metadata cache and have reps re-sync.
                         </p>
                     </div>
                 </div>
@@ -79,6 +86,31 @@
             <template if:true={isLoading}>
                 <div class="slds-is-relative slds-m-bottom_medium" style="height: 60px;">
                     <lightning-spinner alternative-text="Processing..." size="medium"></lightning-spinner>
+                </div>
+            </template>
+
+            <!-- Activity Log -->
+            <template if:true={hasActivityLog}>
+                <div class="slds-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-m-bottom_x-small">Activity Log</h3>
+                    <div class="slds-box slds-theme_shade slds-p-around_small" style="max-height: 500px; overflow-y: auto; font-family: monospace; font-size: 12px; line-height: 1.6;">
+                        <template for:each={activityLog} for:item="entry">
+                            <p key={entry.id} class="slds-m-bottom_xxx-small">
+                                <template if:true={entry.isHeader}>
+                                    <strong style="color: #0070d2;">{entry.message}</strong>
+                                </template>
+                                <template if:true={entry.isSuccess}>
+                                    <span style="color: #2e844a;">&#10003; {entry.message}</span>
+                                </template>
+                                <template if:true={entry.isError}>
+                                    <span style="color: #c23934;">&#10007; {entry.message}</span>
+                                </template>
+                                <template if:true={entry.isDetail}>
+                                    <span style="color: #444;">&#8226; {entry.message}</span>
+                                </template>
+                            </p>
+                        </template>
+                    </div>
                 </div>
             </template>
 

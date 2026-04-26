@@ -70,6 +70,34 @@
                 </template>
             </template>
 
+            <!-- Activity Log -->
+            <template if:true={hasActivityLog}>
+                <div class="slds-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-m-bottom_x-small">Activity Log</h3>
+                    <div class="slds-box slds-theme_shade slds-p-around_small" style="max-height: 400px; overflow-y: auto; font-family: monospace; font-size: 12px; line-height: 1.6;">
+                        <template for:each={activityLog} for:item="entry">
+                            <p key={entry.id} class="slds-m-bottom_xxx-small">
+                                <template if:true={entry.isHeader}>
+                                    <strong style="color: #0070d2;">{entry.message}</strong>
+                                </template>
+                                <template if:true={entry.isSuccess}>
+                                    <span style="color: #2e844a;">&#10003; {entry.message}</span>
+                                </template>
+                                <template if:true={entry.isError}>
+                                    <span style="color: #c23934;">&#10007; {entry.message}</span>
+                                </template>
+                                <template if:true={entry.isDetail}>
+                                    <span style="color: #444;">&#8226; {entry.message}</span>
+                                </template>
+                                <template if:true={entry.isInfo}>
+                                    <span style="color: #706e6b;">{entry.message}</span>
+                                </template>
+                            </p>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
             <!-- Status Messages -->
             <template if:true={resultMessage}>
                 <div class={resultClass}>
