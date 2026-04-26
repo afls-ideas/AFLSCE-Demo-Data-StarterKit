@@ -60,7 +60,7 @@ Batched in groups of 15 to stay within managed-package SOQL governor limits.
 - **ContactPointEmail** — general + department emails per org, personal for doctors
 - **ContactPointPhone** — main + department lines, country-formatted numbers
 - **ContactPointSocial** — LinkedIn and X handles for organizations
-- **BusinessLicense** — facility and pharmacy licenses with country-specific formats (CQC, FINESS, IK, SSN, REGA, CRM, ANVISA, COFEPRIS, ANMAT)
+- **BusinessLicense** — dual State + DEA license pattern for HCPs (required for visit sample drops); facility/pharmacy licenses with country-specific formats (CQC, FINESS, IK, SSN, REGA, CRM, ANVISA, COFEPRIS, ANMAT). Address-scoped licenses are linked to ContactPointAddress records post-insert so the system auto-computes `IsLicenseValidated = true`.
 
 ### Tab 4: Product Alignment
 
@@ -77,15 +77,21 @@ Creates LifeSciMarketableProduct hierarchy and territory alignments:
 Creates the full sample pipeline for mobile visit engagement:
 
 - **Product2** (22) — Immunexis 10mg and 15mg sample products per country (LSC_Sample record type)
-- **ProductionBatch** (44) — two batches per product (1-year and 2-year expiry)
+- **ProductionBatch** (44) — two batches per product (1-year and 2-year expiry), RemainingQuantity = 1000
+- **ProductBatchItem** — links ProductItems to ProductionBatches for the production batch dropdown on visits
 - **LifeSciMarketableProduct** — sample marketable products linked to country-level brands
 - **ProductTerritoryAvailability** — sample PTAs with territory sharing
 - **ProductItem** — links sample products to each rep's User Inventory Location
 - **User Inventory Locations** — auto-created for reps assigned to country territories
+- **Inventory Storage Address** — child Address record on each Location for the Sample Inventory Management page
+- **TimePeriod** (2) — current year and next year periods for sample limit rules
+- **ProviderSampleLimit** — per-HCP per-product sample limits (created async via Queueable to avoid governor limits)
 
 All records use manual sharing (Private OWD) for PTA, ProductionBatch, and ProductItem objects, sharing with territory groups at the leaf level.
 
-> **DB Schema Note:** For samples to sync to mobile, set the `DbSchema_ProductTerritoryAvailability` SOQL Filter Condition to `AlignmentType = 'Territory and Subordinates Inclusion'` (without `Territory.Name = '{USER.TERRITORY}'`).
+> **DB Schema Note:** For samples to sync to mobile, configure two DB Schema entries:
+> 1. `DbSchema_ProductTerritoryAvailability` — SOQL Filter: `AlignmentType = 'Territory and Subordinates Inclusion'` (without `Territory.Name = '{USER.TERRITORY}'`)
+> 2. `DbSchema_ProductBatchItem` — no SOQL filter condition (required for production batch dropdown on visits)
 
 ### Tab 6: Scenario Builder (Layered)
 Pick your company type to layer therapy-area-specific data on top of base records:
@@ -120,6 +126,9 @@ All created records are tagged for safe cleanup:
 | ProductionBatch | via Product2 | (linked to tagged products) |
 | ProductItem | via Product2 | (linked to tagged products) |
 | Location (inventory) | via PrimaryUserId | (linked to territory reps) |
+| Address (inventory) | via ParentId | (child of Location) |
+| TimePeriod | `Name` | `Sample Period *` |
+| ProviderSampleLimit | via ProductId | (linked to tagged LifeSciMarketableProduct) |
 
 Every tab has a **Delete** button that removes only the records created by this tool. Your existing org data is never touched.
 

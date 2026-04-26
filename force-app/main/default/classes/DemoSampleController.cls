@@ -1201,40 +1201,102 @@ public without sharing class DemoSampleController {
         }
     }
 
+    private static final Map<String, Map<String, String>> INVENTORY_ADDRESSES = new Map<String, Map<String, String>>{
+        'US' => new Map<String, String>{ 'Street' => '100 Park Avenue', 'City' => 'New York', 'PostalCode' => '10017', 'StateCode' => 'NY' },
+        'GB' => new Map<String, String>{ 'Street' => '42 Harley Street', 'City' => 'London', 'PostalCode' => 'W1G 9PR' },
+        'FR' => new Map<String, String>{ 'Street' => '55 Rue du Faubourg Saint-Honore', 'City' => 'Paris', 'PostalCode' => '75008' },
+        'DE' => new Map<String, String>{ 'Street' => 'Friedrichstrasse 76', 'City' => 'Berlin', 'PostalCode' => '10117' },
+        'IT' => new Map<String, String>{ 'Street' => 'Via Montenapoleone 8', 'City' => 'Milan', 'PostalCode' => '20121' },
+        'ES' => new Map<String, String>{ 'Street' => 'Paseo de la Castellana 89', 'City' => 'Madrid', 'PostalCode' => '28046' },
+        'JP' => new Map<String, String>{ 'Street' => '1-1 Marunouchi', 'City' => 'Tokyo', 'PostalCode' => '100-0005', 'StateCode' => '13' },
+        'KR' => new Map<String, String>{ 'Street' => '231 Teheran-ro', 'City' => 'Seoul', 'PostalCode' => '06142' },
+        'BR' => new Map<String, String>{ 'Street' => '1578 Avenida Paulista', 'City' => 'Sao Paulo', 'PostalCode' => '01310-200', 'StateCode' => 'SP' },
+        'MX' => new Map<String, String>{ 'Street' => 'Av. Paseo de la Reforma 250', 'City' => 'Mexico City', 'PostalCode' => '06600' },
+        'AR' => new Map<String, String>{ 'Street' => 'Av. 9 de Julio 1925', 'City' => 'Buenos Aires', 'PostalCode' => 'C1073ABA' }
+    };
+
     private static void createUserInventoryLocations(List<String> errors) {
         List<UserTerritory2Association> utas = [
-            SELECT UserId, User.Name FROM UserTerritory2Association
+            SELECT UserId, User.Name, Territory2.DeveloperName FROM UserTerritory2Association
             WHERE Territory2.DeveloperName IN :COUNTRY_TERRITORY.values()
         ];
         Set<Id> repIds = new Set<Id>();
         Map<Id, String> repNames = new Map<Id, String>();
+        Map<Id, String> repCountry = new Map<Id, String>();
         for (UserTerritory2Association uta : utas) {
             repIds.add(uta.UserId);
             repNames.put(uta.UserId, uta.User.Name);
+            for (String cc : COUNTRY_TERRITORY.keySet()) {
+                if (COUNTRY_TERRITORY.get(cc) == uta.Territory2.DeveloperName) {
+                    repCountry.put(uta.UserId, cc);
+                    break;
+                }
+            }
         }
 
-        Set<Id> repsWithLocation = new Set<Id>();
-        for (Schema.Location loc : [SELECT PrimaryUserId FROM Location WHERE PrimaryUserId IN :repIds AND IsInventoryLocation = true AND LocationType = 'User Inventory']) {
-            repsWithLocation.add(loc.PrimaryUserId);
+        Map<Id, Id> repToLocId = new Map<Id, Id>();
+        Set<Id> locsWithAddress = new Set<Id>();
+        for (Schema.Location loc : [
+            SELECT PrimaryUserId, Id, (SELECT Id FROM Addresses LIMIT 1)
+            FROM Location
+            WHERE PrimaryUserId IN :repIds AND IsInventoryLocation = true AND LocationType = 'User Inventory'
+        ]) {
+            repToLocId.put(loc.PrimaryUserId, loc.Id);
+            if (loc.Addresses != null && !loc.Addresses.isEmpty()) {
+                locsWithAddress.add(loc.Id);
+            }
         }
 
         List<Schema.Location> locs = new List<Schema.Location>();
+        List<Id> newLocRepIds = new List<Id>();
         for (Id repId : repIds) {
-            if (!repsWithLocation.contains(repId)) {
+            if (!repToLocId.containsKey(repId)) {
                 Schema.Location loc = new Schema.Location();
                 loc.Name = repNames.get(repId) + ' Inventory';
                 loc.LocationType = 'User Inventory';
                 loc.IsInventoryLocation = true;
                 loc.PrimaryUserId = repId;
                 locs.add(loc);
+                newLocRepIds.add(repId);
             }
         }
 
         if (!locs.isEmpty()) {
             Database.SaveResult[] results = Database.insert(locs, false);
             for (Integer i = 0; i < results.size(); i++) {
-                if (!results[i].isSuccess() && errors.size() < 15) {
+                if (results[i].isSuccess()) {
+                    repToLocId.put(newLocRepIds[i], results[i].getId());
+                } else if (errors.size() < 15) {
                     errors.add('Location: ' + results[i].getErrors()[0].getMessage());
+                }
+            }
+        }
+
+        List<Schema.Address> addrs = new List<Schema.Address>();
+        for (Id repId : repToLocId.keySet()) {
+            Id locId = repToLocId.get(repId);
+            if (locsWithAddress.contains(locId)) continue;
+            String cc = repCountry.get(repId);
+            if (cc == null || !INVENTORY_ADDRESSES.containsKey(cc)) continue;
+            Map<String, String> ai = INVENTORY_ADDRESSES.get(cc);
+            Schema.Address addr = new Schema.Address();
+            addr.ParentId = locId;
+            addr.Street = ai.get('Street');
+            addr.City = ai.get('City');
+            addr.PostalCode = ai.get('PostalCode');
+            addr.CountryCode = cc;
+            if (ai.containsKey('StateCode')) {
+                addr.StateCode = ai.get('StateCode');
+            }
+            addr.LocationType = 'Site';
+            addrs.add(addr);
+        }
+
+        if (!addrs.isEmpty()) {
+            Database.SaveResult[] results = Database.insert(addrs, false);
+            for (Integer i = 0; i < results.size(); i++) {
+                if (!results[i].isSuccess() && errors.size() < 15) {
+                    errors.add('Address: ' + results[i].getErrors()[0].getMessage());
                 }
             }
         }
