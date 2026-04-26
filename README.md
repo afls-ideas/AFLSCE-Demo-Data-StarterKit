@@ -76,16 +76,16 @@ Creates LifeSciMarketableProduct hierarchy and territory alignments:
 
 Creates the full sample pipeline for mobile visit engagement:
 
-- **Product2** (22) — Immunexis 10mg and 15mg sample products per country (LSC_Sample record type)
-- **ProductionBatch** (44) — two batches per product (1-year and 2-year expiry), RemainingQuantity = 1000
-- **ProductBatchItem** — links ProductItems to ProductionBatches for the production batch dropdown on visits
-- **LifeSciMarketableProduct** — sample marketable products linked to country-level brands
-- **ProductTerritoryAvailability** — sample PTAs with territory sharing
-- **ProductItem** — links sample products to each rep's User Inventory Location
-- **User Inventory Locations** — auto-created for reps assigned to country territories
-- **Inventory Storage Address** — child Address record on each Location for the Sample Inventory Management page
-- **TimePeriod** (2) — current year and next year periods for sample limit rules
-- **ProviderSampleLimit** — per-HCP per-product sample limits (created async via Queueable to avoid governor limits)
+- **Sample Products** (`Product2`, 22) — Immunexis 10mg and 15mg per country. `RecordType = LSC_Sample`, `Family = Sample`, `ProductCode = IMMUNEXIS-{CC}-{dose}-SMPL`
+- **Production Batches** (`ProductionBatch`, 44) — two per product (1-year and 2-year expiry). Key fields: `ProductId`, `UniqueIdentificationNumber` (batch ID shown in visit dropdown), `RemainingQuantity = 1000`, `ExpirationDate`
+- **Batch–Inventory Links** (`ProductBatchItem`) — junction between `ProductItem` and `ProductionBatch`. Required for the production batch dropdown on visits. Key fields: `ProductItemId`, `ProductionBatchId`, `RemainingQuantity = 1000`
+- **Sample Marketable Products** (`LifeSciMarketableProduct`) — `ProductSpecificationType = LSSampleProduct`, linked to country-level Brand MPs. Key fields: `ProductId` (→ Product2), `ParentProductId` (→ Brand MP), `SourceSystem = AFLSCE-Demo-Data`
+- **Territory Availability** (`ProductTerritoryAvailability`) — sample PTAs aligned to country territories with `AlignmentType = Territory and Subordinates Inclusion`. Shared with leaf territory groups (Private OWD)
+- **Rep Inventory** (`ProductItem`) — links each `Product2` to a rep's `Location`. Key fields: `Product2Id`, `LocationId`, `QuantityOnHand = 1000`
+- **User Inventory Locations** (`Location`) — `LocationType = User Inventory`, `IsInventoryLocation = true`, `PrimaryUserId` = rep. Auto-created for reps assigned to country territories
+- **Inventory Storage Address** (`Address`) — child of `Location`. Key fields: `ParentId` (→ Location), `CountryCode`, `City`, `Street`, `PostalCode`, `LocationType = Site`. Shown on the Sample Inventory Management page
+- **Sample Periods** (`TimePeriod`, 2) — current year and next year. Key fields: `StartDate`, `EndDate`, `PeriodCategory = Custom`
+- **Sample Limits** (`ProviderSampleLimit`) — per-HCP per-product limits with complex `Rule` JSON. Key fields: `AccountId`, `ProductId` (→ LifeSciMarketableProduct), `ProviderSampleLimitTemplateId`, `Rule` (JSON). Created async via Queueable to avoid governor limits
 
 All records use manual sharing (Private OWD) for PTA, ProductionBatch, and ProductItem objects, sharing with territory groups at the leaf level.
 
