@@ -1,5 +1,7 @@
 # AFLSCE Demo Data Starter Kit
 
+> **Disclaimer:** This is **not** an official Salesforce product or repository. It is an independent developer tool intended to accelerate demo setup in sandbox environments. Use at your own risk — you are responsible for testing and validating all generated data in your org before any demo or presentation.
+
 Admin UI for creating realistic demo data for **Agentforce for Life Sciences Cloud Edition** (AFLSCE).
 
 Deploy to any Salesforce org, open the app, and click buttons to populate a full demo environment with territories, accounts, healthcare providers, contact points, and therapy-area scenarios.
