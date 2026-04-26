@@ -20,32 +20,33 @@ sf project deploy start --source-dir force-app --target-org YOUR_ORG_ALIAS
 
 1. Assign the **AFLSCE Demo Data Admin** permission set to your user
 2. Open the **AFLSCE Demo Data** app from the App Launcher
-3. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Scenario Builder
+3. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Scenario Builder
 
 ## What Gets Created
 
 ### Tab 1: Territory Hierarchy
 - Territory Model (LSC Territory Model) with 3 types: Geographical, Medical, KAM
-- **GLOBAL** root with 6 country hierarchies (US, GB, FR, DE, IT, ES) and regional sub-territories
+- **GLOBAL** root with 11 country hierarchies (US, GB, FR, DE, IT, ES, JP, KR, BR, MX, AR) and regional sub-territories
 - **Medical** specialty tree: Oncology, Cardiology, Neurology, Immunology, Primary Care (each with sub-specialties)
 - **KAM** tree: Academic Medical Centers, Hospital Systems, Payer/Insurance, IDN, Government/VA
 
 ### Tab 2: Accounts & Healthcare Providers
 
-**Accounts (40 total)**
-- Real hospitals, clinics, payers, and pharmacies across US, GB, FR, DE, IT, ES
+**Accounts (110+ HCOs)**
+- Real hospitals, clinics, payers, and pharmacies across US, GB, FR, DE, IT, ES, JP, KR, BR, MX, AR
+- 10 HCOs per country with culturally appropriate names and addresses
 - Uses Health_Care_Organization record type for orgs, Health_Care_Provider (PersonAccount) for doctors
 - Full billing addresses with country-specific formatting and state/country picklist codes
 
-**Healthcare Providers (32 doctors)**
-- Culturally appropriate names per country
+**Healthcare Providers (110+ HCPs)**
+- 10 HCPs per country with culturally appropriate names
 - HealthcareProviderNpi records with unique 10-digit NPIs
 - HealthcareProviderSpecialty records (Oncology, Cardiology, Neurology, etc.)
 - CareSpecialty reference records
 - ProviderAffiliation linking doctors to their hospitals/clinics
 
 **Territory Assignment**
-- Maps all 72 accounts to territories by city (with country-level fallback)
+- Maps all accounts to territories by city (with country-level fallback)
 - Creates ObjectTerritory2Association records
 - Creates ProviderAcctTerritoryInfo (PATI) records for each account-territory pair
   - `IsTargetedAccount = true`, `IsAvailableOffline = true`, `IsActive = true`
@@ -55,13 +56,38 @@ sf project deploy start --source-dir force-app --target-org YOUR_ORG_ALIAS
 
 Batched in groups of 15 to stay within managed-package SOQL governor limits.
 
-- **ContactPointAddress** (72) — billing addresses for all accounts
-- **ContactPointEmail** (104) — general + department emails per org, personal for doctors
-- **ContactPointPhone** (208) — main + department lines, country-formatted numbers
-- **ContactPointSocial** (~52) — LinkedIn and X handles for organizations
-- **BusinessLicense** (~32) — facility and pharmacy licenses with country-specific formats (CQC, FINESS, IK, SSN, REGA)
+- **ContactPointAddress** — billing addresses for all accounts
+- **ContactPointEmail** — general + department emails per org, personal for doctors
+- **ContactPointPhone** — main + department lines, country-formatted numbers
+- **ContactPointSocial** — LinkedIn and X handles for organizations
+- **BusinessLicense** — facility and pharmacy licenses with country-specific formats (CQC, FINESS, IK, SSN, REGA, CRM, ANVISA, COFEPRIS, ANMAT)
 
-### Tab 4: Scenario Builder (Layered)
+### Tab 4: Product Alignment
+
+Creates LifeSciMarketableProduct hierarchy and territory alignments:
+
+- **Market** nodes: Autoimmune Disorders, Oncology Market
+- **Brand** nodes: Immunexis (per country), Immunonco (per country)
+- **ProductTerritoryAvailability** (PTA) records aligned to country territories
+- PTA sharing with leaf territory groups (walks hierarchy 3 levels deep)
+- Triggers alignment job to generate PTDAs for leaf territories
+
+### Tab 5: Samples
+
+Creates the full sample pipeline for mobile visit engagement:
+
+- **Product2** (22) — Immunexis 10mg and 15mg sample products per country (LSC_Sample record type)
+- **ProductionBatch** (44) — two batches per product (1-year and 2-year expiry)
+- **LifeSciMarketableProduct** — sample marketable products linked to country-level brands
+- **ProductTerritoryAvailability** — sample PTAs with territory sharing
+- **ProductItem** — links sample products to each rep's User Inventory Location
+- **User Inventory Locations** — auto-created for reps assigned to country territories
+
+All records use manual sharing (Private OWD) for PTA, ProductionBatch, and ProductItem objects, sharing with territory groups at the leaf level.
+
+> **DB Schema Note:** For samples to sync to mobile, set the `DbSchema_ProductTerritoryAvailability` SOQL Filter Condition to `AlignmentType = 'Territory and Subordinates Inclusion'` (without `Territory.Name = '{USER.TERRITORY}'`).
+
+### Tab 6: Scenario Builder (Layered)
 Pick your company type to layer therapy-area-specific data on top of base records:
 
 | Scenario | HCPs Created | Specialty Accounts | Agentforce Personas |
@@ -89,6 +115,11 @@ All created records are tagged for safe cleanup:
 | CareSpecialty | `Description` | `AFLSCE-Demo-Data` |
 | ContactPoint* | `SourceSystemName` | `AFLSCE-Demo-Data` |
 | BusinessLicense | `Identifier` | `AFLSCE-Demo-Data-*` |
+| LifeSciMarketableProduct | `SourceSystem` | `AFLSCE-Demo-Data` |
+| Product2 (samples) | `ProductCode` | `IMMUNEXIS-*-SMPL` |
+| ProductionBatch | via Product2 | (linked to tagged products) |
+| ProductItem | via Product2 | (linked to tagged products) |
+| Location (inventory) | via PrimaryUserId | (linked to territory reps) |
 
 Every tab has a **Delete** button that removes only the records created by this tool. Your existing org data is never touched.
 
@@ -109,12 +140,16 @@ force-app/main/default/
 │   ├── DemoAccountProviderController  Accounts, HCPs, NPIs, specialties, affiliations, territories, PATI
 │   ├── DemoAffiliationHelper          ProviderAffiliation CRUD (separate class for Schema visibility)
 │   ├── DemoContactPointController     Contact points & business licenses (batched)
+│   ├── DemoProductAlignmentController Product hierarchy & territory alignment (PTA/PTDA)
+│   ├── DemoSampleController           Sample products, batches, inventory, sharing
 │   └── DemoScenarioController         Therapy-area scenario layering
 ├── lwc/                  Lightning Web Components
 │   ├── demoDataAdmin           Main tabbed UI
 │   ├── territorySetup          Territory hierarchy creator
 │   ├── accountProviderSetup    Account & HCP creator + territory assignment
 │   ├── contactPointSetup       Contact points & licenses (batched UI with progress)
+│   ├── productAlignmentSetup   Product hierarchy & territory alignment
+│   ├── sampleSetup             Sample products, batches & inventory for mobile visits
 │   └── scenarioBuilder         Therapy-area scenario layering
 ├── permissionsets/       AFLSCE Demo Data Admin
 └── tabs/                 AFLSCE Demo Data tab
