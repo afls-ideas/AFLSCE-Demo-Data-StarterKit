@@ -16,11 +16,29 @@ public with sharing class DemoAccountProviderController {
 
     private static final String DEMO_TAG = 'AFLSCE-Demo-Data';
 
+    @AuraEnabled(cacheable=true)
+    public static List<Map<String, String>> getAccountRecordTypes() {
+        List<Map<String, String>> result = new List<Map<String, String>>();
+        for (RecordType rt : [
+            SELECT Id, DeveloperName, Name, IsPersonType
+            FROM RecordType
+            WHERE SObjectType = 'Account' AND IsActive = true
+        ]) {
+            Map<String, String> m = new Map<String, String>();
+            m.put('id', rt.Id);
+            m.put('developerName', rt.DeveloperName);
+            m.put('name', rt.Name);
+            m.put('isPersonType', String.valueOf(rt.IsPersonType));
+            result.add(m);
+        }
+        return result;
+    }
+
     @AuraEnabled
-    public static String createAccountsAndProviders() {
+    public static String createAccountsAndProviders(String hcoRecordTypeId, String hcpRecordTypeId) {
         try {
-            Id hcoRtId = Schema.SObjectType.Account.getRecordTypeInfosByDeveloperName().get('Health_Care_Organization').getRecordTypeId();
-            Id hcpRtId = Schema.SObjectType.Account.getRecordTypeInfosByDeveloperName().get('Health_Care_Provider').getRecordTypeId();
+            Id hcoRtId = (Id) hcoRecordTypeId;
+            Id hcpRtId = (Id) hcpRecordTypeId;
 
             // 1. Create organization accounts (hospitals, clinics, payers, pharmacies)
             Database.DMLOptions dmlOpts = new Database.DMLOptions();
@@ -1190,14 +1208,7 @@ public with sharing class DemoAccountProviderController {
 
             List<Id> userIds = terrToUserIds.get(territoryIds[i]);
             if (userIds == null || userIds.isEmpty()) {
-                SObject summary = summaryType.newSObject();
-                summary.put('AccountId', acct.Id);
-                summary.put('Territory2Id', territoryIds[i]);
-                summary.put('KeyInformationSummary', summaryJson);
-                summary.put('KeyInfoSummaryDateTime', Datetime.now());
-                summary.put('SourceSystemName', DEMO_TAG);
-                summaryRecords.add(summary);
-                summaryTerritoryIds.add(territoryIds[i]);
+                continue;
             } else {
                 for (Id userId : userIds) {
                     SObject summary = summaryType.newSObject();
@@ -1680,6 +1691,21 @@ public with sharing class DemoAccountProviderController {
         m.put('AR:Rosario', 'AR_SantaFe_Rosario');
 
         return m;
+    }
+
+    private static Id getRecordTypeId(String primaryDevName, String fallbackDevName) {
+        Map<String, Schema.RecordTypeInfo> rtMap = Schema.SObjectType.Account.getRecordTypeInfosByDeveloperName();
+        Schema.RecordTypeInfo info = rtMap.get(primaryDevName);
+        if (info == null) {
+            info = rtMap.get(fallbackDevName);
+        }
+        if (info == null) {
+            throw new AuraHandledException(
+                'Account record type not found. Expected "' + primaryDevName + '" or "' + fallbackDevName + '". ' +
+                'Available: ' + String.join(new List<String>(rtMap.keySet()), ', ')
+            );
+        }
+        return info.getRecordTypeId();
     }
 
 }

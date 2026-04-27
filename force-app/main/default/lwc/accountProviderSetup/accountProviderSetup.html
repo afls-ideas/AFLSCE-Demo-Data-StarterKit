@@ -25,6 +25,35 @@
                 </ul>
             </div>
 
+            <!-- Record Type Selection -->
+            <template if:true={hasRecordTypes}>
+                <div class="slds-box slds-theme_shade slds-m-bottom_medium slds-p-around_small">
+                    <p class="slds-text-title_caps slds-m-bottom_small">Record Type Configuration</p>
+                    <div class="slds-grid slds-gutters_medium slds-wrap">
+                        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-m-bottom_small">
+                            <lightning-radio-group
+                                label="HCO (Organization) Record Type"
+                                name="hcoRecordType"
+                                options={hcoOptions}
+                                value={hcoRecordTypeId}
+                                onchange={handleHcoChange}
+                                type="radio">
+                            </lightning-radio-group>
+                        </div>
+                        <div class="slds-col slds-size_1-of-1 slds-medium-size_1-of-2 slds-m-bottom_small">
+                            <lightning-radio-group
+                                label="HCP (Provider) Record Type"
+                                name="hcpRecordType"
+                                options={hcpOptions}
+                                value={hcpRecordTypeId}
+                                onchange={handleHcpChange}
+                                type="radio">
+                            </lightning-radio-group>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
             <!-- Status Section -->
             <div class="slds-m-bottom_medium">
                 <h3 class="slds-text-heading_small slds-m-bottom_x-small">Current Status</h3>
@@ -71,7 +100,7 @@
                     label="Create Accounts &amp; Providers"
                     icon-name="utility:add"
                     onclick={handleCreate}
-                    disabled={isLoading}
+                    disabled={isCreateDisabled}
                     class="slds-m-right_small"
                     aria-label="Create accounts and healthcare providers">
                 </lightning-button>

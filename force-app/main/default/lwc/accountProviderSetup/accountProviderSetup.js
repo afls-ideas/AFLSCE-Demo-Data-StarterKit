@@ -2,6 +2,7 @@ import { LightningElement, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
 import getStatus from '@salesforce/apex/DemoAccountProviderController.getStatus';
+import getAccountRecordTypes from '@salesforce/apex/DemoAccountProviderController.getAccountRecordTypes';
 import createAccountsAndProviders from '@salesforce/apex/DemoAccountProviderController.createAccountsAndProviders';
 import deleteAccountsAndProviders from '@salesforce/apex/DemoAccountProviderController.deleteAccountsAndProviders';
 import assignTerritories from '@salesforce/apex/DemoAccountProviderController.assignTerritories';
@@ -13,6 +14,10 @@ export default class AccountProviderSetup extends LightningElement {
     resultMessage;
     isSuccess = false;
     wiredStatusResult;
+
+    recordTypes = [];
+    hcoRecordTypeId;
+    hcpRecordTypeId;
 
     @wire(getStatus)
     wiredStatus(result) {
@@ -26,17 +31,73 @@ export default class AccountProviderSetup extends LightningElement {
         }
     }
 
+    @wire(getAccountRecordTypes)
+    wiredRecordTypes({ data, error }) {
+        if (data) {
+            this.recordTypes = data.map(rt => ({
+                label: rt.name + ' (' + rt.developerName + ')' + (rt.isPersonType === 'true' ? ' — Person Account' : ''),
+                value: rt.id,
+                isPersonType: rt.isPersonType === 'true',
+                developerName: rt.developerName
+            }));
+            this.autoSelectDefaults();
+        } else if (error) {
+            this.recordTypes = [];
+        }
+    }
+
+    autoSelectDefaults() {
+        const hcoNames = ['Health_Care_Organization', 'LSDO_Healthcare_Organization', 'HLS_Account_HealthCareFacility'];
+        const hcpNames = ['Health_Care_Provider', 'LSDO_Healthcare_Provider'];
+
+        for (const rt of this.recordTypes) {
+            if (!this.hcoRecordTypeId && hcoNames.includes(rt.developerName)) {
+                this.hcoRecordTypeId = rt.value;
+            }
+            if (!this.hcpRecordTypeId && hcpNames.includes(rt.developerName)) {
+                this.hcpRecordTypeId = rt.value;
+            }
+        }
+    }
+
+    get hcoOptions() {
+        return this.recordTypes.filter(rt => !rt.isPersonType);
+    }
+
+    get hcpOptions() {
+        return this.recordTypes.filter(rt => rt.isPersonType);
+    }
+
+    get hasRecordTypes() {
+        return this.recordTypes.length > 0;
+    }
+
+    get isCreateDisabled() {
+        return this.isLoading || !this.hcoRecordTypeId || !this.hcpRecordTypeId;
+    }
+
     get resultClass() {
         return this.isSuccess
             ? 'slds-box slds-theme_success slds-p-around_small slds-m-bottom_small'
             : 'slds-box slds-theme_error slds-p-around_small slds-m-bottom_small';
     }
 
+    handleHcoChange(event) {
+        this.hcoRecordTypeId = event.detail.value;
+    }
+
+    handleHcpChange(event) {
+        this.hcpRecordTypeId = event.detail.value;
+    }
+
     async handleCreate() {
         this.isLoading = true;
         this.resultMessage = undefined;
         try {
-            const result = await createAccountsAndProviders();
+            const result = await createAccountsAndProviders({
+                hcoRecordTypeId: this.hcoRecordTypeId,
+                hcpRecordTypeId: this.hcpRecordTypeId
+            });
             this.isSuccess = true;
             this.resultMessage = result;
             this.dispatchEvent(
