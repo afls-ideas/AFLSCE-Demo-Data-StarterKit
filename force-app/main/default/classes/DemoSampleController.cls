@@ -365,6 +365,26 @@ public without sharing class DemoSampleController {
                 terrByDev.put(t.DeveloperName, t.Id);
             }
 
+            // Build country -> all descendant territory IDs (including country itself)
+            Set<Id> countryTerritoryIds = new Set<Id>(terrByDev.values());
+            Map<Id, Set<Id>> countryToAllTerritories = new Map<Id, Set<Id>>();
+            for (Id cId : countryTerritoryIds) {
+                countryToAllTerritories.put(cId, new Set<Id>{ cId });
+            }
+            Set<Id> currentLevel = countryTerritoryIds;
+            for (Integer depth = 0; depth < 5 && !currentLevel.isEmpty(); depth++) {
+                Set<Id> nextLevel = new Set<Id>();
+                for (Territory2 child : [SELECT Id, ParentTerritory2Id FROM Territory2 WHERE ParentTerritory2Id IN :currentLevel]) {
+                    nextLevel.add(child.Id);
+                    for (Id countryId : countryTerritoryIds) {
+                        if (countryToAllTerritories.get(countryId).contains(child.ParentTerritory2Id)) {
+                            countryToAllTerritories.get(countryId).add(child.Id);
+                        }
+                    }
+                }
+                currentLevel = nextLevel;
+            }
+
             Set<Id> allMpIds = new Set<Id>(codeToMpId.values());
             Set<String> existingPtaKeys = new Set<String>();
             if (!allMpIds.isEmpty()) {
@@ -379,20 +399,23 @@ public without sharing class DemoSampleController {
             for (String code : codeToMpId.keySet()) {
                 String cc = code.split('-')[1];
                 String terrDev = COUNTRY_TERRITORY.get(cc);
-                Id terrId = terrByDev.get(terrDev);
+                Id countryTerrId = terrByDev.get(terrDev);
                 Id mpId = codeToMpId.get(code);
 
-                if (terrId != null && mpId != null) {
-                    String ptaKey = mpId + ':' + terrId;
-                    if (!existingPtaKeys.contains(ptaKey)) {
-                        ptas.add(newPTA(new Map<String, Object>{
-                            'ProductId' => mpId,
-                            'TerritoryId' => terrId,
-                            'AlignmentType' => 'Territory and Subordinates Inclusion',
-                            'Status' => 'Draft',
-                            'Purpose' => 'Visit',
-                            'UsageType' => 'LifeSciences'
-                        }));
+                if (countryTerrId != null && mpId != null) {
+                    Set<Id> allTerrs = countryToAllTerritories.get(countryTerrId);
+                    for (Id terrId : allTerrs) {
+                        String ptaKey = mpId + ':' + terrId;
+                        if (!existingPtaKeys.contains(ptaKey)) {
+                            ptas.add(newPTA(new Map<String, Object>{
+                                'ProductId' => mpId,
+                                'TerritoryId' => terrId,
+                                'AlignmentType' => 'Territory and Subordinates Inclusion',
+                                'Status' => 'Draft',
+                                'Purpose' => 'Visit',
+                                'UsageType' => 'LifeSciences'
+                            }));
+                        }
                     }
                 }
             }
