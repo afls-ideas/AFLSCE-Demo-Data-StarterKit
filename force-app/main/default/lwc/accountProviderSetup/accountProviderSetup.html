@@ -1,10 +1,29 @@
 <template>
     <lightning-card title="Accounts &amp; Healthcare Providers" icon-name="standard:account">
         <div class="slds-p-horizontal_medium slds-p-bottom_medium">
-            <p class="slds-text-body_regular slds-m-bottom_medium">
+            <p class="slds-text-body_regular slds-m-bottom_small">
                 Creates ~365 accounts (hospitals, clinics, payers, pharmacies across US, GB, FR, DE, IT, ES, JP, KR, BR, MX, AR)
                 and Healthcare Providers with NPIs, specialties, and organizational affiliations.
             </p>
+
+            <!-- Objects created by this tab -->
+            <div class="slds-box slds-theme_shade slds-m-bottom_medium slds-p-around_small">
+                <p class="slds-text-title_caps slds-m-bottom_x-small">Objects created by this tab</p>
+                <ul class="slds-list_dotted slds-text-body_small">
+                    <li><strong>Account</strong> &mdash; Organization accounts (hospitals, clinics, payers, pharmacies) and HCP person accounts</li>
+                    <li><strong>HealthcareProvider</strong> &mdash; Professional provider record linked to each HCP person account</li>
+                    <li><strong>HealthcareProviderNpi</strong> &mdash; NPI (National Provider Identifier) for each provider</li>
+                    <li><strong>CareSpecialty</strong> &mdash; Medical specialties (Oncology, Cardiology, Neurology, etc.)</li>
+                    <li><strong>HealthcareProviderSpecialty</strong> &mdash; Links each provider to their primary specialty</li>
+                    <li><strong>ProviderAffiliation</strong> &mdash; Links HCP doctors to their affiliated organization accounts</li>
+                </ul>
+                <p class="slds-text-title_caps slds-m-top_small slds-m-bottom_x-small">Created by &ldquo;Assign Territories&rdquo;</p>
+                <ul class="slds-list_dotted slds-text-body_small">
+                    <li><strong>ObjectTerritory2Association</strong> &mdash; Assigns accounts to their geographic territory</li>
+                    <li><strong>ProviderAcctTerritoryInfo</strong> &mdash; Territory targeting and offline availability per account</li>
+                    <li><strong>PrvdAccountTerritorySummary</strong> &mdash; Account summaries with key info and discussion points for reps</li>
+                </ul>
+            </div>
 
             <!-- Status Section -->
             <div class="slds-m-bottom_medium">

@@ -8,6 +8,21 @@
                 records so samples are visible to reps in their territories.
             </p>
 
+            <!-- Objects created by this tab -->
+            <div class="slds-box slds-theme_shade slds-m-bottom_medium slds-p-around_small">
+                <p class="slds-text-title_caps slds-m-bottom_x-small">Objects created by this tab</p>
+                <ul class="slds-list_dotted slds-text-body_small">
+                    <li><strong>Product2</strong> &mdash; Sample products (Immunexis 10mg/15mg per country, RecordType = LSC_Sample)</li>
+                    <li><strong>ProductionBatch</strong> &mdash; Two batches per product with 1-year and 2-year expiration dates</li>
+                    <li><strong>Location</strong> &mdash; User Inventory locations for each rep (LocationType = &lsquo;User Inventory&rsquo;)</li>
+                    <li><strong>Address</strong> &mdash; Country-specific addresses for each rep inventory location</li>
+                    <li><strong>ProductItem</strong> &mdash; Inventory stock records linking Product2 to rep locations (100 units each)</li>
+                    <li><strong>ProductBatchItem</strong> &mdash; Links each ProductItem to its ProductionBatch</li>
+                    <li><strong>LifeSciMarketableProduct</strong> &mdash; Sample-type marketable products (ProductSpecificationType = &lsquo;LSSampleProduct&rsquo;)</li>
+                    <li><strong>ProductTerritoryAvailability</strong> &mdash; Aligns sample products to country territories</li>
+                </ul>
+            </div>
+
             <!-- DB Schema guidance -->
             <div class="slds-box slds-box_xx-small slds-theme_info slds-m-bottom_medium">
                 <div class="slds-grid slds-gutters_x-small slds-grid_vertical-align-start">

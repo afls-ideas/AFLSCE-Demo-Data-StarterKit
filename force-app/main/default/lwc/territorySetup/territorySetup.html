@@ -1,10 +1,18 @@
 <template>
     <lightning-card title="Territory Hierarchy Setup" icon-name="standard:location">
         <div class="slds-p-horizontal_medium slds-p-bottom_medium">
-            <p class="slds-text-body_regular slds-m-bottom_medium">
-                Creates a complete territory hierarchy including a GLOBAL root, 6 country territories
-                (US, GB, FR, DE, IT, ES), Medical specialty territories, and KAM (Key Account Management) structure.
+            <p class="slds-text-body_regular slds-m-bottom_small">
+                Creates a complete territory hierarchy including a GLOBAL root, 11 country territories
+                (US, GB, FR, DE, IT, ES, JP, KR, BR, MX, AR), Medical specialty territories, and KAM (Key Account Management) structure.
             </p>
+
+            <!-- Objects created by this tab -->
+            <div class="slds-box slds-theme_shade slds-m-bottom_medium slds-p-around_small">
+                <p class="slds-text-title_caps slds-m-bottom_x-small">Objects created by this tab</p>
+                <ul class="slds-list_dotted slds-text-body_small">
+                    <li><strong>Territory2</strong> &mdash; GLOBAL root, 11 country territories, US regional territories, Medical specialty territories, and KAM territories</li>
+                </ul>
+            </div>
 
             <!-- Status Section -->
             <div class="slds-m-bottom_medium">
@@ -39,14 +47,6 @@
                     disabled={isLoading}
                     class="slds-m-right_small"
                     aria-label="Create territory hierarchy">
-                </lightning-button>
-                <lightning-button
-                    variant="destructive"
-                    label="Delete All Territories"
-                    icon-name="utility:delete"
-                    onclick={handleDelete}
-                    disabled={isLoading}
-                    aria-label="Delete all territories">
                 </lightning-button>
             </div>
 

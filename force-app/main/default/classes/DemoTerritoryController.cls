@@ -481,6 +481,7 @@ public with sharing class DemoTerritoryController {
         t.Name = label;
         t.Territory2TypeId = typeId;
         t.Territory2ModelId = modelId;
+        t.AccountAccessLevel = 'Edit';
         if (parentId != null) {
             t.ParentTerritory2Id = parentId;
         }

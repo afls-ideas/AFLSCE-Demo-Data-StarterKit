@@ -1,36 +1,40 @@
 <template>
-    <lightning-card title="Inventory Replenishment" icon-name="standard:shipment">
+    <lightning-card title="Sample Limits" icon-name="standard:quantity">
         <div class="slds-p-horizontal_medium slds-p-bottom_medium">
             <p class="slds-text-body_regular slds-m-bottom_small">
-                Creates shipments from country warehouses to each rep's User Inventory location,
-                with inventory operations (Transfer In) and product transfers for all sample products.
-                This populates the rep's inventory so samples appear on the Sample Inventory Management page.
+                Creates ProviderSampleLimit records for every demo HCP account and sample product.
+                Each limit enforces 2 samples per visit and 10 per period (Jan 1 &ndash; Dec 31 of the current year).
+                The batch runs asynchronously &mdash; refresh the page after ~30 seconds to see updated counts.
             </p>
 
-            <!-- Objects created by this tab -->
+            <!-- What this tab creates -->
             <div class="slds-box slds-theme_shade slds-m-bottom_medium slds-p-around_small">
                 <p class="slds-text-title_caps slds-m-bottom_x-small">Objects created by this tab</p>
                 <ul class="slds-list_dotted slds-text-body_small">
-                    <li><strong>Location</strong> &mdash; Warehouse locations per country (e.g., &ldquo;US Sample Warehouse&rdquo;)</li>
-                    <li><strong>Shipment</strong> &mdash; One shipment per rep from their country warehouse</li>
-                    <li><strong>ShipmentItem</strong> &mdash; One item per sample product per shipment</li>
-                    <li><strong>InventoryOperation</strong> &mdash; Transfer In operations for each rep (Status pending acknowledgement)</li>
-                    <li><strong>ProductTransfer</strong> &mdash; Transfer records linking shipment, product, and production batch</li>
+                    <li><strong>TimePeriod</strong> &mdash; &ldquo;Sample Period {currentYear}&rdquo; (Jan 1 &ndash; Dec 31)</li>
+                    <li><strong>ProviderSmplLmtTmplAssignment</strong> &mdash; Links each Brand-level marketable product to the sample limit template</li>
+                    <li><strong>ProviderSmplLmtTmplAssignmentShare</strong> &mdash; Shares template assignments with all rep users (required for Private OWD)</li>
+                    <li><strong>ProviderSampleLimit</strong> &mdash; One record per HCP &times; marketable product with per-visit and per-period rules</li>
                 </ul>
             </div>
 
+            <!-- Prerequisites -->
             <div class="slds-box slds-box_xx-small slds-theme_info slds-m-bottom_medium">
                 <div class="slds-grid slds-gutters_x-small slds-grid_vertical-align-start">
                     <div class="slds-col slds-no-flex">
                         <lightning-icon icon-name="utility:warning" size="x-small" variant="inverse" class="slds-m-right_xx-small"></lightning-icon>
                     </div>
                     <div class="slds-col">
-                        <p class="slds-text-body_small"><strong>Prerequisite:</strong>
-                            Run the <strong>Samples</strong> tab first to create Product2, ProductionBatch,
-                            ProductItem, and User Inventory Locations. This tab creates the shipment
-                            records that transfer inventory into those locations.</p>
+                        <p class="slds-text-title_caps slds-m-bottom_xx-small">Prerequisites (run these tabs first)</p>
+                        <ul class="slds-list_dotted slds-text-body_small">
+                            <li><strong>Territory Setup</strong> &mdash; Territory hierarchy with rep users assigned</li>
+                            <li><strong>Accounts &amp; Providers</strong> &mdash; HCP person accounts (Site = &lsquo;AFLSCE-Demo-Data&rsquo;)</li>
+                            <li><strong>Product Alignment</strong> &mdash; LifeSciMarketableProduct records (Brand + Sample types)</li>
+                            <li><strong>Samples</strong> &mdash; Sample products, product items, and inventory locations</li>
+                        </ul>
                         <p class="slds-text-body_small slds-m-top_xx-small">
-                            You can delete and re-create replenishment records independently of the Samples tab.
+                            Also requires an active <strong>ProviderSampleLimitTemplate</strong> named
+                            <em>lsc4ce_GenericTemplate</em> (created via Admin Console &gt; Samples module).
                         </p>
                     </div>
                 </div>
@@ -63,7 +67,7 @@
             <div class="slds-m-bottom_medium">
                 <lightning-button
                     variant="brand"
-                    label="Create Replenishment"
+                    label="Create Sample Limits"
                     icon-name="utility:add"
                     onclick={handleCreate}
                     disabled={isLoading}
@@ -71,7 +75,7 @@
                 </lightning-button>
                 <lightning-button
                     variant="destructive"
-                    label="Delete Replenishment"
+                    label="Delete Sample Limits"
                     icon-name="utility:delete"
                     onclick={handleDelete}
                     disabled={isLoading}>
