@@ -1,0 +1,107 @@
+<template>
+    <lightning-card title="Account &amp; Action Plans" icon-name="standard:task2">
+        <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+            <p class="slds-text-body_regular slds-m-bottom_small">
+                Creates localized Account Plans for every demo account
+                (HCPs and HCOs) in each territory, with country- and
+                account-type-specific objectives and KAM action plans
+                generated from templates. Time period is January 1 to
+                December 31 of the current year.
+            </p>
+
+            <!-- Objects created by this tab -->
+            <div class="slds-box slds-theme_shade slds-m-bottom_medium slds-p-around_small">
+                <p class="slds-text-title_caps slds-m-bottom_x-small">Objects created by this tab</p>
+                <ul class="slds-list_dotted slds-text-body_small">
+                    <li><strong>AccountPlan</strong> &mdash; One per account (HCP &amp; HCO), localized name, linked to territory owner, Jan&ndash;Dec current year</li>
+                    <li><strong>AccountPlanObjective</strong> &mdash; 2&ndash;3 per plan, specific to country and account type (Hospital, Clinic, Insurance, Pharmacy, HCP)</li>
+                    <li><strong>ActionPlan</strong> &mdash; 6 KAM action plans per objective, auto-populated from ActionPlanTemplateVersion</li>
+                    <li><strong>ActionPlanItem</strong> &mdash; Auto-created by the platform when ActionPlanTemplateVersionId is set on the ActionPlan</li>
+                </ul>
+            </div>
+
+            <!-- Status Section -->
+            <div class="slds-m-bottom_medium">
+                <h3 class="slds-text-heading_small slds-m-bottom_x-small">Current Status</h3>
+                <template if:true={statusError}>
+                    <div class="slds-box slds-theme_shade slds-p-around_small">
+                        <p class="slds-text-color_error">{statusError}</p>
+                    </div>
+                </template>
+                <template if:true={statusData}>
+                    <div class="slds-box slds-theme_shade slds-p-around_small">
+                        <lightning-icon icon-name="utility:info" size="xx-small" class="slds-m-right_x-small"></lightning-icon>
+                        <span>{statusData}</span>
+                    </div>
+                </template>
+                <template if:false={statusData}>
+                    <template if:false={statusError}>
+                        <div class="slds-box slds-theme_shade slds-p-around_small">
+                            <span class="slds-text-color_weak">Loading status...</span>
+                        </div>
+                    </template>
+                </template>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="slds-m-bottom_medium">
+                <lightning-button
+                    variant="brand"
+                    label="Create Activity Plans"
+                    icon-name="utility:add"
+                    onclick={handleCreate}
+                    disabled={isLoading}
+                    class="slds-m-right_small"
+                    aria-label="Create account plans, objectives, and action plans">
+                </lightning-button>
+                <lightning-button
+                    variant="destructive"
+                    label="Delete Activity Plans"
+                    icon-name="utility:delete"
+                    onclick={handleDelete}
+                    disabled={isLoading}
+                    aria-label="Delete all demo activity plan records">
+                </lightning-button>
+            </div>
+
+            <!-- Spinner -->
+            <template if:true={isLoading}>
+                <div class="slds-is-relative slds-m-bottom_medium" style="height: 60px;">
+                    <lightning-spinner alternative-text="Processing..." size="medium"></lightning-spinner>
+                </div>
+            </template>
+
+            <!-- Activity Log -->
+            <template if:true={hasActivityLog}>
+                <div class="slds-m-bottom_medium">
+                    <h3 class="slds-text-heading_small slds-m-bottom_x-small">Activity Log</h3>
+                    <div class="slds-box slds-theme_shade slds-p-around_small" style="max-height: 500px; overflow-y: auto; font-family: monospace; font-size: 12px; line-height: 1.6;">
+                        <template for:each={activityLog} for:item="entry">
+                            <p key={entry.id} class="slds-m-bottom_xxx-small">
+                                <template if:true={entry.isHeader}>
+                                    <strong style="color: #0070d2;">{entry.message}</strong>
+                                </template>
+                                <template if:true={entry.isSuccess}>
+                                    <span style="color: #2e844a;">&#10003; {entry.message}</span>
+                                </template>
+                                <template if:true={entry.isError}>
+                                    <span style="color: #c23934;">&#10007; {entry.message}</span>
+                                </template>
+                                <template if:true={entry.isDetail}>
+                                    <span style="color: #444;">&#8226; {entry.message}</span>
+                                </template>
+                            </p>
+                        </template>
+                    </div>
+                </div>
+            </template>
+
+            <!-- Status Messages -->
+            <template if:true={resultMessage}>
+                <div class={resultClass}>
+                    <p>{resultMessage}</p>
+                </div>
+            </template>
+        </div>
+    </lightning-card>
+</template>

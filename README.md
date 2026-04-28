@@ -22,7 +22,7 @@ sf project deploy start --source-dir force-app --target-org YOUR_ORG_ALIAS
 
 1. Assign the **AFLSCE Demo Data Admin** permission set to your user
 2. Open the **AFLSCE Demo Data** app from the App Launcher
-3. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Inventory Replenishment → Scenario Builder
+3. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Inventory Replenishment → Scenario Builder → Account & Action Plans
 
 ## What Gets Created
 
@@ -116,6 +116,18 @@ Pick your company type to layer therapy-area-specific data on top of base record
 
 Scenarios are additive — apply multiple to build a multi-therapeutic-area demo. Each can be independently removed.
 
+### Tab 8: Account & Action Plans
+
+Creates the full Account Plan → Objective → Action Plan hierarchy for every demo account (HCO + HCP) across all 11 countries:
+
+- **Account Plans** (~370) — one per account, with localized names per country and account type (Hospital, Clinic, Insurance, Pharmacy, HCP). Owned by the territory rep
+- **Account Plan Objectives** (~1,100) — 3 per plan, localized to each country's healthcare system (P&T Committee in US, NICE pathway in GB, AIFA in Italy, COFEPRIS in Mexico, etc.)
+- **Action Plans** (~6,700) — 6 per objective, one per KAM template, created asynchronously via batch. Linked to published `ActionPlanTemplateVersion` records
+
+Requires 6 KAM Action Plan Templates to be published in the org before running. Includes two custom Lightning Record Pages for ActionPlan and ActionPlanTemplate objects.
+
+See [README-AccountActionPlans.md](README-AccountActionPlans.md) for full details on templates, permissions, mobile sync (DB Schema), and troubleshooting.
+
 ## Tagging & Cleanup
 
 All created records are tagged for safe cleanup:
@@ -143,6 +155,9 @@ All created records are tagged for safe cleanup:
 | InventoryOperation | `Comment` | `AFLSCE-Replenishment` |
 | ShipmentItem | via ShipmentId | (child of tagged Shipment) |
 | ProductTransfer | via ShipmentId | (child of tagged Shipment) |
+| AccountPlan | `SourceSystemName` | `AFLSCE-Demo-Data` |
+| AccountPlanObjective | `SourceSystemName` | `AFLSCE-Demo-Data` |
+| ActionPlan | `SourceSystemName` | `AFLSCE-Demo-Data` |
 
 Every tab has a **Delete** button that removes only the records created by this tool. Your existing org data is never touched.
 
@@ -166,7 +181,10 @@ force-app/main/default/
 │   ├── DemoProductAlignmentController Product hierarchy & territory alignment (PTA/PTDA)
 │   ├── DemoSampleController           Sample products, batches, inventory, sharing
 │   ├── DemoReplenishmentController    Warehouse-to-rep inventory replenishment
-│   └── DemoScenarioController         Therapy-area scenario layering
+│   ├── DemoScenarioController         Therapy-area scenario layering
+│   ├── DemoActivityPlanController     Account Plans, Objectives, Action Plan orchestration
+│   ├── DemoActionPlanBatch            Batchable for Action Plan creation from templates
+│   └── DemoAccountPlanData            Localized plan names & objectives (55 country/type combos)
 ├── lwc/                  Lightning Web Components
 │   ├── demoDataAdmin           Main tabbed UI
 │   ├── territorySetup          Territory hierarchy creator
@@ -176,6 +194,10 @@ force-app/main/default/
 │   ├── sampleSetup             Sample products, batches & inventory for mobile visits
 │   ├── replenishmentSetup      Warehouse-to-rep inventory replenishment
 │   └── scenarioBuilder         Therapy-area scenario layering
+│   └── activityPlanSetup       Account & Action Plans creation UI
+├── flexipages/           Lightning Record Pages
+│   ├── Action_Plan_Record_Page              ActionPlan record page
+│   └── Action_Plan_Template_Record_Page     ActionPlanTemplate record page
 ├── permissionsets/       AFLSCE Demo Data Admin
 └── tabs/                 AFLSCE Demo Data tab
 ```
