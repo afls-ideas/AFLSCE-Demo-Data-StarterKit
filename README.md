@@ -148,7 +148,7 @@ Every tab has a **Delete** button that removes only the records created by this 
 
 ## Requirements
 
-- Salesforce org with Health Cloud or Life Sciences Cloud enabled
+- Salesforce org with Agentforce Life Sciences Cloud for Commercial Engagement enabled
 - Territory Management enabled (for Territory tab)
 - Person Accounts enabled (for Healthcare Provider PersonAccounts)
 - State & Country Picklists enabled
