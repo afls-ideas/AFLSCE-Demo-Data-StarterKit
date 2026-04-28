@@ -538,12 +538,6 @@ public without sharing class DemoSampleController {
             // 0. Delete ProviderSampleLimit records linked to our sample marketable products
             if (objectExists('ProviderSampleLimit') && objectExists('LifeSciMarketableProduct')) {
                 Set<Id> sampleMpIds = getSampleMarketableProductIds();
-                // Also include brand-level MPs
-                for (SObject mp : Database.query(
-                    'SELECT Id FROM LifeSciMarketableProduct WHERE Name LIKE \'Immunexis (%)\' AND Type = \'Brand\''
-                )) {
-                    sampleMpIds.add(mp.Id);
-                }
                 if (!sampleMpIds.isEmpty()) {
                     List<SObject> psls = Database.query(
                         'SELECT Id FROM ProviderSampleLimit WHERE ProductId IN :sampleMpIds'
@@ -1197,21 +1191,10 @@ public without sharing class DemoSampleController {
             for (Account a : hcpAccounts) { hcpAccountIds.add(a.Id); }
 
             Set<Id> sampleMpIds = this.sampleMpIds;
-            Set<Id> brandMpIds = new Set<Id>();
-            Set<Id> brandAndProductMpIds = new Set<Id>();
-            brandAndProductMpIds.addAll(sampleMpIds);
-            for (SObject mp : Database.query(
-                'SELECT Id, Type FROM LifeSciMarketableProduct WHERE Id IN :sampleMpIds OR (Name LIKE \'Immunexis (%)\' AND Type = \'Brand\')'
-            )) {
-                brandAndProductMpIds.add(mp.Id);
-                if ((String) mp.get('Type') == 'Brand') {
-                    brandMpIds.add(mp.Id);
-                }
-            }
 
             Set<String> existingPslKeys = new Set<String>();
             for (SObject psl : Database.query(
-                'SELECT AccountId, ProductId FROM ProviderSampleLimit WHERE AccountId IN :hcpAccountIds AND ProductId IN :brandAndProductMpIds'
+                'SELECT AccountId, ProductId FROM ProviderSampleLimit WHERE AccountId IN :hcpAccountIds AND ProductId IN :sampleMpIds'
             )) {
                 existingPslKeys.add((Id) psl.get('AccountId') + ':' + (Id) psl.get('ProductId'));
             }
@@ -1220,21 +1203,19 @@ public without sharing class DemoSampleController {
             String startDate = currentYear + '-01-01';
             String endDate = currentYear + '-12-31';
             String rulePrefix = '{"products":{"';
-            String brandRuleMid = buildRuleMiddle(startDate, endDate, 'Brand');
             String productRuleMid = buildRuleMiddle(startDate, endDate, 'LSSampleProduct');
             String ruleSuffix = ',"template":{"operations":[{"operation":"RULE","rule":"PerVisitLimit"},{"operation":"RULE","rule":"PerPeriodLimit"},{"operation":"AND"}],"name":"' + templateDevName + '","label":"Generic Template","blockType":"Error"}}';
 
             List<SObject> batch = new List<SObject>();
             for (Account acct : hcpAccounts) {
-                for (Id mpId : brandAndProductMpIds) {
+                for (Id mpId : sampleMpIds) {
                     if (existingPslKeys.contains(acct.Id + ':' + mpId)) continue;
-                    String mid = brandMpIds.contains(mpId) ? brandRuleMid : productRuleMid;
                     SObject psl = pslType.newSObject();
                     psl.put('AccountId', acct.Id);
                     psl.put('ProductId', mpId);
                     psl.put('PrvdSampleLimitTemplateId', templateId);
                     psl.put('PrvdSampleLmtTemplateName', templateDevName);
-                    psl.put('Rule', rulePrefix + mpId + mid + ruleSuffix);
+                    psl.put('Rule', rulePrefix + mpId + productRuleMid + ruleSuffix);
                     batch.add(psl);
                 }
                 if (batch.size() >= 200) {
