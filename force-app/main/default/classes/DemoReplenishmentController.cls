@@ -232,24 +232,51 @@ public without sharing class DemoReplenishmentController {
     }
 
     private static Map<Id, RepInfo> gatherRepData(List<String> details, List<String> errors) {
-        List<UserTerritory2Association> utas = [
-            SELECT UserId, User.Name, Territory2.DeveloperName
-            FROM UserTerritory2Association
-            WHERE Territory2.DeveloperName IN :COUNTRY_TERRITORY.values()
-        ];
-
-        Map<String, String> terrToCountry = new Map<String, String>();
+        // Build country territory Id -> country code map
+        Set<String> countryDevNames = new Set<String>(COUNTRY_TERRITORY.values());
+        Map<Id, String> countryTerrIdToCC = new Map<Id, String>();
+        Map<String, String> devNameToCC = new Map<String, String>();
         for (String cc : COUNTRY_TERRITORY.keySet()) {
-            terrToCountry.put(COUNTRY_TERRITORY.get(cc), cc);
+            devNameToCC.put(COUNTRY_TERRITORY.get(cc), cc);
         }
+        for (Territory2 t : [SELECT Id, DeveloperName FROM Territory2 WHERE DeveloperName IN :countryDevNames]) {
+            countryTerrIdToCC.put(t.Id, devNameToCC.get(t.DeveloperName));
+        }
+
+        // Walk hierarchy: country territories → all descendants (up to 5 levels)
+        Map<Id, String> allTerrIdToCC = new Map<Id, String>();
+        for (Id tId : countryTerrIdToCC.keySet()) {
+            allTerrIdToCC.put(tId, countryTerrIdToCC.get(tId));
+        }
+        Set<Id> currentLevel = countryTerrIdToCC.keySet();
+        for (Integer depth = 0; depth < 5 && !currentLevel.isEmpty(); depth++) {
+            Set<Id> nextLevel = new Set<Id>();
+            for (Territory2 child : [SELECT Id, ParentTerritory2Id FROM Territory2 WHERE ParentTerritory2Id IN :currentLevel]) {
+                nextLevel.add(child.Id);
+                String cc = allTerrIdToCC.get(child.ParentTerritory2Id);
+                if (cc != null) {
+                    allTerrIdToCC.put(child.Id, cc);
+                }
+            }
+            currentLevel = nextLevel;
+        }
+
+        // Find reps assigned to any territory in the hierarchy
+        Set<Id> allTerrIds = allTerrIdToCC.keySet();
+        List<UserTerritory2Association> utas = [
+            SELECT UserId, User.Name, Territory2Id, Territory2.DeveloperName
+            FROM UserTerritory2Association
+            WHERE Territory2Id IN :allTerrIds
+        ];
 
         Map<Id, RepInfo> repMap = new Map<Id, RepInfo>();
         Set<Id> repIds = new Set<Id>();
         for (UserTerritory2Association uta : utas) {
+            if (repMap.containsKey(uta.UserId)) continue;
             RepInfo ri = new RepInfo();
             ri.userId = uta.UserId;
             ri.userName = uta.User.Name;
-            ri.countryCode = terrToCountry.get(uta.Territory2.DeveloperName);
+            ri.countryCode = allTerrIdToCC.get(uta.Territory2Id);
             repMap.put(uta.UserId, ri);
             repIds.add(uta.UserId);
         }

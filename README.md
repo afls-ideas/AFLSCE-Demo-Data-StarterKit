@@ -81,15 +81,17 @@ Creates the full sample pipeline for mobile visit engagement:
 - **Sample Products** (`Product2`, 22) — Immunexis 10mg and 15mg per country. `RecordType = LSC_Sample`, `Family = Sample`, `ProductCode = IMMUNEXIS-{CC}-{dose}-SMPL`
 - **Production Batches** (`ProductionBatch`, 44) — two per product (1-year and 2-year expiry). Key fields: `ProductId`, `UniqueIdentificationNumber` (batch ID shown in visit dropdown), `RemainingQuantity = 1000`, `ExpirationDate`
 - **Batch–Inventory Links** (`ProductBatchItem`) — junction between `ProductItem` and `ProductionBatch`. Required for the production batch dropdown on visits. Key fields: `ProductItemId`, `ProductionBatchId`, `RemainingQuantity = 1000`
-- **Sample Marketable Products** (`LifeSciMarketableProduct`) — `ProductSpecificationType = LSSampleProduct`, linked to country-level Brand MPs. Key fields: `ProductId` (→ Product2), `ParentProductId` (→ Brand MP), `SourceSystem = AFLSCE-Demo-Data`
+- **Sample Marketable Products** (`LifeSciMarketableProduct`) — `ProductSpecificationType = LSSampleProduct`, linked to country-level Brand MPs. Key fields: `ProductId` (→ Product2), `ParentProductId` (→ Brand MP), `ParentBrandProductId` (→ Brand MP), `SourceSystem = AFLSCE-Demo-Data`. Includes a self-repair step that corrects mismatched parent brands on re-run
 - **Territory Availability** (`ProductTerritoryAvailability`) — sample PTAs aligned to country territories with `AlignmentType = Territory and Subordinates Inclusion`. Shared with leaf territory groups (Private OWD)
 - **Rep Inventory** (`ProductItem`) — links each `Product2` to a rep's `Location`. Key fields: `Product2Id`, `LocationId`, `QuantityOnHand = 1000`
-- **User Inventory Locations** (`Location`) — `LocationType = User Inventory`, `IsInventoryLocation = true`, `PrimaryUserId` = rep. Auto-created for reps assigned to country territories
+- **User Inventory Locations** (`Location`) — `LocationType = User Inventory`, `IsInventoryLocation = true`, `PrimaryUserId` = rep. Auto-created for reps assigned to any territory in the country hierarchy (walks parent→child up to 5 levels)
 - **Inventory Storage Address** (`Address`) — child of `Location`. Key fields: `ParentId` (→ Location), `CountryCode`, `City`, `Street`, `PostalCode`, `LocationType = Site`. Shown on the Sample Inventory Management page
 - **Sample Periods** (`TimePeriod`, 2) — current year and next year. Key fields: `StartDate`, `EndDate`, `PeriodCategory = Custom`
 - **Sample Limits** (`ProviderSampleLimit`) — per-HCP per-product limits with complex `Rule` JSON. Key fields: `AccountId`, `ProductId` (→ LifeSciMarketableProduct), `ProviderSampleLimitTemplateId`, `Rule` (JSON). Created async via Queueable to avoid governor limits
 
 All records use manual sharing (Private OWD) for PTA, ProductionBatch, and ProductItem objects, sharing with territory groups at the leaf level.
+
+> **Permission Note:** The managed `ProductBatchItemTrigger` transfers ownership to the rep on each inventory location. Every rep must have the `LSDO_PH_Field_Sales_Rep` permission set (or equivalent read access to `ProductBatchItem`) before running sample creation — otherwise the trigger fails the entire batch with `TRANSFER_REQUIRES_READ`.
 
 > **DB Schema Note:** For samples to sync to mobile, configure two DB Schema entries:
 > 1. `DbSchema_ProductTerritoryAvailability` — SOQL Filter: `AlignmentType = 'Territory and Subordinates Inclusion'` (without `Territory.Name = '{USER.TERRITORY}'`)
@@ -97,7 +99,7 @@ All records use manual sharing (Private OWD) for PTA, ProductionBatch, and Produ
 
 ### Tab 6: Inventory Replenishment
 
-Simulates non-user-initiated warehouse-to-rep shipments. Creates `Shipment`, `ShipmentItem`, `InventoryOperation` (TransferIn), and `ProductTransfer` records for each rep. Records are created in a pending state so reps can acknowledge receipt on the Sample Inventory Management page.
+Simulates non-user-initiated warehouse-to-rep shipments. Creates `Shipment`, `ShipmentItem`, `InventoryOperation` (TransferIn), and `ProductTransfer` records for each rep. Records are created in a pending state so reps can acknowledge receipt on the Sample Inventory Management page. Walks the full territory hierarchy to find reps on any leaf territory under each country.
 
 See [README-InventoryReplenishment.md](README-InventoryReplenishment.md) for full details on field values, the acknowledgement flow, and troubleshooting.
 

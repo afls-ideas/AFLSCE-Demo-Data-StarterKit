@@ -278,13 +278,6 @@ public without sharing class DemoSampleController {
                 }
             }
 
-            Id autoimmuneMktId = null;
-            for (SObject mp : Database.query(
-                'SELECT Id FROM LifeSciMarketableProduct WHERE Name = \'Autoimmune Disorders\' AND Type = \'Market\' LIMIT 1'
-            )) {
-                autoimmuneMktId = mp.Id;
-            }
-
             if (countryBrandIds.isEmpty()) {
                 details.add('ERROR:No country-level Immunexis brands found — run Product Alignment first');
                 return buildCreateResult(productSuccess, batchSuccess, 0, 0, errors, details, '');
@@ -313,7 +306,7 @@ public without sharing class DemoSampleController {
                         'Type' => 'Product',
                         'ProductSpecificationType' => 'LSSampleProduct',
                         'ProductId' => product2Id,
-                        'ParentProductId' => autoimmuneMktId,
+                        'ParentProductId' => countryBrandId,
                         'ParentBrandProductId' => countryBrandId,
                         'DistributionMethod' => 'Drop',
                         'IsActive' => true,
@@ -338,6 +331,27 @@ public without sharing class DemoSampleController {
                 details.add('SUCCESS:Created ' + mpSuccess + ' LifeSciMarketableProduct records');
             } else {
                 details.add('LifeSciMarketableProduct records already exist — skipping');
+            }
+
+            // Repair existing sample MPs with wrong parent brand (set both ParentProductId and ParentBrandProductId)
+            List<SObject> mpRepairs = new List<SObject>();
+            for (SObject mp : Database.query(
+                'SELECT Id, Name, ProductId, ParentProductId, ParentBrandProductId FROM LifeSciMarketableProduct WHERE ProductId IN :allProduct2IdsSet AND ProductSpecificationType = \'LSSampleProduct\''
+            )) {
+                String mpName = (String) mp.get('Name');
+                String[] parts = mpName.split(' ');
+                if (parts.size() >= 2) {
+                    Id correctBrand = countryBrandIds.get(parts[1]);
+                    if (correctBrand != null && (mp.get('ParentProductId') != correctBrand || mp.get('ParentBrandProductId') != correctBrand)) {
+                        mp.put('ParentProductId', correctBrand);
+                        mp.put('ParentBrandProductId', correctBrand);
+                        mpRepairs.add(mp);
+                    }
+                }
+            }
+            if (!mpRepairs.isEmpty()) {
+                Database.update(mpRepairs, false);
+                details.add('SUCCESS:Repaired parent brand on ' + mpRepairs.size() + ' existing sample MPs');
             }
 
             for (SObject mp : Database.query(
@@ -776,22 +790,22 @@ public without sharing class DemoSampleController {
     }
 
     private static void createProductItems(Map<String, Id> codeToProduct2Id, List<String> errors) {
-        // Find all rep User Inventory Locations assigned to country territories
+        // Find all rep User Inventory Locations assigned to territories under each country
         Map<Id, Schema.Location> repLocations = new Map<Id, Schema.Location>();
         Map<Id, Set<String>> repCountries = new Map<Id, Set<String>>();
 
-        // Get reps and their country assignments
+        Map<Id, String> allTerrIdToCC = getAllDescendantTerritoryToCC();
+        Set<Id> allTerrIds = allTerrIdToCC.keySet();
         for (UserTerritory2Association uta : [
-            SELECT UserId, Territory2.DeveloperName FROM UserTerritory2Association
-            WHERE Territory2.DeveloperName IN :COUNTRY_TERRITORY.values()
+            SELECT UserId, Territory2Id FROM UserTerritory2Association
+            WHERE Territory2Id IN :allTerrIds
         ]) {
             if (!repCountries.containsKey(uta.UserId)) {
                 repCountries.put(uta.UserId, new Set<String>());
             }
-            for (String cc : COUNTRY_TERRITORY.keySet()) {
-                if (COUNTRY_TERRITORY.get(cc) == uta.Territory2.DeveloperName) {
-                    repCountries.get(uta.UserId).add(cc);
-                }
+            String cc = allTerrIdToCC.get(uta.Territory2Id);
+            if (cc != null) {
+                repCountries.get(uta.UserId).add(cc);
             }
         }
 
@@ -1239,10 +1253,37 @@ public without sharing class DemoSampleController {
         'AR' => new Map<String, String>{ 'Street' => 'Av. 9 de Julio 1925', 'City' => 'Buenos Aires', 'PostalCode' => 'C1073ABA' }
     };
 
+    private static Map<Id, String> getAllDescendantTerritoryToCC() {
+        Set<String> countryDevNames = new Set<String>(COUNTRY_TERRITORY.values());
+        Map<String, String> devNameToCC = new Map<String, String>();
+        for (String cc : COUNTRY_TERRITORY.keySet()) {
+            devNameToCC.put(COUNTRY_TERRITORY.get(cc), cc);
+        }
+        Map<Id, String> allTerrIdToCC = new Map<Id, String>();
+        for (Territory2 t : [SELECT Id, DeveloperName FROM Territory2 WHERE DeveloperName IN :countryDevNames]) {
+            allTerrIdToCC.put(t.Id, devNameToCC.get(t.DeveloperName));
+        }
+        Set<Id> currentLevel = new Set<Id>(allTerrIdToCC.keySet());
+        for (Integer depth = 0; depth < 5 && !currentLevel.isEmpty(); depth++) {
+            Set<Id> nextLevel = new Set<Id>();
+            for (Territory2 child : [SELECT Id, ParentTerritory2Id FROM Territory2 WHERE ParentTerritory2Id IN :currentLevel]) {
+                nextLevel.add(child.Id);
+                String cc = allTerrIdToCC.get(child.ParentTerritory2Id);
+                if (cc != null) {
+                    allTerrIdToCC.put(child.Id, cc);
+                }
+            }
+            currentLevel = nextLevel;
+        }
+        return allTerrIdToCC;
+    }
+
     private static void createUserInventoryLocations(List<String> errors) {
+        Map<Id, String> allTerrIdToCC = getAllDescendantTerritoryToCC();
+        Set<Id> allTerrIds = allTerrIdToCC.keySet();
         List<UserTerritory2Association> utas = [
-            SELECT UserId, User.Name, Territory2.DeveloperName FROM UserTerritory2Association
-            WHERE Territory2.DeveloperName IN :COUNTRY_TERRITORY.values()
+            SELECT UserId, User.Name, Territory2Id FROM UserTerritory2Association
+            WHERE Territory2Id IN :allTerrIds
         ];
         Set<Id> repIds = new Set<Id>();
         Map<Id, String> repNames = new Map<Id, String>();
@@ -1250,11 +1291,8 @@ public without sharing class DemoSampleController {
         for (UserTerritory2Association uta : utas) {
             repIds.add(uta.UserId);
             repNames.put(uta.UserId, uta.User.Name);
-            for (String cc : COUNTRY_TERRITORY.keySet()) {
-                if (COUNTRY_TERRITORY.get(cc) == uta.Territory2.DeveloperName) {
-                    repCountry.put(uta.UserId, cc);
-                    break;
-                }
+            if (!repCountry.containsKey(uta.UserId)) {
+                repCountry.put(uta.UserId, allTerrIdToCC.get(uta.Territory2Id));
             }
         }
 
