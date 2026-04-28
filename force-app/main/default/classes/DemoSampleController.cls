@@ -1160,9 +1160,16 @@ public without sharing class DemoSampleController {
 
     public class ProviderSampleLimitJob implements Queueable {
         private Set<Id> sampleMpIds;
+        private Integer acctOffset;
+        private final Integer ACCTS_PER_BATCH = 50;
 
         public ProviderSampleLimitJob(Set<Id> sampleMpIds) {
+            this(sampleMpIds, 0);
+        }
+
+        public ProviderSampleLimitJob(Set<Id> sampleMpIds, Integer acctOffset) {
             this.sampleMpIds = sampleMpIds;
+            this.acctOffset = acctOffset;
         }
 
         public void execute(QueueableContext ctx) {
@@ -1178,11 +1185,12 @@ public without sharing class DemoSampleController {
             }
             if (templateId == null) return;
 
-            List<Account> hcpAccounts = [
-                SELECT Id FROM Account
-                WHERE IsPersonAccount = true
-                AND Id IN (SELECT AccountId FROM HealthcareProvider)
-            ];
+            Integer offsetVal = this.acctOffset;
+            Integer limitVal = ACCTS_PER_BATCH;
+            String demoTag = DEMO_TAG;
+            List<Account> hcpAccounts = Database.query(
+                'SELECT Id FROM Account WHERE IsPersonAccount = true AND Site = :demoTag AND Id IN (SELECT AccountId FROM HealthcareProvider) ORDER BY Id LIMIT :limitVal OFFSET :offsetVal'
+            );
             if (hcpAccounts.isEmpty()) return;
 
             Set<Id> hcpAccountIds = new Set<Id>();
@@ -1225,6 +1233,7 @@ public without sharing class DemoSampleController {
                     psl.put('AccountId', acct.Id);
                     psl.put('ProductId', mpId);
                     psl.put('PrvdSampleLimitTemplateId', templateId);
+                    psl.put('PrvdSampleLmtTemplateName', templateDevName);
                     psl.put('Rule', rulePrefix + mpId + mid + ruleSuffix);
                     batch.add(psl);
                 }
@@ -1235,6 +1244,10 @@ public without sharing class DemoSampleController {
             }
             if (!batch.isEmpty()) {
                 Database.insert(batch, false);
+            }
+
+            if (hcpAccounts.size() == ACCTS_PER_BATCH) {
+                System.enqueueJob(new ProviderSampleLimitJob(this.sampleMpIds, this.acctOffset + ACCTS_PER_BATCH));
             }
         }
     }
