@@ -257,6 +257,11 @@ public class DemoAccountPlanLocale {
         objectivesCache.put('BR', m);
     }
 
+    public static List<String> getCountriesForLang(String langKey) {
+        if (langKey == 'ES') return new List<String>{'ES', 'MX', 'AR'};
+        return new List<String>{langKey};
+    }
+
     private static String getLangKey(String countryCode) {
         if (countryCode == null) return null;
         if (countryCode == 'MX' || countryCode == 'AR') return 'ES';
