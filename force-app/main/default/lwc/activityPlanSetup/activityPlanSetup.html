@@ -22,7 +22,17 @@
 
             <!-- Status Section -->
             <div class="slds-m-bottom_medium">
-                <h3 class="slds-text-heading_small slds-m-bottom_x-small">Current Status</h3>
+                <div class="slds-grid slds-grid_vertical-align-center slds-m-bottom_x-small">
+                    <h3 class="slds-text-heading_small">Current Status</h3>
+                    <lightning-button-icon
+                        icon-name="utility:refresh"
+                        alternative-text="Refresh status"
+                        title="Refresh status"
+                        onclick={handleRefreshStatus}
+                        class="slds-m-left_x-small"
+                        size="small">
+                    </lightning-button-icon>
+                </div>
                 <template if:true={statusError}>
                     <div class="slds-box slds-theme_shade slds-p-around_small">
                         <p class="slds-text-color_error">{statusError}</p>
@@ -47,7 +57,7 @@
             <div class="slds-m-bottom_medium">
                 <lightning-button
                     variant="brand"
-                    label="Create Activity Plans"
+                    label="Create Account/Action Plans"
                     icon-name="utility:add"
                     onclick={handleCreate}
                     disabled={isLoading}
@@ -56,7 +66,7 @@
                 </lightning-button>
                 <lightning-button
                     variant="destructive"
-                    label="Delete Activity Plans"
+                    label="Delete Account/Action Plans"
                     icon-name="utility:delete"
                     onclick={handleDelete}
                     disabled={isLoading}
@@ -68,6 +78,14 @@
             <template if:true={isLoading}>
                 <div class="slds-is-relative slds-m-bottom_medium" style="height: 60px;">
                     <lightning-spinner alternative-text="Processing..." size="medium"></lightning-spinner>
+                </div>
+            </template>
+
+            <!-- Batch Progress -->
+            <template if:true={batchProgress}>
+                <div class="slds-box slds-theme_shade slds-p-around_small slds-m-bottom_medium" style="font-family: monospace; font-size: 13px;">
+                    <lightning-icon icon-name="utility:sync" size="xx-small" class="slds-m-right_x-small"></lightning-icon>
+                    <span>{batchProgress}</span>
                 </div>
             </template>
 

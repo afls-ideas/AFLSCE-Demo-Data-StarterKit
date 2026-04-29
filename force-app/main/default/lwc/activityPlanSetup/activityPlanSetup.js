@@ -4,6 +4,7 @@ import { refreshApex } from '@salesforce/apex';
 import getStatus from '@salesforce/apex/DemoActivityPlanController.getStatus';
 import createActivityPlans from '@salesforce/apex/DemoActivityPlanController.createActivityPlans';
 import deleteActivityPlans from '@salesforce/apex/DemoActivityPlanController.deleteActivityPlans';
+import getBatchProgress from '@salesforce/apex/DemoActivityPlanController.getBatchProgress';
 
 export default class ActivityPlanSetup extends LightningElement {
     statusData;
@@ -13,6 +14,8 @@ export default class ActivityPlanSetup extends LightningElement {
     isSuccess = false;
     wiredStatusResult;
     activityLog = [];
+    _pollTimer;
+    batchProgress;
 
     @wire(getStatus)
     wiredStatus(result) {
@@ -54,10 +57,61 @@ export default class ActivityPlanSetup extends LightningElement {
         return entries;
     }
 
+    async handleRefreshStatus() {
+        await refreshApex(this.wiredStatusResult);
+    }
+
+    disconnectedCallback() {
+        this._stopPolling();
+    }
+
+    _stopPolling() {
+        if (this._pollTimer) {
+            clearInterval(this._pollTimer);
+            this._pollTimer = undefined;
+        }
+    }
+
+    _startPolling() {
+        this._stopPolling();
+        this.batchProgress = 'Batch queued — waiting for first update...';
+        this._pollTimer = setInterval(() => this._pollBatch(), 8000);
+    }
+
+    async _pollBatch() {
+        try {
+            const raw = await getBatchProgress();
+            if (raw === 'DONE') {
+                this._stopPolling();
+                this.batchProgress = undefined;
+                this.isLoading = false;
+                this.isSuccess = true;
+                this.resultMessage = 'Batch complete — all action plans created.';
+                this.activityLog = [
+                    ...this.activityLog,
+                    { id: this.activityLog.length, message: 'Batch finished', isSuccess: true }
+                ];
+                await refreshApex(this.wiredStatusResult);
+                return;
+            }
+            const parts = raw.split('|');
+            const status = parts[0];
+            const processed = parts[1];
+            const total = parts[2];
+            const apCount = parts[3];
+            const taskCount = parts[4];
+            this.batchProgress = `${status}: ${processed}/${total} batches — ${apCount} action plans, ${taskCount} assessment tasks created`;
+            await refreshApex(this.wiredStatusResult);
+        } catch (err) {
+            // keep polling
+        }
+    }
+
     async handleCreate() {
         this.isLoading = true;
         this.resultMessage = undefined;
         this.activityLog = [];
+        this.batchProgress = undefined;
         try {
             const raw = await createActivityPlans();
             let result;
@@ -80,15 +134,15 @@ export default class ActivityPlanSetup extends LightningElement {
             }
             this.isSuccess = !result.errors || result.errors.length === 0;
             this.resultMessage = result.summary || '';
-            this.dispatchEvent(
-                new ShowToastEvent({
-                    title: this.isSuccess ? 'Success' : 'Completed with errors',
-                    message: this.isSuccess ? 'Activity plans created.' : 'Some records failed.',
-                    variant: this.isSuccess ? 'success' : 'warning'
-                })
-            );
+
+            if (this.isSuccess) {
+                this._startPolling();
+            } else {
+                this.isLoading = false;
+            }
         } catch (error) {
             this.isSuccess = false;
+            this.isLoading = false;
             this.resultMessage = error.body ? error.body.message : 'An error occurred.';
             this.dispatchEvent(
                 new ShowToastEvent({
@@ -97,9 +151,6 @@ export default class ActivityPlanSetup extends LightningElement {
                     variant: 'error'
                 })
             );
-        } finally {
-            this.isLoading = false;
-            await refreshApex(this.wiredStatusResult);
         }
     }
 

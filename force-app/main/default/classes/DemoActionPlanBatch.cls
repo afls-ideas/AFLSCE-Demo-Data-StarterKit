@@ -14,16 +14,19 @@ public without sharing class DemoActionPlanBatch implements Database.Batchable<S
     public Database.QueryLocator start(Database.BatchableContext bc) {
         String tag = DEMO_TAG;
         return Database.getQueryLocator(
-            'SELECT Id, Name, AccountPlan.OwnerId FROM AccountPlanObjective WHERE SourceSystemName = :tag'
+            'SELECT Id, Name, AccountPlan.OwnerId, AccountPlan.Account.BillingCountryCode FROM AccountPlanObjective WHERE SourceSystemName = :tag'
         );
     }
 
     public void execute(Database.BatchableContext bc, List<SObject> scope) {
         List<SObject> actionPlans = new List<SObject>();
+        Map<Integer, Id> indexToOwner = new Map<Integer, Id>();
 
         for (SObject obj : scope) {
             Id ownerId = (Id) obj.getSObject('AccountPlan').get('OwnerId');
-            for (String tplName : DemoActivityPlanController.KAM_TEMPLATES) {
+            String countryCode = (String) obj.getSObject('AccountPlan').getSObject('Account').get('BillingCountryCode');
+            List<String> tplNames = DemoAccountPlanLocale.getTemplateNames(countryCode);
+            for (String tplName : tplNames) {
                 Id tvId = this.templateVersionMap.get(tplName);
                 if (tvId == null) continue;
                 SObject ap = AP_TYPE.newSObject();
@@ -35,12 +38,35 @@ public without sharing class DemoActionPlanBatch implements Database.Batchable<S
                 ap.put('StartDate', this.startDate);
                 ap.put('ActionPlanTemplateVersionId', tvId);
                 ap.put('SourceSystemName', DEMO_TAG);
+                indexToOwner.put(actionPlans.size(), ownerId);
                 actionPlans.add(ap);
             }
         }
 
-        if (!actionPlans.isEmpty()) {
-            Database.insert(actionPlans, false);
+        if (actionPlans.isEmpty()) return;
+
+        Database.SaveResult[] results = Database.insert(actionPlans, false);
+
+        Set<Id> insertedApIds = new Set<Id>();
+        Map<Id, Id> apToOwner = new Map<Id, Id>();
+        for (Integer i = 0; i < results.size(); i++) {
+            if (results[i].isSuccess()) {
+                insertedApIds.add(results[i].getId());
+                apToOwner.put(results[i].getId(), indexToOwner.get(i));
+            }
+        }
+
+        if (insertedApIds.isEmpty()) return;
+
+        List<AssessmentTask> tasks = [
+            SELECT Id, ReferenceRecordId FROM AssessmentTask
+            WHERE ReferenceRecordId IN :insertedApIds
+        ];
+        if (!tasks.isEmpty()) {
+            for (AssessmentTask t : tasks) {
+                t.OwnerId = apToOwner.get(t.ReferenceRecordId);
+            }
+            Database.update(tasks, false);
         }
     }
 

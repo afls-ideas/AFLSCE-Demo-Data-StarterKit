@@ -38,7 +38,41 @@ public without sharing class DemoActivityPlanController {
                 WHERE SourceSystemName = :DEMO_TAG AND ActionPlanType = 'KAM'];
             parts.add('Action Plans: ' + apCount);
 
+            Integer taskCount = [SELECT COUNT() FROM AssessmentTask
+                WHERE ReferenceRecordId IN (
+                    SELECT Id FROM ActionPlan
+                    WHERE SourceSystemName = :DEMO_TAG AND ActionPlanType = 'KAM')];
+            parts.add('Assessment Tasks: ' + taskCount);
+
             return String.join(parts, ', ');
+        } catch (Exception e) {
+            throw new AuraHandledException('Error: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static String getBatchProgress() {
+        try {
+            List<AsyncApexJob> jobs = [
+                SELECT Status, JobItemsProcessed, TotalJobItems, NumberOfErrors
+                FROM AsyncApexJob
+                WHERE ApexClass.Name = 'DemoActionPlanBatch'
+                AND Status IN ('Queued', 'Preparing', 'Processing', 'Holding')
+                ORDER BY CreatedDate DESC LIMIT 1
+            ];
+            if (jobs.isEmpty()) {
+                return 'DONE';
+            }
+            AsyncApexJob j = jobs[0];
+
+            Integer apCount = [SELECT COUNT() FROM ActionPlan
+                WHERE SourceSystemName = :DEMO_TAG AND ActionPlanType = 'KAM'];
+            Integer taskCount = [SELECT COUNT() FROM AssessmentTask
+                WHERE ReferenceRecordId IN (
+                    SELECT Id FROM ActionPlan
+                    WHERE SourceSystemName = :DEMO_TAG AND ActionPlanType = 'KAM')];
+
+            return j.Status + '|' + j.JobItemsProcessed + '|' + j.TotalJobItems + '|' + apCount + '|' + taskCount;
         } catch (Exception e) {
             throw new AuraHandledException('Error: ' + e.getMessage());
         }
@@ -100,32 +134,55 @@ public without sharing class DemoActivityPlanController {
     @AuraEnabled
     public static String deleteActivityPlans() {
         try {
+            String tag = DEMO_TAG;
             Integer deleted = 0;
+            Integer lim = 9500;
 
-            List<ActionPlan> aps = [SELECT Id FROM ActionPlan
-                WHERE SourceSystemName = :DEMO_TAG AND ActionPlanType = 'KAM'];
-            if (!aps.isEmpty()) {
-                Database.DeleteResult[] dr = Database.delete(aps, false);
-                for (Database.DeleteResult r : dr) { if (r.isSuccess()) deleted++; }
-            }
-            Integer apDeleted = deleted;
-
-            List<AccountPlanObjective> objs = [SELECT Id FROM AccountPlanObjective
-                WHERE SourceSystemName = :DEMO_TAG];
-            if (!objs.isEmpty()) {
-                Database.DeleteResult[] dr = Database.delete(objs, false);
-                for (Database.DeleteResult r : dr) { if (r.isSuccess()) deleted++; }
+            List<AssessmentTask> tasks = [SELECT Id FROM AssessmentTask
+                WHERE ReferenceRecordId IN (SELECT Id FROM ActionPlan
+                    WHERE SourceSystemName = :tag AND ActionPlanType = 'KAM') LIMIT :lim];
+            if (!tasks.isEmpty()) {
+                Database.delete(tasks, false);
+                deleted += tasks.size();
+                lim -= tasks.size();
             }
 
-            List<AccountPlan> plans = [SELECT Id FROM AccountPlan
-                WHERE SourceSystemName = :DEMO_TAG];
-            if (!plans.isEmpty()) {
-                Database.DeleteResult[] dr = Database.delete(plans, false);
-                for (Database.DeleteResult r : dr) { if (r.isSuccess()) deleted++; }
+            if (lim > 0) {
+                List<ActionPlan> aps = [SELECT Id FROM ActionPlan
+                    WHERE SourceSystemName = :tag AND ActionPlanType = 'KAM' LIMIT :lim];
+                if (!aps.isEmpty()) {
+                    Database.delete(aps, false);
+                    deleted += aps.size();
+                    lim -= aps.size();
+                }
             }
 
-            return 'Deleted ' + deleted + ' activity plan records (' + apDeleted + ' action plans, '
-                + objs.size() + ' objectives, ' + plans.size() + ' account plans).';
+            if (lim > 0) {
+                List<AccountPlanObjective> objs = [SELECT Id FROM AccountPlanObjective
+                    WHERE SourceSystemName = :tag LIMIT :lim];
+                if (!objs.isEmpty()) {
+                    Database.delete(objs, false);
+                    deleted += objs.size();
+                    lim -= objs.size();
+                }
+            }
+
+            if (lim > 0) {
+                List<AccountPlan> plans = [SELECT Id FROM AccountPlan
+                    WHERE SourceSystemName = :tag LIMIT :lim];
+                if (!plans.isEmpty()) {
+                    Database.delete(plans, false);
+                    deleted += plans.size();
+                }
+            }
+
+            Integer remaining = [SELECT COUNT() FROM AccountPlan WHERE SourceSystemName = :tag]
+                + [SELECT COUNT() FROM ActionPlan WHERE SourceSystemName = :tag AND ActionPlanType = 'KAM'];
+            String msg = 'Deleted ' + deleted + ' records.';
+            if (remaining > 0) {
+                msg += ' More records remain — click delete again.';
+            }
+            return msg;
         } catch (Exception e) {
             throw new AuraHandledException('Error deleting: ' + e.getMessage());
         }
@@ -137,6 +194,7 @@ public without sharing class DemoActivityPlanController {
         public String accountType;
         public Boolean isPersonAccount;
         public String mapKey;
+        public Integer archetypeIndex;
     }
 
     private class TerritoryInfo {
@@ -266,6 +324,9 @@ public without sharing class DemoActivityPlanController {
 
     private static Map<String, Id> loadTemplateVersions(List<String> details, List<String> errors) {
         Set<String> allNames = new Set<String>(KAM_TEMPLATES);
+        for (List<String> langNames : DemoAccountPlanLocale.KAM_TEMPLATES_BY_LANG.values()) {
+            allNames.addAll(langNames);
+        }
 
         Map<String, Id> templateVersionMap = new Map<String, Id>();
         for (ActionPlanTemplateVersion tv : [
@@ -274,24 +335,18 @@ public without sharing class DemoActivityPlanController {
         ]) {
             templateVersionMap.put(tv.Name.trim(), tv.Id);
         }
-        if (templateVersionMap.size() < allNames.size()) {
-            for (ActionPlanTemplateVersion tv : [
-                SELECT Id, Name FROM ActionPlanTemplateVersion
-            ]) {
-                String cleaned = tv.Name.normalizeSpace().trim();
-                if (allNames.contains(cleaned) && !templateVersionMap.containsKey(cleaned)) {
-                    templateVersionMap.put(cleaned, tv.Id);
-                }
-            }
-        }
 
-        for (String name : allNames) {
-            if (!templateVersionMap.containsKey(name)) {
+        Integer engFound = 0;
+        for (String name : KAM_TEMPLATES) {
+            if (templateVersionMap.containsKey(name)) {
+                engFound++;
+            } else {
                 errors.add('Template not found: ' + name);
             }
         }
 
-        details.add('SUCCESS:Loaded ' + templateVersionMap.size() + '/' + allNames.size() + ' KAM templates');
+        details.add('SUCCESS:Loaded ' + engFound + '/' + KAM_TEMPLATES.size() + ' English + ' +
+            (templateVersionMap.size() - engFound) + ' localized templates');
         return templateVersionMap;
     }
 
@@ -303,14 +358,30 @@ public without sharing class DemoActivityPlanController {
         List<Id> planAcctIds = new List<Id>();
 
         for (TerritoryInfo ti : terrInfoMap.values()) {
+            Map<String, Integer> typeCounters = new Map<String, Integer>();
+            Integer hcpCount = 0;
+            Integer hcoCount = 0;
             for (Id acctId : ti.accountIds) {
                 AccountInfo ai = accountInfoMap.get(acctId);
                 if (ai == null) continue;
+                if (ai.isPersonAccount) {
+                    if (hcpCount >= 1) continue;
+                    hcpCount++;
+                } else {
+                    if (hcoCount >= 2) continue;
+                    hcoCount++;
+                }
 
-                String nameTemplate = DemoAccountPlanData.PLAN_NAMES.get(ai.mapKey);
-                String planName = nameTemplate != null
-                    ? String.format(nameTemplate, new List<String>{ ai.name })
-                    : 'Immunexis Account Plan — ' + ai.name;
+                String baseType = DemoAccountPlanData.getBaseType(ai.mapKey);
+                List<String> archetypes = DemoAccountPlanLocale.getArchetypes(ai.countryCode, baseType);
+                if (archetypes == null || archetypes.isEmpty()) continue;
+
+                Integer counter = typeCounters.containsKey(baseType) ? typeCounters.get(baseType) : 0;
+                Integer archIdx = Math.mod(counter, archetypes.size());
+                typeCounters.put(baseType, counter + 1);
+                ai.archetypeIndex = archIdx;
+
+                String planName = DemoAccountPlanLocale.formatArchetype(archetypes[archIdx], ai.name);
 
                 SObject plan = ACCOUNT_PLAN_TYPE.newSObject();
                 plan.put('Name', planName.left(255));
@@ -351,7 +422,9 @@ public without sharing class DemoActivityPlanController {
             AccountInfo ai = accountInfoMap.get(acctId);
             if (ai == null) continue;
 
-            List<String> objNames = DemoAccountPlanData.OBJECTIVES.get(ai.mapKey);
+            String baseType = DemoAccountPlanData.getBaseType(ai.mapKey);
+            String objKey = baseType + '_' + (ai.archetypeIndex != null ? ai.archetypeIndex : 0);
+            List<String> objNames = DemoAccountPlanLocale.getObjectives(ai.countryCode, objKey);
             if (objNames == null || objNames.isEmpty()) continue;
 
             for (String objName : objNames) {

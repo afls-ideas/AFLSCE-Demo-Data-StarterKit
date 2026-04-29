@@ -118,13 +118,14 @@ Scenarios are additive — apply multiple to build a multi-therapeutic-area demo
 
 ### Tab 8: Account & Action Plans
 
-Creates the full Account Plan → Objective → Action Plan hierarchy for every demo account (HCO + HCP) across all 11 countries:
+Creates the full Account Plan → Objective → Action Plan hierarchy for demo accounts (1 HCP + 2 HCOs per territory) across all 11 countries:
 
-- **Account Plans** (~370) — one per account, with localized names per country and account type (Hospital, Clinic, Insurance, Pharmacy, HCP). Owned by the territory rep
-- **Account Plan Objectives** (~1,100) — 3 per plan, localized to each country's healthcare system (P&T Committee in US, NICE pathway in GB, AIFA in Italy, COFEPRIS in Mexico, etc.)
-- **Action Plans** (~6,700) — 6 per objective, one per KAM template, created asynchronously via batch. Linked to published `ActionPlanTemplateVersion` records
+- **Account Plans** (~144) — one per selected account, with localized names per country and account type (Hospital, Clinic, Insurance, Pharmacy, HCP). Names use a hyphen separator (e.g., `Immunexis Formulary Inclusion - Baptist Health`). Owned by the territory rep
+- **Account Plan Objectives** (~432) — 3 per plan, localized to each country's healthcare system (P&T Committee in US, NICE pathway in GB, AIFA in Italy, COFEPRIS in Mexico, etc.)
+- **Action Plans** (~2,592) — 6 per objective, one per localized KAM template, created asynchronously via batch. French territories get French templates, German get German, etc.
+- **Assessment Tasks** (~7,776) — auto-created by the platform from `ActionPlanTemplateItem` records when Action Plans are inserted with `ActionPlanTemplateVersionId`
 
-Requires 6 KAM Action Plan Templates to be published in the org before running. Includes two custom Lightning Record Pages for ActionPlan and ActionPlanTemplate objects.
+Requires 48 KAM Action Plan Templates (6 English + 6 per language for FR, DE, IT, ES, JP, KR, BR) to be published in the org. Includes two custom Lightning Record Pages and live batch progress monitoring.
 
 See [README-AccountActionPlans.md](README-AccountActionPlans.md) for full details on templates, permissions, mobile sync (DB Schema), and troubleshooting.
 
@@ -184,7 +185,8 @@ force-app/main/default/
 │   ├── DemoScenarioController         Therapy-area scenario layering
 │   ├── DemoActivityPlanController     Account Plans, Objectives, Action Plan orchestration
 │   ├── DemoActionPlanBatch            Batchable for Action Plan creation from templates
-│   └── DemoAccountPlanData            Localized plan names & objectives (55 country/type combos)
+│   ├── DemoAccountPlanData            English plan archetypes & objectives
+│   └── DemoAccountPlanLocale          Localized plan names, objectives & templates (7 languages)
 ├── lwc/                  Lightning Web Components
 │   ├── demoDataAdmin           Main tabbed UI
 │   ├── territorySetup          Territory hierarchy creator

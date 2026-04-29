@@ -1,28 +1,28 @@
 # Account Plans & Action Plans (Tab 8)
 
-Creates **Account Plans**, **Account Plan Objectives**, and **Action Plans** for every demo account across all 11 countries. Each account gets a localized account plan with country- and account-type-specific objectives, linked to KAM Action Plan Templates via a batch job.
+Creates **Account Plans**, **Account Plan Objectives**, **Action Plans**, and **Assessment Tasks** for demo accounts (1 HCP + 2 HCOs per territory) across all 11 countries. Each account gets a localized account plan with country- and account-type-specific objectives, linked to localized KAM Action Plan Templates via a batch job. The UI shows live batch progress while action plans are being created.
 
 ## Prerequisites
 
 1. **Accounts & Providers** (Tab 2) must be run first — the controller queries demo accounts tagged with `Site = 'AFLSCE-Demo-Data'`
 2. **Territory Hierarchy** (Tab 1) must be set up with users assigned to leaf territories — Account Plans inherit ownership from the territory rep
-3. **6 KAM Action Plan Templates** must exist and be published in the org (see [Action Plan Templates](#action-plan-templates) below)
+3. **48 KAM Action Plan Templates** must exist and be published in the org — 6 English + 6 per language for FR, DE, IT, ES, JP, KR, BR (see [Action Plan Templates](#action-plan-templates) below)
 
 ## What Gets Created
 
-### Account Plans (~370)
+### Account Plans (~144)
 
-One per demo account (HCO + HCP), owned by the territory rep. Plan names are localized per country and account type:
+One per selected demo account (1 HCP + 2 HCOs per territory), owned by the territory rep. Plan names are localized per country and account type, with a hyphen separator before the account name:
 
 | Account Type | US Example | FR Example | JP Example |
 |---|---|---|---|
-| Hospital | Immunexis Formulary Inclusion — {name} | Immunexis Adoption Hospitalière — {name} | イムネキシス 病院導入プラン — {name} |
-| Clinic | Immunexis Specialty Practice Partnership — {name} | Immunexis Partenariat Centre Spécialisé — {name} | イムネキシス 専門クリニック連携プラン — {name} |
-| Insurance | Immunexis Payer Access Agreement — {name} | Immunexis Accord Remboursement — {name} | イムネキシス 保険適用推進プラン — {name} |
-| Pharmacy | Immunexis Specialty Distribution — {name} | Immunexis Partenariat Officine — {name} | イムネキシス 薬局パートナーシッププラン — {name} |
-| HCP | Immunexis HCP Engagement Plan — {name} | Immunexis Plan d'Engagement Prescripteur — {name} | イムネキシス KOL育成プラン — {name} |
+| Hospital | Immunexis Formulary Inclusion - {name} | Inscription Immunexis au Formulaire - {name} | イムネキシス 処方集収載 - {name} |
+| Clinic | Immunexis Specialty Practice Partnership - {name} | Partenariat Clinique Specialisee Immunexis - {name} | イムネキシス 専門クリニック連携 - {name} |
+| Insurance | Immunexis Payer Access Agreement - {name} | Accord Acces Payeur Immunexis - {name} | イムネキシス 保険者アクセス契約 - {name} |
+| Pharmacy | Immunexis Specialty Distribution - {name} | Distribution Specialisee Immunexis - {name} | イムネキシス 専門流通 - {name} |
+| HCP | Immunexis HCP Engagement Plan - {name} | Plan d Engagement Professionnel de Sante Immunexis - {name} | イムネキシス HCPエンゲージメントプラン - {name} |
 
-All 11 countries (US, GB, FR, DE, IT, ES, JP, KR, BR, MX, AR) have full localized plan names. See `DemoAccountPlanData.PLAN_NAMES` for the complete map.
+All 11 countries have full localized plan names. US/GB use English; MX/AR share Spanish with ES. See `DemoAccountPlanLocale` for the complete localization map and `DemoAccountPlanData.PLAN_ARCHETYPES` for English archetypes.
 
 **Key fields:**
 - `AccountId` — the demo account
@@ -31,7 +31,7 @@ All 11 countries (US, GB, FR, DE, IT, ES, JP, KR, BR, MX, AR) have full localize
 - `Status` — `Active`
 - `SourceSystemName` — `AFLSCE-Demo-Data`
 
-### Account Plan Objectives (~1,100)
+### Account Plan Objectives (~432)
 
 3 objectives per account plan, localized per country and account type. Objectives are specific to the healthcare system in each country (e.g., P&T Committee in the US, NICE pathway in GB, AIFA in Italy, COFEPRIS in Mexico).
 
@@ -41,11 +41,11 @@ US Hospital example:
 - Build Clinical Champions Among Rheumatology Staff
 
 FR Hospital example:
-- Obtenir l'inscription sur la Liste des Médicaments Agréés
-- Intégrer le protocole du service rhumatologie
-- Développer des champions cliniques au sein du CHU
+- Obtenir l approbation du Comite du Formulaire
+- Etablir le protocole d achat avec la pharmacie
+- Identifier les champions cliniques en rhumatologie
 
-See `DemoAccountPlanData.OBJECTIVES` for all 55 country/type combinations.
+See `DemoAccountPlanLocale` for localized objectives and `DemoAccountPlanData.OBJECTIVES` for English.
 
 **Key fields:**
 - `AccountPlanId` — parent account plan
@@ -53,10 +53,11 @@ See `DemoAccountPlanData.OBJECTIVES` for all 55 country/type combinations.
 - `StartDate` / `EndDate` — matches the account plan
 - `SourceSystemName` — `AFLSCE-Demo-Data`
 
-### Action Plans (~6,700)
+### Action Plans (~2,592)
 
-Created asynchronously via `DemoActionPlanBatch` (batch size 10). Each objective gets 6 Action Plans, one per KAM template:
+Created asynchronously via `DemoActionPlanBatch` (batch size 10). Each objective gets 6 Action Plans, one per localized KAM template. The batch picks the correct language based on the account's `BillingCountryCode`.
 
+English templates (US/GB):
 1. Market Access & Contracting
 2. Supply Chain & Distribution Readiness
 3. P&T Committee Prep: Proactive Partnership for Formulary
@@ -64,39 +65,45 @@ Created asynchronously via `DemoActionPlanBatch` (batch size 10). Each objective
 5. Analyse Diagnostic Gaps for Rheumatoid Arthritis
 6. Implement & Monitor new Diagnostic Protocols
 
+French territories get French templates (e.g., "Acces au Marche et Contractualisation"), German get German, etc. MX/AR share Spanish templates with ES.
+
 **Key fields:**
 - `TargetId` — the AccountPlanObjective (not the Account)
 - `OwnerId` — inherited from `AccountPlan.OwnerId` (the territory rep)
 - `ActionPlanState` — `Not Started`
 - `ActionPlanType` — `KAM`
-- `ActionPlanTemplateVersionId` — linked to the published template version
+- `ActionPlanTemplateVersionId` — linked to the localized published template version
 - `StartDate` — January 1 of the current year
 - `SourceSystemName` — `AFLSCE-Demo-Data`
 
+### Assessment Tasks (~7,776)
+
+Auto-created by the platform when Action Plans are inserted with `ActionPlanTemplateVersionId`. Each template has 2-4 items, so each action plan gets 2-4 assessment tasks in the local language. Task ownership is updated to the territory rep by the batch.
+
 ## Action Plan Templates
 
-The 6 KAM templates must exist in the org before running this tab. Templates are **not** created by this tool — they should be set up manually or via the anonymous Apex script in the `load_action_plan_templates` repo.
+48 KAM templates must exist in the org (6 English + 6 per language for FR, DE, IT, ES, JP, KR, BR). Templates are **not** created by this tool — they should be set up manually or via anonymous Apex scripts.
 
 To create a template:
 1. Go to **Setup > Action Plan Templates** (or use the App Launcher)
 2. Create a template with `ActionPlanType = KAM` and `TargetEntityType = AccountPlanObjective`
-3. Add template items (tasks) to the auto-created version
+3. Add template items (`ItemEntityType = AssessmentTask`) to the auto-created version
 4. Publish the template version
 
-The batch class matches templates by **exact name** against `ActionPlanTemplateVersion.Name`.
+The batch class matches templates by **exact name** against `ActionPlanTemplateVersion.Name`. See `DemoAccountPlanLocale.KAM_TEMPLATES_BY_LANG` for the full list of localized template names.
 
 ## Data Flow
 
 ```
 Territory (with assigned rep)
-  └── Account (HCO or HCP)
-       └── AccountPlan (owned by rep)
-            └── AccountPlanObjective (3 per plan)
-                 └── ActionPlan (6 per objective, via TargetId)
-                      └── ActionPlanItem (auto-generated on activation)
+  └── Account (1 HCP + 2 HCOs per territory)
+       └── AccountPlan (owned by rep, localized name)
+            └── AccountPlanObjective (3 per plan, localized)
+                 └── ActionPlan (6 per objective, localized template)
+                      └── AssessmentTask (2-4 per plan, auto-created from template items)
 ```
 
-Action Plan Items (tasks) are **not** created at insert time. They are generated by the platform when an Action Plan is activated (state moved from `Not Started` to `Started`).
+Assessment Tasks are auto-created by the platform when Action Plans are inserted with `ActionPlanTemplateVersionId` set.
 
 ## Lightning Record Pages
 
@@ -185,9 +192,10 @@ The **Delete** button removes records in dependency order: Action Plans first, t
 
 | File | Purpose |
 |---|---|
-| `DemoActivityPlanController.cls` | Main controller — creates Account Plans, Objectives, queues batch |
-| `DemoActionPlanBatch.cls` | Batchable — creates Action Plans from template versions |
-| `DemoAccountPlanData.cls` | Static data maps — localized plan names and objectives (55 entries) |
-| `activityPlanSetup/` (LWC) | UI component for the Account & Action Plans tab |
+| `DemoActivityPlanController.cls` | Main controller — creates Account Plans, Objectives, queues batch, batch progress polling |
+| `DemoActionPlanBatch.cls` | Batchable — creates localized Action Plans from template versions, updates task ownership |
+| `DemoAccountPlanData.cls` | English plan archetypes and objectives |
+| `DemoAccountPlanLocale.cls` | Localized plan names, objectives, and template names for 7 languages (FR, DE, IT, ES, JP, KR, BR) |
+| `activityPlanSetup/` (LWC) | UI component with create/delete buttons, live batch progress, and refresh status |
 | `Action_Plan_Record_Page.flexipage-meta.xml` | Lightning Record Page for ActionPlan |
 | `Action_Plan_Template_Record_Page.flexipage-meta.xml` | Lightning Record Page for ActionPlanTemplate |
