@@ -1,0 +1,13 @@
+# Changelog
+
+| Date | Change | Details |
+|------|--------|---------|
+| 2026-04-29 | Reduce international territories from 5 to 3 per country | GB (London, Manchester, Edinburgh), FR (Paris, Lyon, Marseille), DE (Berlin, Munich, Hamburg), IT (Rome, Milan, Naples), ES (Madrid, Barcelona, Seville), JP (Tokyo, Osaka, Kyoto), KR (Seoul, Busan, Incheon), BR (São Paulo, Rio de Janeiro, Porto Alegre), MX (Mexico City, Guadalajara, Monterrey), AR (Buenos Aires, Córdoba, Rosario). Dropped cities: Birmingham, Cardiff, Toulouse, Lille, Frankfurt, Dusseldorf, Venice, Florence, Valencia, Bilbao, Nagoya, Yokohama, Daejeon, Seongnam, Belo Horizonte, Salvador, Puebla, Merida, La Plata, Tucumán. |
+| 2026-04-29 | Enforce minimum 4 HCPs + 2 HCOs per territory | Added hospitals and doctors to all international territories that were below threshold. Every leaf territory now has at least 2 hospital/clinic HCOs and 4 HCP person accounts. |
+| 2026-04-29 | Dynamic city-based affiliations | Rewrote `DemoAffiliationHelper` to dynamically affiliate each HCP with every hospital/clinic/medical center in the same city (by BillingCity + StateCode + CountryCode), replacing hardcoded 1:1 pairs. Produces realistic many-to-many relationships. |
+| 2026-04-29 | Territory Data Summary table | Added a summary table to the Accounts & Providers tab showing HCPs, HCOs, PATI, PATS, and affiliations per leaf territory with totals row. Refreshes after create, assign, and delete operations. |
+| 2026-04-29 | Assigned user shown in territory tree | `getHierarchy()` now queries `UserTerritory2Association` and appends the assigned user's name to each territory node label in the tree view. |
+| 2026-04-29 | Updated city-territory mapping | `buildCityTerritoryMap()` cleaned up to remove all dropped cities (Cambridge, Villejuif, Heidelberg, Heerlen, Padua, Florence, Valencia, Kamogawa, Seongnam, Belo Horizonte, Salvador, Puebla, Pilar, Brasília) and add new city mappings (Edinburgh, Marseille, Incheon). |
+| 2026-04-29 | Fix orphaned BusinessLicense records | Diagnosed and fixed state licenses created without `AccountId`, which caused red license indicators on the mobile account list despite green visit-level checks. |
+| 2026-04-29 | Fix DemoActionPlanBatch test constructor | Updated test to pass all 4 required arguments (`engTemplateMap`, `startDate`, `engToLocalName`, `engToLocalTasks`). |
+| 2026-04-29 | Documented DCR blocker for PersonAccount creation | Data Change Requests in LSC Admin Console block PersonAccount DML — must be disabled before running "Create Accounts & Providers". |

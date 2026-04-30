@@ -99,13 +99,34 @@ public with sharing class DemoTerritoryController {
             return new List<TerritoryNode>();
         }
 
+        Set<Id> terrIds = new Set<Id>();
+        for (Territory2 t : allTerritories) {
+            terrIds.add(t.Id);
+        }
+
+        Map<Id, String> terrIdToUser = new Map<Id, String>();
+        for (UserTerritory2Association uta : [
+            SELECT Territory2Id, User.FirstName, User.LastName
+            FROM UserTerritory2Association
+            WHERE Territory2Id IN :terrIds
+            ORDER BY User.LastName
+        ]) {
+            if (!terrIdToUser.containsKey(uta.Territory2Id)) {
+                String name = '';
+                if (String.isNotBlank(uta.User.FirstName)) name += uta.User.FirstName + ' ';
+                name += uta.User.LastName;
+                terrIdToUser.put(uta.Territory2Id, name);
+            }
+        }
+
         Map<Id, TerritoryNode> nodeMap = new Map<Id, TerritoryNode>();
         for (Territory2 t : allTerritories) {
             TerritoryNode node = new TerritoryNode();
-            node.label = t.Name;
             node.name = t.DeveloperName;
             node.expanded = false;
             node.items = new List<TerritoryNode>();
+            String userName = terrIdToUser.get(t.Id);
+            node.label = userName != null ? t.Name + ' — ' + userName : t.Name;
             nodeMap.put(t.Id, node);
         }
 
@@ -124,6 +145,153 @@ public with sharing class DemoTerritoryController {
         }
 
         return roots;
+    }
+
+    @AuraEnabled(cacheable=true)
+    public static List<TerritorySummaryRow> getTerritorySummary() {
+        List<Territory2> leaves = [
+            SELECT Id, Name, ParentTerritory2.Name
+            FROM Territory2
+            WHERE Territory2Model.DeveloperName = :MODEL_DEV_NAME
+            ORDER BY Name
+        ];
+        if (leaves.isEmpty()) return new List<TerritorySummaryRow>();
+
+        Set<Id> leafIds = new Set<Id>();
+        Set<Id> parentIds = new Set<Id>();
+        Map<Id, Territory2> terrMap = new Map<Id, Territory2>();
+        for (Territory2 t : leaves) {
+            leafIds.add(t.Id);
+            terrMap.put(t.Id, t);
+            if (t.ParentTerritory2Id != null) parentIds.add(t.ParentTerritory2Id);
+        }
+
+        // Filter to leaf territories only (those that are not parents of other territories)
+        Set<Id> nonLeafIds = new Set<Id>();
+        for (Territory2 t : leaves) {
+            if (t.ParentTerritory2Id != null && leafIds.contains(t.ParentTerritory2Id)) {
+                nonLeafIds.add(t.ParentTerritory2Id);
+            }
+        }
+
+        Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+
+        // PATI counts per territory + collect account IDs per territory
+        Map<Id, Integer> patiCounts = new Map<Id, Integer>();
+        Map<Id, Set<Id>> terrToAcctIds = new Map<Id, Set<Id>>();
+        if (gd.containsKey('provideracctterritoryinfo')) {
+            String patiSoql = 'SELECT Id, Territory2Id, AccountId, Account.IsPersonAccount ' +
+                'FROM ProviderAcctTerritoryInfo WHERE Territory2Id IN :leafIds';
+            for (SObject pati : Database.query(patiSoql)) {
+                Id tId = (Id) pati.get('Territory2Id');
+                patiCounts.put(tId, (patiCounts.containsKey(tId) ? patiCounts.get(tId) : 0) + 1);
+                if (!terrToAcctIds.containsKey(tId)) terrToAcctIds.put(tId, new Set<Id>());
+                terrToAcctIds.get(tId).add((Id) pati.get('AccountId'));
+            }
+        }
+
+        // HCP/HCO counts: query accounts in PATI to classify
+        Set<Id> allAcctIds = new Set<Id>();
+        for (Set<Id> ids : terrToAcctIds.values()) allAcctIds.addAll(ids);
+
+        Map<Id, Boolean> acctIsPersonMap = new Map<Id, Boolean>();
+        if (!allAcctIds.isEmpty()) {
+            for (Account a : [SELECT Id, IsPersonAccount FROM Account WHERE Id IN :allAcctIds]) {
+                acctIsPersonMap.put(a.Id, a.IsPersonAccount);
+            }
+        }
+
+        Map<Id, Integer> hcpCounts = new Map<Id, Integer>();
+        Map<Id, Integer> hcoCounts = new Map<Id, Integer>();
+        for (Id tId : terrToAcctIds.keySet()) {
+            Integer hcp = 0;
+            Integer hco = 0;
+            for (Id aId : terrToAcctIds.get(tId)) {
+                Boolean isPerson = acctIsPersonMap.get(aId);
+                if (isPerson != null && isPerson) { hcp++; } else { hco++; }
+            }
+            hcpCounts.put(tId, hcp);
+            hcoCounts.put(tId, hco);
+        }
+
+        // PATS counts
+        Map<Id, Integer> patsCounts = new Map<Id, Integer>();
+        if (gd.containsKey('prvdaccountterritorysummary')) {
+            String patsSoql = 'SELECT Territory2Id, COUNT(Id) cnt ' +
+                'FROM PrvdAccountTerritorySummary WHERE Territory2Id IN :leafIds GROUP BY Territory2Id';
+            for (AggregateResult ar : Database.query(patsSoql)) {
+                patsCounts.put((Id) ar.get('Territory2Id'), (Integer) ar.get('cnt'));
+            }
+        }
+
+        // Affiliation counts per territory (affiliations where the doctor is in the territory)
+        Map<Id, Integer> afflCounts = new Map<Id, Integer>();
+        if (gd.containsKey('provideraffiliation')) {
+            // Build HCP account -> territory map
+            Map<Id, Id> hcpAcctToTerr = new Map<Id, Id>();
+            for (Id tId : terrToAcctIds.keySet()) {
+                for (Id aId : terrToAcctIds.get(tId)) {
+                    Boolean isPerson = acctIsPersonMap.get(aId);
+                    if (isPerson != null && isPerson) hcpAcctToTerr.put(aId, tId);
+                }
+            }
+            if (!hcpAcctToTerr.isEmpty()) {
+                Set<Id> hcpAcctIds = hcpAcctToTerr.keySet();
+                String afflSoql = 'SELECT AccountId FROM ProviderAffiliation WHERE AccountId IN :hcpAcctIds';
+                for (SObject affl : Database.query(afflSoql)) {
+                    Id acctId = (Id) affl.get('AccountId');
+                    Id tId = hcpAcctToTerr.get(acctId);
+                    if (tId != null) {
+                        afflCounts.put(tId, (afflCounts.containsKey(tId) ? afflCounts.get(tId) : 0) + 1);
+                    }
+                }
+            }
+        }
+
+        // Assigned user per territory
+        Map<Id, String> terrIdToUser = new Map<Id, String>();
+        for (UserTerritory2Association uta : [
+            SELECT Territory2Id, User.FirstName, User.LastName
+            FROM UserTerritory2Association
+            WHERE Territory2Id IN :leafIds
+            ORDER BY User.LastName
+        ]) {
+            if (!terrIdToUser.containsKey(uta.Territory2Id)) {
+                String name = '';
+                if (String.isNotBlank(uta.User.FirstName)) name += uta.User.FirstName + ' ';
+                name += uta.User.LastName;
+                terrIdToUser.put(uta.Territory2Id, name);
+            }
+        }
+
+        // Build rows for leaf territories only
+        List<TerritorySummaryRow> rows = new List<TerritorySummaryRow>();
+        for (Territory2 t : leaves) {
+            if (nonLeafIds.contains(t.Id)) continue;
+            TerritorySummaryRow row = new TerritorySummaryRow();
+            row.territoryName = t.Name;
+            row.parentName = t.ParentTerritory2.Name;
+            row.assignedUser = terrIdToUser.containsKey(t.Id) ? terrIdToUser.get(t.Id) : '';
+            row.hcpCount = hcpCounts.containsKey(t.Id) ? hcpCounts.get(t.Id) : 0;
+            row.hcoCount = hcoCounts.containsKey(t.Id) ? hcoCounts.get(t.Id) : 0;
+            row.patiCount = patiCounts.containsKey(t.Id) ? patiCounts.get(t.Id) : 0;
+            row.patsCount = patsCounts.containsKey(t.Id) ? patsCounts.get(t.Id) : 0;
+            row.affiliationCount = afflCounts.containsKey(t.Id) ? afflCounts.get(t.Id) : 0;
+            rows.add(row);
+        }
+
+        return rows;
+    }
+
+    public class TerritorySummaryRow {
+        @AuraEnabled public String territoryName;
+        @AuraEnabled public String parentName;
+        @AuraEnabled public String assignedUser;
+        @AuraEnabled public Integer hcpCount;
+        @AuraEnabled public Integer hcoCount;
+        @AuraEnabled public Integer patiCount;
+        @AuraEnabled public Integer patsCount;
+        @AuraEnabled public Integer affiliationCount;
     }
 
     public class TerritoryNode {
@@ -193,9 +361,7 @@ public with sharing class DemoTerritoryController {
         buildCountryLeaves(modelId, defaultTypeId, gbId, existingDevNames, new List<String[]>{
             new String[]{ 'GB_England_London',     'GB-England-London' },
             new String[]{ 'GB_England_Manchester',  'GB-England-Manchester' },
-            new String[]{ 'GB_England_Birmingham',  'GB-England-Birmingham' },
-            new String[]{ 'GB_Scotland_Edinburgh',  'GB-Scotland-Edinburgh' },
-            new String[]{ 'GB_Wales_Cardiff',       'GB-Wales-Cardiff' }
+            new String[]{ 'GB_Scotland_Edinburgh',  'GB-Scotland-Edinburgh' }
         });
 
         // ── Geographical: FR ──
@@ -203,18 +369,14 @@ public with sharing class DemoTerritoryController {
         buildCountryLeaves(modelId, defaultTypeId, frId, existingDevNames, new List<String[]>{
             new String[]{ 'FR_Ile_de_France_Paris',   'FR-Ile-de-France-Paris' },
             new String[]{ 'FR_Auvergne_Lyon',         'FR-Auvergne-Lyon' },
-            new String[]{ 'FR_PACA_Marseille',         'FR-PACA-Marseille' },
-            new String[]{ 'FR_Occitanie_Toulouse',     'FR-Occitanie-Toulouse' },
-            new String[]{ 'FR_Hauts_de_France_Lille',  'FR-Hauts-de-France-Lille' }
+            new String[]{ 'FR_PACA_Marseille',         'FR-PACA-Marseille' }
         });
 
         // ── Geographical: DE ──
         Id deId = insertIfMissing('DE_COUNTRY', 'DE-COUNTRY', defaultTypeId, modelId, globalId, existingDevNames);
         buildCountryLeaves(modelId, defaultTypeId, deId, existingDevNames, new List<String[]>{
-            new String[]{ 'DE_Bavaria_Munich',    'DE-Bavaria-Munich' },
             new String[]{ 'DE_Berlin_Berlin',     'DE-Berlin-Berlin' },
-            new String[]{ 'DE_Hesse_Frankfurt',   'DE-Hesse-Frankfurt' },
-            new String[]{ 'DE_NRW_Dusseldorf',    'DE-NRW-Dusseldorf' },
+            new String[]{ 'DE_Bavaria_Munich',    'DE-Bavaria-Munich' },
             new String[]{ 'DE_Hamburg_Hamburg',    'DE-Hamburg-Hamburg' }
         });
 
@@ -223,9 +385,7 @@ public with sharing class DemoTerritoryController {
         buildCountryLeaves(modelId, defaultTypeId, itId, existingDevNames, new List<String[]>{
             new String[]{ 'IT_Lazio_Rome',       'IT-Lazio-Rome' },
             new String[]{ 'IT_Lombardy_Milan',   'IT-Lombardy-Milan' },
-            new String[]{ 'IT_Campania_Naples',  'IT-Campania-Naples' },
-            new String[]{ 'IT_Veneto_Venice',    'IT-Veneto-Venice' },
-            new String[]{ 'IT_Tuscany_Florence', 'IT-Tuscany-Florence' }
+            new String[]{ 'IT_Campania_Naples',  'IT-Campania-Naples' }
         });
 
         // ── Geographical: ES ──
@@ -233,9 +393,7 @@ public with sharing class DemoTerritoryController {
         buildCountryLeaves(modelId, defaultTypeId, esId, existingDevNames, new List<String[]>{
             new String[]{ 'ES_Madrid_Madrid',        'ES-Madrid-Madrid' },
             new String[]{ 'ES_Catalonia_Barcelona',  'ES-Catalonia-Barcelona' },
-            new String[]{ 'ES_Andalusia_Seville',    'ES-Andalusia-Seville' },
-            new String[]{ 'ES_Valencia_Valencia',     'ES-Valencia-Valencia' },
-            new String[]{ 'ES_Basque_Bilbao',         'ES-Basque-Bilbao' }
+            new String[]{ 'ES_Andalusia_Seville',    'ES-Andalusia-Seville' }
         });
 
         // ── Geographical: JP ──
@@ -243,8 +401,6 @@ public with sharing class DemoTerritoryController {
         buildCountryLeaves(modelId, defaultTypeId, jpId, existingDevNames, new List<String[]>{
             new String[]{ 'JP_Kanto_Tokyo',       'JP-Kanto-Tokyo' },
             new String[]{ 'JP_Kansai_Osaka',      'JP-Kansai-Osaka' },
-            new String[]{ 'JP_Chubu_Nagoya',      'JP-Chubu-Nagoya' },
-            new String[]{ 'JP_Kanto_Yokohama',    'JP-Kanto-Yokohama' },
             new String[]{ 'JP_Kansai_Kyoto',      'JP-Kansai-Kyoto' }
         });
 
@@ -253,9 +409,7 @@ public with sharing class DemoTerritoryController {
         buildCountryLeaves(modelId, defaultTypeId, krId, existingDevNames, new List<String[]>{
             new String[]{ 'KR_Seoul_Seoul',        'KR-Seoul-Seoul' },
             new String[]{ 'KR_Busan_Busan',        'KR-Busan-Busan' },
-            new String[]{ 'KR_Incheon_Incheon',    'KR-Incheon-Incheon' },
-            new String[]{ 'KR_Daejeon_Daejeon',    'KR-Daejeon-Daejeon' },
-            new String[]{ 'KR_Gyeonggi_Seongnam',  'KR-Gyeonggi-Seongnam' }
+            new String[]{ 'KR_Incheon_Incheon',    'KR-Incheon-Incheon' }
         });
 
         // ── Geographical: BR ──
@@ -263,9 +417,7 @@ public with sharing class DemoTerritoryController {
         buildCountryLeaves(modelId, defaultTypeId, brId, existingDevNames, new List<String[]>{
             new String[]{ 'BR_SP_Sao_Paulo',          'BR-SP-Sao Paulo' },
             new String[]{ 'BR_RJ_Rio_de_Janeiro',     'BR-RJ-Rio de Janeiro' },
-            new String[]{ 'BR_MG_Belo_Horizonte',     'BR-MG-Belo Horizonte' },
-            new String[]{ 'BR_RS_Porto_Alegre',        'BR-RS-Porto Alegre' },
-            new String[]{ 'BR_BA_Salvador',             'BR-BA-Salvador' }
+            new String[]{ 'BR_RS_Porto_Alegre',        'BR-RS-Porto Alegre' }
         });
 
         // ── Geographical: MX ──
@@ -273,19 +425,15 @@ public with sharing class DemoTerritoryController {
         buildCountryLeaves(modelId, defaultTypeId, mxId, existingDevNames, new List<String[]>{
             new String[]{ 'MX_CDMX_Mexico_City',       'MX-CDMX-Mexico City' },
             new String[]{ 'MX_Jalisco_Guadalajara',     'MX-Jalisco-Guadalajara' },
-            new String[]{ 'MX_NuevoLeon_Monterrey',     'MX-Nuevo Leon-Monterrey' },
-            new String[]{ 'MX_Puebla_Puebla',           'MX-Puebla-Puebla' },
-            new String[]{ 'MX_Yucatan_Merida',          'MX-Yucatan-Merida' }
+            new String[]{ 'MX_NuevoLeon_Monterrey',     'MX-Nuevo Leon-Monterrey' }
         });
 
         // ── Geographical: AR ──
         Id arId = insertIfMissing('AR_COUNTRY', 'AR-COUNTRY', defaultTypeId, modelId, globalId, existingDevNames);
         buildCountryLeaves(modelId, defaultTypeId, arId, existingDevNames, new List<String[]>{
             new String[]{ 'AR_CABA_Buenos_Aires',      'AR-CABA-Buenos Aires' },
-            new String[]{ 'AR_BuenosAires_La_Plata',   'AR-Buenos Aires-La Plata' },
             new String[]{ 'AR_Cordoba_Cordoba',         'AR-Cordoba-Cordoba' },
-            new String[]{ 'AR_SantaFe_Rosario',         'AR-Santa Fe-Rosario' },
-            new String[]{ 'AR_Tucuman_Tucuman',          'AR-Tucuman-Tucuman' }
+            new String[]{ 'AR_SantaFe_Rosario',         'AR-Santa Fe-Rosario' }
         });
 
         // ── Medical hierarchy ──

@@ -136,6 +136,55 @@
                     <p>{resultMessage}</p>
                 </div>
             </template>
+
+            <!-- Territory Data Summary Table -->
+            <template if:true={hasSummaryRows}>
+                <div class="slds-m-top_medium">
+                    <h3 class="slds-text-heading_small slds-m-bottom_x-small">Territory Data Summary</h3>
+                    <div class="slds-box slds-p-around_none" style="max-height: 500px; overflow-y: auto;">
+                        <table class="slds-table slds-table_cell-buffer slds-table_bordered slds-table_striped slds-table_fixed-layout">
+                            <thead>
+                                <tr class="slds-line-height_reset">
+                                    <th scope="col" style="width: 22%"><div class="slds-truncate" title="Territory">Territory</div></th>
+                                    <th scope="col" style="width: 14%"><div class="slds-truncate" title="Region">Region</div></th>
+                                    <th scope="col" style="width: 18%"><div class="slds-truncate" title="Assigned User">Assigned User</div></th>
+                                    <th scope="col" style="width: 7%" class="slds-text-align_center"><div class="slds-truncate" title="HCPs">HCPs</div></th>
+                                    <th scope="col" style="width: 7%" class="slds-text-align_center"><div class="slds-truncate" title="HCOs">HCOs</div></th>
+                                    <th scope="col" style="width: 8%" class="slds-text-align_center"><div class="slds-truncate" title="PATI">PATI</div></th>
+                                    <th scope="col" style="width: 8%" class="slds-text-align_center"><div class="slds-truncate" title="PATS">PATS</div></th>
+                                    <th scope="col" style="width: 8%" class="slds-text-align_center"><div class="slds-truncate" title="Affiliations">Affils</div></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template for:each={summaryRows} for:item="row">
+                                    <tr key={row.territoryName}>
+                                        <td><div class="slds-truncate" title={row.territoryName}>{row.territoryName}</div></td>
+                                        <td><div class="slds-truncate" title={row.parentName}>{row.parentName}</div></td>
+                                        <td><div class="slds-truncate" title={row.assignedUser}>{row.assignedUser}</div></td>
+                                        <td class="slds-text-align_center">{row.hcpCount}</td>
+                                        <td class="slds-text-align_center">{row.hcoCount}</td>
+                                        <td class="slds-text-align_center">{row.patiCount}</td>
+                                        <td class="slds-text-align_center">{row.patsCount}</td>
+                                        <td class="slds-text-align_center">{row.affiliationCount}</td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                            <template if:true={summaryTotals}>
+                                <tfoot>
+                                    <tr class="slds-text-title_caps">
+                                        <td colspan="3"><strong>Totals</strong></td>
+                                        <td class="slds-text-align_center"><strong>{summaryTotals.hcp}</strong></td>
+                                        <td class="slds-text-align_center"><strong>{summaryTotals.hco}</strong></td>
+                                        <td class="slds-text-align_center"><strong>{summaryTotals.pati}</strong></td>
+                                        <td class="slds-text-align_center"><strong>{summaryTotals.pats}</strong></td>
+                                        <td class="slds-text-align_center"><strong>{summaryTotals.affl}</strong></td>
+                                    </tr>
+                                </tfoot>
+                            </template>
+                        </table>
+                    </div>
+                </div>
+            </template>
         </div>
     </lightning-card>
 </template>

@@ -386,125 +386,136 @@ public with sharing class DemoAccountProviderController {
         accts.add(makeOrg(hcoRtId, 'Rocky Mountain Cancer Centers', '2055 High Street', 'Denver', 'CO', '80205', 'US', '+1 (303) 388-4876', 'https://www.rockymountaincancercenters.com', 'Clinic'));
         accts.add(makeOrg(hcoRtId, 'Anthem Blue Cross Colorado', '700 Broadway', 'Denver', 'CO', '80273', 'US', '+1 (800) 331-1476', 'https://www.anthem.com', 'Insurance'));
 
-        // ---- United Kingdom (10) ----
+        // ---- United Kingdom ----
+        // London (6)
         accts.add(makeOrg(hcoRtId, 'Royal London Hospital', 'Whitechapel Road', 'London', null, 'E1 1FR', 'GB', '+44 20 7377 7000', 'https://www.bartshealth.nhs.uk', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'St Thomas\' Hospital', 'Westminster Bridge Road', 'London', null, 'SE1 7EH', 'GB', '+44 20 7188 7188', 'https://www.guysandstthomas.nhs.uk', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Addenbrooke\'s Hospital', 'Hills Road', 'Cambridge', null, 'CB2 0QQ', 'GB', '+44 1223 245151', 'https://www.cuh.nhs.uk', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Royal Papworth Hospital', 'Papworth Road', 'Cambridge', null, 'CB2 0AY', 'GB', '+44 1223 638000', 'https://www.royalpapworth.nhs.uk', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'Great Ormond Street Hospital', 'Great Ormond Street', 'London', null, 'WC1N 3JH', 'GB', '+44 20 7405 9200', 'https://www.gosh.nhs.uk', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'The Christie NHS Foundation Trust', 'Wilmslow Road', 'Manchester', null, 'M20 4BX', 'GB', '+44 161 446 3000', 'https://www.christie.nhs.uk', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'NHS England', 'Skipton House, 80 London Road', 'London', null, 'SE1 6LH', 'GB', '+44 300 311 2233', 'https://www.england.nhs.uk', 'Insurance'));
         accts.add(makeOrg(hcoRtId, 'BUPA', '1 Angel Court', 'London', null, 'EC2R 7HJ', 'GB', '+44 345 600 8822', 'https://www.bupa.co.uk', 'Insurance'));
-        accts.add(makeOrg(hcoRtId, 'Boots UK', 'Thane Road', 'Nottingham', null, 'NG2 3AA', 'GB', '+44 115 950 6111', 'https://www.boots.com', 'Pharmacy'));
         accts.add(makeOrg(hcoRtId, 'Harley Street Clinic', '35 Weymouth Street', 'London', null, 'W1G 8BJ', 'GB', '+44 20 7935 7700', 'https://www.theharleystreetclinic.co.uk', 'Clinic'));
+        // Manchester (2)
+        accts.add(makeOrg(hcoRtId, 'The Christie NHS Foundation Trust', 'Wilmslow Road', 'Manchester', null, 'M20 4BX', 'GB', '+44 161 446 3000', 'https://www.christie.nhs.uk', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Manchester Royal Infirmary', 'Oxford Road', 'Manchester', null, 'M13 9WL', 'GB', '+44 161 276 1234', 'https://www.mft.nhs.uk', 'Hospital'));
+        // Edinburgh (2)
+        accts.add(makeOrg(hcoRtId, 'Royal Infirmary of Edinburgh', '51 Little France Crescent', 'Edinburgh', null, 'EH16 4SA', 'GB', '+44 131 536 1000', 'https://www.nhslothian.scot', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Western General Hospital', 'Crewe Road South', 'Edinburgh', null, 'EH4 2XU', 'GB', '+44 131 537 1000', 'https://www.nhslothian.scot', 'Hospital'));
 
-        // ---- France (10) ----
+        // ---- France ----
+        // Paris (5)
         accts.add(makeOrg(hcoRtId, 'Hôpital Pitié-Salpêtrière', '47-83 Boulevard de l\'Hôpital', 'Paris', null, '75013', 'FR', '+33 1 42 16 00 00', 'https://www.aphp.fr/pitie-salpetriere', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'Hôpital Européen Georges-Pompidou', '20 Rue Leblanc', 'Paris', null, '75015', 'FR', '+33 1 56 09 20 00', 'https://www.aphp.fr/hegp', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Centre Hospitalier Universitaire de Lyon', '3 Quai des Célestins', 'Lyon', null, '69002', 'FR', '+33 4 72 11 69 11', 'https://www.chu-lyon.fr', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Institut Gustave Roussy', '114 Rue Édouard-Vaillant', 'Villejuif', null, '94805', 'FR', '+33 1 42 11 42 11', 'https://www.gustaveroussy.fr', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'Hôpital Necker-Enfants Malades', '149 Rue de Sèvres', 'Paris', null, '75015', 'FR', '+33 1 44 49 40 00', 'https://www.aphp.fr/necker', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'CHU de Toulouse', '2 Rue Viguerie', 'Toulouse', null, '31059', 'FR', '+33 5 61 77 22 33', 'https://www.chu-toulouse.fr', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Centre Léon Bérard', '28 Rue Laënnec', 'Lyon', null, '69008', 'FR', '+33 4 78 78 51 51', 'https://www.centreleonberard.fr', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'Assurance Maladie (CNAM)', '50 Avenue du Professeur André Lemierre', 'Paris', null, '75020', 'FR', '+33 1 72 60 10 00', 'https://www.ameli.fr', 'Insurance'));
-        accts.add(makeOrg(hcoRtId, 'Pharmacie du Forum des Halles', '101 Rue Berger', 'Paris', null, '75001', 'FR', '+33 1 42 36 00 00', 'https://www.pharmacieforum.fr', 'Pharmacy'));
         accts.add(makeOrg(hcoRtId, 'Clinique de la Muette', '46 Rue Nicolo', 'Paris', null, '75016', 'FR', '+33 1 45 04 67 67', 'https://www.cliniquemuette.fr', 'Clinic'));
+        // Lyon (2)
+        accts.add(makeOrg(hcoRtId, 'Centre Hospitalier Universitaire de Lyon', '3 Quai des Célestins', 'Lyon', null, '69002', 'FR', '+33 4 72 11 69 11', 'https://www.chu-lyon.fr', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Centre Léon Bérard', '28 Rue Laënnec', 'Lyon', null, '69008', 'FR', '+33 4 78 78 51 51', 'https://www.centreleonberard.fr', 'Hospital'));
+        // Marseille (2)
+        accts.add(makeOrg(hcoRtId, 'Hôpital de la Timone', '264 Rue Saint-Pierre', 'Marseille', null, '13005', 'FR', '+33 4 91 38 00 00', 'https://www.ap-hm.fr', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Institut Paoli-Calmettes', '232 Boulevard de Sainte-Marguerite', 'Marseille', null, '13009', 'FR', '+33 4 91 22 33 33', 'https://www.institutpaolicalmettes.fr', 'Hospital'));
 
-        // ---- Germany (10) ----
+        // ---- Germany ----
+        // Berlin (3)
         accts.add(makeOrg(hcoRtId, 'Charité - Universitätsmedizin Berlin', 'Charitéplatz 1', 'Berlin', null, '10117', 'DE', '+49 30 450 50', 'https://www.charite.de', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Universitätsklinikum Heidelberg', 'Im Neuenheimer Feld 672', 'Heidelberg', null, '69120', 'DE', '+49 6221 56 0', 'https://www.klinikum.uni-heidelberg.de', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Universitätsklinikum Hamburg-Eppendorf', 'Martinistraße 52', 'Hamburg', null, '20246', 'DE', '+49 40 7410 0', 'https://www.uke.de', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Klinikum der Universität München', 'Marchioninistraße 15', 'Munich', null, '81377', 'DE', '+49 89 4400 0', 'https://www.lmu-klinikum.de', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Universitätsklinikum Düsseldorf', 'Moorenstraße 5', 'Dusseldorf', null, '40225', 'DE', '+49 211 81 00', 'https://www.uniklinik-duesseldorf.de', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Universitätsklinikum Frankfurt', 'Theodor-Stern-Kai 7', 'Frankfurt', null, '60590', 'DE', '+49 69 6301 0', 'https://www.kgu.de', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Munich Heart Centre', 'Lazarettstraße 36', 'Munich', null, '80636', 'DE', '+49 89 1218 0', 'https://www.dhm.mhn.de', 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'Vivantes Klinikum Neukölln', 'Rudower Straße 48', 'Berlin', null, '12351', 'DE', '+49 30 130 14 0', 'https://www.vivantes.de', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'AOK - Die Gesundheitskasse', 'Rosenthaler Straße 31', 'Berlin', null, '10178', 'DE', '+49 800 265 0800', 'https://www.aok.de', 'Insurance'));
-        accts.add(makeOrg(hcoRtId, 'Techniker Krankenkasse', 'Bramfelder Straße 140', 'Hamburg', null, '22305', 'DE', '+49 800 285 8585', 'https://www.tk.de', 'Insurance'));
-        accts.add(makeOrg(hcoRtId, 'DocMorris', 'Carl-Zeiss-Ring 4', 'Heerlen', null, '52078', 'DE', '+49 800 444 0200', 'https://www.docmorris.de', 'Pharmacy'));
+        // Munich (2)
+        accts.add(makeOrg(hcoRtId, 'Klinikum der Universität München', 'Marchioninistraße 15', 'Munich', null, '81377', 'DE', '+49 89 4400 0', 'https://www.lmu-klinikum.de', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Munich Heart Centre', 'Lazarettstraße 36', 'Munich', null, '80636', 'DE', '+49 89 1218 0', 'https://www.dhm.mhn.de', 'Clinic'));
+        // Hamburg (2)
+        accts.add(makeOrg(hcoRtId, 'Universitätsklinikum Hamburg-Eppendorf', 'Martinistraße 52', 'Hamburg', null, '20246', 'DE', '+49 40 7410 0', 'https://www.uke.de', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Asklepios Klinik Barmbek', 'Rübenkamp 220', 'Hamburg', null, '22307', 'DE', '+49 40 1818 82 0', 'https://www.asklepios.com', 'Hospital'));
 
-        // ---- Italy (10) ----
+        // ---- Italy ----
+        // Rome (3)
         accts.add(makeOrg(hcoRtId, 'Policlinico Agostino Gemelli', 'Largo Agostino Gemelli 8', 'Rome', 'RM', '00168', 'IT', '+39 06 3015 1', 'https://www.policlinicogemelli.it', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Ospedale Pediatrico Bambino Gesù', 'Piazza Sant\'Onofrio 4', 'Rome', 'RM', '00165', 'IT', '+39 06 6859 1', 'https://www.ospedalebambinogesu.it', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'ASL Roma 1', 'Borgo Santo Spirito 3', 'Rome', 'RM', '00193', 'IT', '+39 06 6835 1', 'https://www.aslroma1.it', 'Insurance'));
+        // Milan (3)
         accts.add(makeOrg(hcoRtId, 'Ospedale San Raffaele', 'Via Olgettina 60', 'Milan', 'MI', '20132', 'IT', '+39 02 2643 2643', 'https://www.hsr.it', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'Istituto Europeo di Oncologia', 'Via Ripamonti 435', 'Milan', 'MI', '20141', 'IT', '+39 02 5748 9001', 'https://www.ieo.it', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Azienda Ospedaliera di Padova', 'Via Giustiniani 2', 'Padua', 'PD', '35128', 'IT', '+39 049 821 1111', 'https://www.aopd.veneto.it', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Ospedale Pediatrico Bambino Gesù', 'Piazza Sant\'Onofrio 4', 'Rome', 'RM', '00165', 'IT', '+39 06 6859 1', 'https://www.ospedalebambinogesu.it', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Azienda Ospedaliera di Napoli', 'Via Sergio Pansini 5', 'Naples', 'NA', '80131', 'IT', '+39 081 746 1111', 'https://www.policlinico.unina.it', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Ospedale Careggi', 'Largo Brambilla 3', 'Florence', 'FI', '50134', 'IT', '+39 055 794 1', 'https://www.aou-careggi.toscana.it', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'ASL Roma 1', 'Borgo Santo Spirito 3', 'Rome', 'RM', '00193', 'IT', '+39 06 6835 1', 'https://www.aslroma1.it', 'Insurance'));
         accts.add(makeOrg(hcoRtId, 'Humanitas Research Hospital', 'Via Manzoni 56', 'Milan', 'MI', '20089', 'IT', '+39 02 8224 1', 'https://www.humanitas.it', 'Clinic'));
-        accts.add(makeOrg(hcoRtId, 'Farmacia del Corso', 'Corso Buenos Aires 4', 'Milan', 'MI', '20124', 'IT', '+39 02 2951 4380', 'https://www.farmaciadelcorso.it', 'Pharmacy'));
+        // Naples (2)
+        accts.add(makeOrg(hcoRtId, 'Azienda Ospedaliera di Napoli', 'Via Sergio Pansini 5', 'Naples', 'NA', '80131', 'IT', '+39 081 746 1111', 'https://www.policlinico.unina.it', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Ospedale Cardarelli', 'Via Antonio Cardarelli 9', 'Naples', 'NA', '80131', 'IT', '+39 081 747 1111', 'https://www.ospedalecardarelli.it', 'Hospital'));
 
-        // ---- Spain (10) ----
-        accts.add(makeOrg(hcoRtId, 'Hospital Clínic de Barcelona', 'Carrer de Villarroel 170', 'Barcelona', null, '08036', 'ES', '+34 93 227 54 00', 'https://www.clinicbarcelona.org', 'Hospital'));
+        // ---- Spain ----
+        // Madrid (4)
         accts.add(makeOrg(hcoRtId, 'Hospital Universitario La Paz', 'Paseo de la Castellana 261', 'Madrid', null, '28046', 'ES', '+34 91 727 70 00', 'https://www.comunidad.madrid/hospital/lapaz', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Hospital Universitario Vall d\'Hebron', 'Passeig de la Vall d\'Hebron 119-129', 'Barcelona', null, '08035', 'ES', '+34 93 274 60 00', 'https://www.vallhebron.com', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'Hospital Universitario 12 de Octubre', 'Avenida de Córdoba s/n', 'Madrid', null, '28041', 'ES', '+34 91 390 80 00', 'https://www.comunidad.madrid/hospital/12octubre', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Hospital Virgen del Rocío', 'Avenida Manuel Siurot s/n', 'Seville', null, '41013', 'ES', '+34 955 01 20 00', 'https://www.hospitalvirgendelrocio.es', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Hospital Clínico Universitario de Valencia', 'Avenida Blasco Ibáñez 17', 'Valencia', null, '46010', 'ES', '+34 96 386 26 00', 'https://www.incliva.es', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Centro Médico Teknon', 'Carrer de Vilana 12', 'Barcelona', null, '08022', 'ES', '+34 93 290 62 00', 'https://www.teknon.es', 'Clinic'));
         accts.add(makeOrg(hcoRtId, 'Sanitas', 'Ribera del Loira 52', 'Madrid', null, '28042', 'ES', '+34 91 585 29 00', 'https://www.sanitas.es', 'Insurance'));
         accts.add(makeOrg(hcoRtId, 'MAPFRE Salud', 'Carretera de Pozuelo 52', 'Madrid', null, '28222', 'ES', '+34 91 581 17 00', 'https://www.mapfre.es', 'Insurance'));
-        accts.add(makeOrg(hcoRtId, 'Farmacia Ortopedia Gaztambide', 'Calle de Gaztambide 55', 'Madrid', null, '28015', 'ES', '+34 91 549 42 60', 'https://www.farmaciagaztambide.com', 'Pharmacy'));
+        // Barcelona (3)
+        accts.add(makeOrg(hcoRtId, 'Hospital Clínic de Barcelona', 'Carrer de Villarroel 170', 'Barcelona', null, '08036', 'ES', '+34 93 227 54 00', 'https://www.clinicbarcelona.org', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Hospital Universitario Vall d\'Hebron', 'Passeig de la Vall d\'Hebron 119-129', 'Barcelona', null, '08035', 'ES', '+34 93 274 60 00', 'https://www.vallhebron.com', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Centro Médico Teknon', 'Carrer de Vilana 12', 'Barcelona', null, '08022', 'ES', '+34 93 290 62 00', 'https://www.teknon.es', 'Clinic'));
+        // Seville (2)
+        accts.add(makeOrg(hcoRtId, 'Hospital Virgen del Rocío', 'Avenida Manuel Siurot s/n', 'Seville', null, '41013', 'ES', '+34 955 01 20 00', 'https://www.hospitalvirgendelrocio.es', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Hospital Universitario Virgen Macarena', 'Avenida Dr. Fedriani 3', 'Seville', null, '41009', 'ES', '+34 955 00 80 00', 'https://www.hospitalmacarena.es', 'Hospital'));
 
-        // ---- Japan (10) ----
+        // ---- Japan ----
+        // Tokyo (4)
         accts.add(makeOrg(hcoRtId, '東京大学医学部附属病院', '本郷7-3-1', 'Tokyo', '13', '113-8655', 'JP', '+81 3 3815 5411', 'https://www.h.u-tokyo.ac.jp', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, '大阪大学医学部附属病院', '山田丘2-15', 'Osaka', '27', '565-0871', 'JP', '+81 6 6879 5111', 'https://www.hosp.med.osaka-u.ac.jp', 'Hospital'));
         accts.add(makeOrg(hcoRtId, '慶應義塾大学病院', '信濃町35', 'Tokyo', '13', '160-8582', 'JP', '+81 3 3353 1211', 'https://www.hosp.keio.ac.jp', 'Hospital'));
         accts.add(makeOrg(hcoRtId, '国立がん研究センター中央病院', '築地5-1-1', 'Tokyo', '13', '104-0045', 'JP', '+81 3 3542 2511', 'https://www.ncc.go.jp', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, '名古屋大学医学部附属病院', '鶴舞町65', 'Nagoya', '23', '466-8560', 'JP', '+81 52 741 2111', 'https://www.med.nagoya-u.ac.jp/hospital', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, '京都大学医学部附属病院', '聖護院川原町54', 'Kyoto', '26', '606-8507', 'JP', '+81 75 751 3111', 'https://www.kuhp.kyoto-u.ac.jp', 'Hospital'));
         accts.add(makeOrg(hcoRtId, '聖路加国際病院', '明石町9-1', 'Tokyo', '13', '104-8560', 'JP', '+81 3 3541 5151', 'https://hospital.luke.ac.jp', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, '健康保険組合連合会', '霞が関1-2-1', 'Tokyo', '13', '100-8916', 'JP', '+81 3 3595 2550', 'https://www.kenporen.com', 'Insurance'));
-        accts.add(makeOrg(hcoRtId, 'マツモトキヨシ', '日本橋4-1-1', 'Tokyo', '13', '103-8241', 'JP', '+81 3 3273 2000', 'https://www.matsukiyo.co.jp', 'Pharmacy'));
-        accts.add(makeOrg(hcoRtId, '亀田メディカルセンター', '東町929', 'Kamogawa', '12', '296-8602', 'JP', '+81 4 7092 2211', 'https://www.kameda.com', 'Clinic'));
+        // Osaka (2)
+        accts.add(makeOrg(hcoRtId, '大阪大学医学部附属病院', '山田丘2-15', 'Osaka', '27', '565-0871', 'JP', '+81 6 6879 5111', 'https://www.hosp.med.osaka-u.ac.jp', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, '大阪市立総合医療センター', '都島本通2-13-22', 'Osaka', '27', '534-0021', 'JP', '+81 6 6929 1221', 'https://www.osakacity-hp.or.jp', 'Hospital'));
+        // Kyoto (2)
+        accts.add(makeOrg(hcoRtId, '京都大学医学部附属病院', '聖護院川原町54', 'Kyoto', '26', '606-8507', 'JP', '+81 75 751 3111', 'https://www.kuhp.kyoto-u.ac.jp', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, '京都府立医科大学附属病院', '河原町通広小路上ル梶井町465', 'Kyoto', '26', '602-8566', 'JP', '+81 75 251 5111', 'https://www.h.kpu-m.ac.jp', 'Hospital'));
 
-        // ---- South Korea (10) ----
+        // ---- South Korea ----
+        // Seoul (4)
         accts.add(makeOrg(hcoRtId, '서울대학교병원', '대학로 101', 'Seoul', '', '03080', 'KR', '+82 2 2072 2114', 'https://www.snuh.org', 'Hospital'));
         accts.add(makeOrg(hcoRtId, '삼성서울병원', '일원로 81', 'Seoul', '', '06351', 'KR', '+82 2 3410 2114', 'https://www.samsunghospital.com', 'Hospital'));
         accts.add(makeOrg(hcoRtId, '서울아산병원', '올림픽로43길 88', 'Seoul', '', '05505', 'KR', '+82 2 3010 3114', 'https://www.amc.seoul.kr', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, '세브란스병원', '연세로 50-1', 'Seoul', '', '03722', 'KR', '+82 2 2228 5800', 'https://www.severance.healthcare', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, '서울성모병원', '반포대로 222', 'Seoul', '', '06591', 'KR', '+82 2 1588 1511', 'https://www.cmcseoul.or.kr', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, '부산대학교병원', '구덕로 179', 'Busan', '', '49241', 'KR', '+82 51 240 7000', 'https://www.pnuh.or.kr', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'CHA 분당의료원', '야탑로 59', 'Seongnam', '', '13496', 'KR', '+82 31 780 5000', 'https://www.chamc.co.kr', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, '국민건강보험공단', '건강로 32', 'Wonju', '', '26464', 'KR', '+82 33 736 0000', 'https://www.nhis.or.kr', 'Insurance'));
-        accts.add(makeOrg(hcoRtId, '올리브영', '퇴계로 18', 'Seoul', '', '04626', 'KR', '+82 2 6970 8114', 'https://www.oliveyoung.co.kr', 'Pharmacy'));
         accts.add(makeOrg(hcoRtId, '강남세브란스병원', '언주로 211', 'Seoul', '', '06273', 'KR', '+82 2 2019 3114', 'https://gs.severance.healthcare', 'Clinic'));
+        // Busan (2)
+        accts.add(makeOrg(hcoRtId, '부산대학교병원', '구덕로 179', 'Busan', '', '49241', 'KR', '+82 51 240 7000', 'https://www.pnuh.or.kr', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, '동아대학교병원', '대신공원로 26', 'Busan', '', '49201', 'KR', '+82 51 240 2400', 'https://www.dauh.co.kr', 'Hospital'));
+        // Incheon (2)
+        accts.add(makeOrg(hcoRtId, '인하대학교병원', '인하로 27', 'Incheon', '', '22332', 'KR', '+82 32 890 2114', 'https://www.inha.com', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, '가천대 길병원', '남동대로774번길 21', 'Incheon', '', '21565', 'KR', '+82 32 460 3114', 'https://www.gilhospital.com', 'Hospital'));
 
-        // ---- Brazil (10) ----
+        // ---- Brazil ----
+        // São Paulo (3)
         accts.add(makeOrg(hcoRtId, 'Hospital das Clínicas de São Paulo', 'Rua Dr. Ovídio Pires de Campos 225', 'São Paulo', 'SP', '05403-010', 'BR', '+55 11 2661 0000', 'https://www.hc.fm.usp.br', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'Hospital Sírio-Libanês', 'Rua Dona Adma Jafet 91', 'São Paulo', 'SP', '01308-050', 'BR', '+55 11 3155 0200', 'https://www.hospitalsiriolibanes.org.br', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'Hospital Albert Einstein', 'Avenida Albert Einstein 627', 'São Paulo', 'SP', '05652-900', 'BR', '+55 11 2151 1233', 'https://www.einstein.br', 'Hospital'));
+        // Rio de Janeiro (2)
         accts.add(makeOrg(hcoRtId, 'Instituto Nacional de Câncer (INCA)', 'Praça Cruz Vermelha 23', 'Rio de Janeiro', 'RJ', '20230-130', 'BR', '+55 21 3207 1000', 'https://www.inca.gov.br', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Hospital Copa Star', 'Rua Figueiredo Magalhães 875', 'Rio de Janeiro', 'RJ', '22031-011', 'BR', '+55 21 2545 3600', 'https://www.copastar.com.br', 'Hospital'));
+        // Porto Alegre (2)
         accts.add(makeOrg(hcoRtId, 'Hospital de Clínicas de Porto Alegre', 'Rua Ramiro Barcelos 2350', 'Porto Alegre', 'RS', '90035-903', 'BR', '+55 51 3359 8000', 'https://www.hcpa.edu.br', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Hospital das Clínicas de Minas Gerais', 'Avenida Professor Alfredo Balena 110', 'Belo Horizonte', 'MG', '30130-100', 'BR', '+55 31 3307 9100', 'https://www.hc.ufmg.br', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Hospital São Rafael', 'Avenida São Rafael 2152', 'Salvador', 'BA', '41253-190', 'BR', '+55 71 3281 6000', 'https://www.hospitalsaorafael.com.br', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'SUS - Sistema Único de Saúde', 'Esplanada dos Ministérios Bloco G', 'Brasília', null, '70058-900', 'BR', '+55 61 3315 2425', 'https://www.gov.br/saude', 'Insurance'));
-        accts.add(makeOrg(hcoRtId, 'Drogasil', 'Avenida Corifeu de Azevedo Marques 3097', 'São Paulo', 'SP', '05339-900', 'BR', '+55 11 3003 4004', 'https://www.drogasil.com.br', 'Pharmacy'));
-        accts.add(makeOrg(hcoRtId, 'Clínica Oncológica do ABC', 'Rua Piauí 421', 'São Paulo', 'SP', '01241-001', 'BR', '+55 11 3120 4700', 'https://www.oncoabc.com.br', 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'Hospital Moinhos de Vento', 'Rua Ramiro Barcelos 910', 'Porto Alegre', 'RS', '90035-001', 'BR', '+55 51 3314 3434', 'https://www.hospitalmoinhos.org.br', 'Hospital'));
 
-        // ---- Mexico (10) ----
+        // ---- Mexico ----
+        // Mexico City (4)
         accts.add(makeOrg(hcoRtId, 'Instituto Nacional de Cancerología', 'Avenida San Fernando 22', 'Mexico City', '', '14080', 'MX', '+52 55 5628 0400', 'https://www.incan-mexico.org', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'Hospital General de México', 'Dr. Balmis 148', 'Mexico City', '', '06720', 'MX', '+52 55 2789 2000', 'https://www.hgm.salud.gob.mx', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Instituto Nacional de Cardiología', 'Juan Badiano 1', 'Mexico City', '', '14080', 'MX', '+52 55 5573 2911', 'https://www.cardiologia.org.mx', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Hospital Civil de Guadalajara', 'Hospital 278', 'Guadalajara', '', '44280', 'MX', '+52 33 3614 5501', 'https://www.hcg.udg.mx', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Hospital Universitario de Monterrey', 'Avenida Francisco I. Madero s/n', 'Monterrey', '', '64460', 'MX', '+52 81 8348 7200', 'https://www.medicina.uanl.mx/hu', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Hospital Ángeles Puebla', 'Avenida Kepler 2143', 'Puebla', '', '72190', 'MX', '+52 222 309 7900', 'https://www.hospitalangeles.com/puebla', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'Centro Médico Nacional Siglo XXI', 'Avenida Cuauhtémoc 330', 'Mexico City', '', '06720', 'MX', '+52 55 5627 6900', 'https://www.imss.gob.mx', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'IMSS - Instituto Mexicano del Seguro Social', 'Paseo de la Reforma 476', 'Mexico City', '', '06600', 'MX', '+52 55 5238 2700', 'https://www.imss.gob.mx', 'Insurance'));
-        accts.add(makeOrg(hcoRtId, 'Farmacias del Ahorro', 'Avenida Insurgentes Sur 1106', 'Mexico City', '', '03720', 'MX', '+52 55 5340 1700', 'https://www.fahorro.com', 'Pharmacy'));
         accts.add(makeOrg(hcoRtId, 'Médica Sur', 'Puente de Piedra 150', 'Mexico City', '', '14050', 'MX', '+52 55 5424 7200', 'https://www.medicasur.com.mx', 'Clinic'));
+        // Guadalajara (2)
+        accts.add(makeOrg(hcoRtId, 'Hospital Civil de Guadalajara', 'Hospital 278', 'Guadalajara', '', '44280', 'MX', '+52 33 3614 5501', 'https://www.hcg.udg.mx', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Hospital Country 2000', 'Avenida Jorge Álvarez del Castillo 1545', 'Guadalajara', '', '44610', 'MX', '+52 33 3854 2000', 'https://www.hcountry.com', 'Hospital'));
+        // Monterrey (2)
+        accts.add(makeOrg(hcoRtId, 'Hospital Universitario de Monterrey', 'Avenida Francisco I. Madero s/n', 'Monterrey', '', '64460', 'MX', '+52 81 8348 7200', 'https://www.medicina.uanl.mx/hu', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Hospital San José TecSalud', 'Avenida Ignacio Morones Prieto 3000', 'Monterrey', '', '64710', 'MX', '+52 81 8888 0000', 'https://www.tecsalud.mx', 'Hospital'));
 
-        // ---- Argentina (10) ----
+        // ---- Argentina ----
+        // Buenos Aires (3)
         accts.add(makeOrg(hcoRtId, 'Hospital Italiano de Buenos Aires', 'Juan D. Perón 4190', 'Buenos Aires', '', 'C1199ABB', 'AR', '+54 11 4959 0200', 'https://www.hospitalitaliano.org.ar', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'Hospital de Clínicas José de San Martín', 'Avenida Córdoba 2351', 'Buenos Aires', '', 'C1120AAR', 'AR', '+54 11 5950 8000', 'https://www.hospitaldeclinicas.uba.ar', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'Hospital Garrahan', 'Combate de los Pozos 1881', 'Buenos Aires', '', 'C1245AAM', 'AR', '+54 11 4122 6000', 'https://www.garrahan.gov.ar', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Hospital Austral', 'Avenida Juan D. Perón 1500', 'Pilar', '', 'B1629AHJ', 'AR', '+54 11 2304 6000', 'https://www.hospitalaustral.edu.ar', 'Hospital'));
+        // Córdoba (2)
         accts.add(makeOrg(hcoRtId, 'Hospital Nacional de Córdoba', 'Bajada Pucará s/n', 'Córdoba', '', 'X5000', 'AR', '+54 351 433 4041', 'https://www.hospitalnacional.org.ar', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Hospital Privado Universitario de Córdoba', 'Naciones Unidas 346', 'Córdoba', '', 'X5016', 'AR', '+54 351 468 8810', 'https://www.hospitalprivadosa.com.ar', 'Hospital'));
+        // Rosario (2)
         accts.add(makeOrg(hcoRtId, 'Hospital Provincial del Centenario', 'Urquiza 3101', 'Rosario', '', 'S2000', 'AR', '+54 341 472 1111', 'https://www.hpc.org.ar', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'Instituto Alexander Fleming', 'Crámer 1180', 'Buenos Aires', '', 'C1426ANZ', 'AR', '+54 11 6323 2900', 'https://www.alexanderfleming.org', 'Hospital'));
-        accts.add(makeOrg(hcoRtId, 'OSDE', 'Avenida Leandro N. Alem 1067', 'Buenos Aires', '', 'C1001AAF', 'AR', '+54 11 4510 2700', 'https://www.osde.com.ar', 'Insurance'));
-        accts.add(makeOrg(hcoRtId, 'Farmacity', 'Avenida Maipú 3030', 'Buenos Aires', '', 'B1636AGI', 'AR', '+54 11 4736 3600', 'https://www.farmacity.com', 'Pharmacy'));
-        accts.add(makeOrg(hcoRtId, 'CEMIC', 'Avenida Galván 4102', 'Buenos Aires', '', 'C1431FWO', 'AR', '+54 11 5299 0100', 'https://www.cemic.edu.ar', 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'Sanatorio Parque', 'Bulevar Oroño 860', 'Rosario', '', 'S2000', 'AR', '+54 341 420 4000', 'https://www.sanatorioparque.com.ar', 'Hospital'));
 
         return accts;
     }
@@ -656,125 +667,167 @@ public with sharing class DemoAccountProviderController {
         docs.add(makeDoctor(hcpRtId, 'Daniel', 'Martinez', 'daniel.martinez@rmcc.example.com', '+1 (303) 388-4877', '2055 High Street', 'Denver', 'CO', '80205', 'US'));
         docs.add(makeDoctor(hcpRtId, 'Michelle', 'Roberts', 'michelle.roberts@uchealth.example.com', '+1 (720) 848-0002', '12605 East 16th Avenue', 'Aurora', 'CO', '80045', 'US'));
 
-        // UK Doctors (10)
+        // UK Doctors — London (5)
         docs.add(makeDoctor(hcpRtId, 'William', 'Hartley', 'william.hartley@nhs.example.com', '+44 20 7377 7001', 'Whitechapel Road', 'London', null, 'E1 1FR', 'GB'));
         docs.add(makeDoctor(hcpRtId, 'Eleanor', 'Blackwood', 'eleanor.blackwood@gstt.example.com', '+44 20 7188 7189', 'Westminster Bridge Road', 'London', null, 'SE1 7EH', 'GB'));
-        docs.add(makeDoctor(hcpRtId, 'Oliver', 'Pemberton', 'oliver.pemberton@cuh.example.com', '+44 1223 245152', 'Hills Road', 'Cambridge', null, 'CB2 0QQ', 'GB'));
         docs.add(makeDoctor(hcpRtId, 'Charlotte', 'Ainsworth', 'charlotte.ainsworth@nhs.example.com', '+44 20 7377 7002', 'Whitechapel Road', 'London', null, 'E1 1FR', 'GB'));
-        docs.add(makeDoctor(hcpRtId, 'George', 'Whitfield', 'george.whitfield@gstt.example.com', '+44 20 7188 7190', 'Westminster Bridge Road', 'London', null, 'SE1 7EH', 'GB'));
-        docs.add(makeDoctor(hcpRtId, 'Fiona', 'MacLeod', 'fiona.macleod@papworth.example.com', '+44 1223 638001', 'Papworth Road', 'Cambridge', null, 'CB2 0AY', 'GB'));
         docs.add(makeDoctor(hcpRtId, 'James', 'Okafor', 'james.okafor@gosh.example.com', '+44 20 7405 9201', 'Great Ormond Street', 'London', null, 'WC1N 3JH', 'GB'));
-        docs.add(makeDoctor(hcpRtId, 'Priya', 'Sharma', 'priya.sharma@christie.example.com', '+44 161 446 3001', 'Wilmslow Road', 'Manchester', null, 'M20 4BX', 'GB'));
-        docs.add(makeDoctor(hcpRtId, 'Thomas', 'Brennan', 'thomas.brennan@nhs.example.com', '+44 20 7377 7003', 'Whitechapel Road', 'London', null, 'E1 1FR', 'GB'));
         docs.add(makeDoctor(hcpRtId, 'Sophie', 'Cartwright', 'sophie.cartwright@harleystreet.example.com', '+44 20 7935 7701', '35 Weymouth Street', 'London', null, 'W1G 8BJ', 'GB'));
+        // UK Doctors — Manchester (4)
+        docs.add(makeDoctor(hcpRtId, 'Priya', 'Sharma', 'priya.sharma@christie.example.com', '+44 161 446 3001', 'Wilmslow Road', 'Manchester', null, 'M20 4BX', 'GB'));
+        docs.add(makeDoctor(hcpRtId, 'Thomas', 'Brennan', 'thomas.brennan@mri.example.com', '+44 161 276 1235', 'Oxford Road', 'Manchester', null, 'M13 9WL', 'GB'));
+        docs.add(makeDoctor(hcpRtId, 'Hannah', 'Fletcher', 'hannah.fletcher@christie.example.com', '+44 161 446 3002', 'Wilmslow Road', 'Manchester', null, 'M20 4BX', 'GB'));
+        docs.add(makeDoctor(hcpRtId, 'David', 'Thornton', 'david.thornton@mri.example.com', '+44 161 276 1236', 'Oxford Road', 'Manchester', null, 'M13 9WL', 'GB'));
+        // UK Doctors — Edinburgh (4)
+        docs.add(makeDoctor(hcpRtId, 'Fiona', 'MacLeod', 'fiona.macleod@rie.example.com', '+44 131 536 1001', '51 Little France Crescent', 'Edinburgh', null, 'EH16 4SA', 'GB'));
+        docs.add(makeDoctor(hcpRtId, 'Alasdair', 'Campbell', 'alasdair.campbell@wgh.example.com', '+44 131 537 1001', 'Crewe Road South', 'Edinburgh', null, 'EH4 2XU', 'GB'));
+        docs.add(makeDoctor(hcpRtId, 'Morag', 'Henderson', 'morag.henderson@rie.example.com', '+44 131 536 1002', '51 Little France Crescent', 'Edinburgh', null, 'EH16 4SA', 'GB'));
+        docs.add(makeDoctor(hcpRtId, 'Callum', 'Stewart', 'callum.stewart@wgh.example.com', '+44 131 537 1002', 'Crewe Road South', 'Edinburgh', null, 'EH4 2XU', 'GB'));
 
-        // France Doctors (10)
+        // France Doctors — Paris (5)
         docs.add(makeDoctor(hcpRtId, 'Pierre', 'Lefèvre', 'pierre.lefevre@aphp.example.com', '+33 1 42 16 00 01', '47 Boulevard de l\'Hôpital', 'Paris', null, '75013', 'FR'));
         docs.add(makeDoctor(hcpRtId, 'Marie-Claire', 'Dubois', 'marie.dubois@aphp.example.com', '+33 1 56 09 20 01', '20 Rue Leblanc', 'Paris', null, '75015', 'FR'));
-        docs.add(makeDoctor(hcpRtId, 'François', 'Moreau', 'francois.moreau@chu-lyon.example.com', '+33 4 72 11 69 12', '3 Quai des Célestins', 'Lyon', null, '69002', 'FR'));
-        docs.add(makeDoctor(hcpRtId, 'Camille', 'Rousseau', 'camille.rousseau@igr.example.com', '+33 1 42 11 42 12', '114 Rue Édouard-Vaillant', 'Villejuif', null, '94805', 'FR'));
         docs.add(makeDoctor(hcpRtId, 'Jean-Luc', 'Bernard', 'jeanluc.bernard@aphp.example.com', '+33 1 42 16 00 02', '47 Boulevard de l\'Hôpital', 'Paris', null, '75013', 'FR'));
         docs.add(makeDoctor(hcpRtId, 'Isabelle', 'Dupont', 'isabelle.dupont@necker.example.com', '+33 1 44 49 40 01', '149 Rue de Sèvres', 'Paris', null, '75015', 'FR'));
-        docs.add(makeDoctor(hcpRtId, 'Antoine', 'Mercier', 'antoine.mercier@chu-toulouse.example.com', '+33 5 61 77 22 34', '2 Rue Viguerie', 'Toulouse', null, '31059', 'FR'));
-        docs.add(makeDoctor(hcpRtId, 'Nathalie', 'Girard', 'nathalie.girard@clb.example.com', '+33 4 78 78 51 52', '28 Rue Laënnec', 'Lyon', null, '69008', 'FR'));
-        docs.add(makeDoctor(hcpRtId, 'Olivier', 'Petit', 'olivier.petit@aphp.example.com', '+33 1 42 16 00 03', '47 Boulevard de l\'Hôpital', 'Paris', null, '75013', 'FR'));
         docs.add(makeDoctor(hcpRtId, 'Sophie', 'Martin', 'sophie.martin@muette.example.com', '+33 1 45 04 67 68', '46 Rue Nicolo', 'Paris', null, '75016', 'FR'));
+        // France Doctors — Lyon (4)
+        docs.add(makeDoctor(hcpRtId, 'François', 'Moreau', 'francois.moreau@chu-lyon.example.com', '+33 4 72 11 69 12', '3 Quai des Célestins', 'Lyon', null, '69002', 'FR'));
+        docs.add(makeDoctor(hcpRtId, 'Nathalie', 'Girard', 'nathalie.girard@clb.example.com', '+33 4 78 78 51 52', '28 Rue Laënnec', 'Lyon', null, '69008', 'FR'));
+        docs.add(makeDoctor(hcpRtId, 'Olivier', 'Petit', 'olivier.petit@chu-lyon.example.com', '+33 4 72 11 69 13', '3 Quai des Célestins', 'Lyon', null, '69002', 'FR'));
+        docs.add(makeDoctor(hcpRtId, 'Camille', 'Rousseau', 'camille.rousseau@clb.example.com', '+33 4 78 78 51 53', '28 Rue Laënnec', 'Lyon', null, '69008', 'FR'));
+        // France Doctors — Marseille (4)
+        docs.add(makeDoctor(hcpRtId, 'Antoine', 'Mercier', 'antoine.mercier@ap-hm.example.com', '+33 4 91 38 00 01', '264 Rue Saint-Pierre', 'Marseille', null, '13005', 'FR'));
+        docs.add(makeDoctor(hcpRtId, 'Hélène', 'Bonnet', 'helene.bonnet@ipc.example.com', '+33 4 91 22 33 34', '232 Boulevard de Sainte-Marguerite', 'Marseille', null, '13009', 'FR'));
+        docs.add(makeDoctor(hcpRtId, 'Thierry', 'Laurent', 'thierry.laurent@ap-hm.example.com', '+33 4 91 38 00 02', '264 Rue Saint-Pierre', 'Marseille', null, '13005', 'FR'));
+        docs.add(makeDoctor(hcpRtId, 'Valérie', 'Garnier', 'valerie.garnier@ipc.example.com', '+33 4 91 22 33 35', '232 Boulevard de Sainte-Marguerite', 'Marseille', null, '13009', 'FR'));
 
-        // Germany Doctors (10)
+        // Germany Doctors — Berlin (4)
         docs.add(makeDoctor(hcpRtId, 'Klaus', 'Müller', 'klaus.mueller@charite.example.com', '+49 30 450 51', 'Charitéplatz 1', 'Berlin', null, '10117', 'DE'));
-        docs.add(makeDoctor(hcpRtId, 'Anna', 'Schneider', 'anna.schneider@ukl-hd.example.com', '+49 6221 56 1', 'Im Neuenheimer Feld 672', 'Heidelberg', null, '69120', 'DE'));
-        docs.add(makeDoctor(hcpRtId, 'Stefan', 'Weber', 'stefan.weber@uke.example.com', '+49 40 7410 1', 'Martinistraße 52', 'Hamburg', null, '20246', 'DE'));
         docs.add(makeDoctor(hcpRtId, 'Katrin', 'Fischer', 'katrin.fischer@charite.example.com', '+49 30 450 52', 'Charitéplatz 1', 'Berlin', null, '10117', 'DE'));
+        docs.add(makeDoctor(hcpRtId, 'Julia', 'Hoffmann', 'julia.hoffmann@charite.example.com', '+49 30 450 53', 'Charitéplatz 1', 'Berlin', null, '10117', 'DE'));
+        docs.add(makeDoctor(hcpRtId, 'Anna', 'Schneider', 'anna.schneider@vivantes.example.com', '+49 30 130 14 1', 'Rudower Straße 48', 'Berlin', null, '12351', 'DE'));
+        // Germany Doctors — Munich (4)
         docs.add(makeDoctor(hcpRtId, 'Hans-Peter', 'Braun', 'hp.braun@dhm.example.com', '+49 89 1218 1', 'Lazarettstraße 36', 'Munich', null, '80636', 'DE'));
         docs.add(makeDoctor(hcpRtId, 'Monika', 'Herrmann', 'monika.herrmann@lmu.example.com', '+49 89 4400 1', 'Marchioninistraße 15', 'Munich', null, '81377', 'DE'));
-        docs.add(makeDoctor(hcpRtId, 'Thomas', 'Richter', 'thomas.richter@ukd.example.com', '+49 211 81 01', 'Moorenstraße 5', 'Dusseldorf', null, '40225', 'DE'));
-        docs.add(makeDoctor(hcpRtId, 'Sabine', 'Wolf', 'sabine.wolf@kgu.example.com', '+49 69 6301 1', 'Theodor-Stern-Kai 7', 'Frankfurt', null, '60590', 'DE'));
+        docs.add(makeDoctor(hcpRtId, 'Thomas', 'Richter', 'thomas.richter@lmu.example.com', '+49 89 4400 2', 'Marchioninistraße 15', 'Munich', null, '81377', 'DE'));
+        docs.add(makeDoctor(hcpRtId, 'Sabine', 'Wolf', 'sabine.wolf@dhm.example.com', '+49 89 1218 2', 'Lazarettstraße 36', 'Munich', null, '80636', 'DE'));
+        // Germany Doctors — Hamburg (4)
+        docs.add(makeDoctor(hcpRtId, 'Stefan', 'Weber', 'stefan.weber@uke.example.com', '+49 40 7410 1', 'Martinistraße 52', 'Hamburg', null, '20246', 'DE'));
         docs.add(makeDoctor(hcpRtId, 'Michael', 'Becker', 'michael.becker@uke.example.com', '+49 40 7410 2', 'Martinistraße 52', 'Hamburg', null, '20246', 'DE'));
-        docs.add(makeDoctor(hcpRtId, 'Julia', 'Hoffmann', 'julia.hoffmann@charite.example.com', '+49 30 450 53', 'Charitéplatz 1', 'Berlin', null, '10117', 'DE'));
+        docs.add(makeDoctor(hcpRtId, 'Petra', 'Krause', 'petra.krause@asklepios.example.com', '+49 40 1818 82 1', 'Rübenkamp 220', 'Hamburg', null, '22307', 'DE'));
+        docs.add(makeDoctor(hcpRtId, 'Jörg', 'Neumann', 'joerg.neumann@uke.example.com', '+49 40 7410 3', 'Martinistraße 52', 'Hamburg', null, '20246', 'DE'));
 
-        // Italy Doctors (10)
+        // Italy Doctors — Rome (4)
         docs.add(makeDoctor(hcpRtId, 'Marco', 'Rossi', 'marco.rossi@gemelli.example.com', '+39 06 3015 2', 'Largo Agostino Gemelli 8', 'Rome', 'RM', '00168', 'IT'));
+        docs.add(makeDoctor(hcpRtId, 'Elena', 'Moretti', 'elena.moretti@bambinogesu.example.com', '+39 06 6859 2', 'Piazza Sant\'Onofrio 4', 'Rome', 'RM', '00165', 'IT'));
+        docs.add(makeDoctor(hcpRtId, 'Valentina', 'Ricci', 'valentina.ricci@gemelli.example.com', '+39 06 3015 3', 'Largo Agostino Gemelli 8', 'Rome', 'RM', '00168', 'IT'));
+        docs.add(makeDoctor(hcpRtId, 'Francesca', 'Romano', 'francesca.romano@gemelli.example.com', '+39 06 3015 4', 'Largo Agostino Gemelli 8', 'Rome', 'RM', '00168', 'IT'));
+        // Italy Doctors — Milan (4)
         docs.add(makeDoctor(hcpRtId, 'Giulia', 'Bianchi', 'giulia.bianchi@ieo.example.com', '+39 02 5748 9002', 'Via Ripamonti 435', 'Milan', 'MI', '20141', 'IT'));
         docs.add(makeDoctor(hcpRtId, 'Alessandro', 'Conti', 'alessandro.conti@hsr.example.com', '+39 02 2643 2644', 'Via Olgettina 60', 'Milan', 'MI', '20132', 'IT'));
-        docs.add(makeDoctor(hcpRtId, 'Francesca', 'Romano', 'francesca.romano@aopd.example.com', '+39 049 821 1112', 'Via Giustiniani 2', 'Padua', 'PD', '35128', 'IT'));
         docs.add(makeDoctor(hcpRtId, 'Luca', 'Ferretti', 'luca.ferretti@hsr.example.com', '+39 02 2643 2645', 'Via Olgettina 60', 'Milan', 'MI', '20132', 'IT'));
-        docs.add(makeDoctor(hcpRtId, 'Elena', 'Moretti', 'elena.moretti@bambinogesu.example.com', '+39 06 6859 2', 'Piazza Sant\'Onofrio 4', 'Rome', 'RM', '00165', 'IT'));
-        docs.add(makeDoctor(hcpRtId, 'Paolo', 'Esposito', 'paolo.esposito@unina.example.com', '+39 081 746 1112', 'Via Sergio Pansini 5', 'Naples', 'NA', '80131', 'IT'));
-        docs.add(makeDoctor(hcpRtId, 'Chiara', 'Colombo', 'chiara.colombo@careggi.example.com', '+39 055 794 2', 'Largo Brambilla 3', 'Florence', 'FI', '50134', 'IT'));
         docs.add(makeDoctor(hcpRtId, 'Giovanni', 'Russo', 'giovanni.russo@humanitas.example.com', '+39 02 8224 2', 'Via Manzoni 56', 'Milan', 'MI', '20089', 'IT'));
-        docs.add(makeDoctor(hcpRtId, 'Valentina', 'Ricci', 'valentina.ricci@gemelli.example.com', '+39 06 3015 3', 'Largo Agostino Gemelli 8', 'Rome', 'RM', '00168', 'IT'));
+        // Italy Doctors — Naples (4)
+        docs.add(makeDoctor(hcpRtId, 'Paolo', 'Esposito', 'paolo.esposito@unina.example.com', '+39 081 746 1112', 'Via Sergio Pansini 5', 'Naples', 'NA', '80131', 'IT'));
+        docs.add(makeDoctor(hcpRtId, 'Chiara', 'Colombo', 'chiara.colombo@cardarelli.example.com', '+39 081 747 1112', 'Via Antonio Cardarelli 9', 'Naples', 'NA', '80131', 'IT'));
+        docs.add(makeDoctor(hcpRtId, 'Roberto', 'De Luca', 'roberto.deluca@unina.example.com', '+39 081 746 1113', 'Via Sergio Pansini 5', 'Naples', 'NA', '80131', 'IT'));
+        docs.add(makeDoctor(hcpRtId, 'Maria', 'Giordano', 'maria.giordano@cardarelli.example.com', '+39 081 747 1113', 'Via Antonio Cardarelli 9', 'Naples', 'NA', '80131', 'IT'));
 
-        // Spain Doctors (10)
-        docs.add(makeDoctor(hcpRtId, 'Carlos', 'García López', 'carlos.garcia@clinic.example.com', '+34 93 227 54 01', 'Carrer de Villarroel 170', 'Barcelona', null, '08036', 'ES'));
+        // Spain Doctors — Madrid (4)
         docs.add(makeDoctor(hcpRtId, 'María', 'Fernández Ruiz', 'maria.fernandez@lapaz.example.com', '+34 91 727 70 01', 'Paseo de la Castellana 261', 'Madrid', null, '28046', 'ES'));
+        docs.add(makeDoctor(hcpRtId, 'Ana', 'López Serrano', 'ana.lopez@12octubre.example.com', '+34 91 390 80 01', 'Avenida de Córdoba s/n', 'Madrid', null, '28041', 'ES'));
+        docs.add(makeDoctor(hcpRtId, 'Diego', 'Sánchez Ramos', 'diego.sanchez@lapaz.example.com', '+34 91 727 70 02', 'Paseo de la Castellana 261', 'Madrid', null, '28046', 'ES'));
+        docs.add(makeDoctor(hcpRtId, 'Lucía', 'Moreno Gil', 'lucia.moreno@lapaz.example.com', '+34 91 727 70 03', 'Paseo de la Castellana 261', 'Madrid', null, '28046', 'ES'));
+        // Spain Doctors — Barcelona (4)
+        docs.add(makeDoctor(hcpRtId, 'Carlos', 'García López', 'carlos.garcia@clinic.example.com', '+34 93 227 54 01', 'Carrer de Villarroel 170', 'Barcelona', null, '08036', 'ES'));
         docs.add(makeDoctor(hcpRtId, 'Alejandro', 'Martínez Soto', 'alejandro.martinez@vhebron.example.com', '+34 93 274 60 01', 'Passeig de la Vall d\'Hebron 119', 'Barcelona', null, '08035', 'ES'));
         docs.add(makeDoctor(hcpRtId, 'Isabel', 'Navarro Díaz', 'isabel.navarro@teknon.example.com', '+34 93 290 62 01', 'Carrer de Vilana 12', 'Barcelona', null, '08022', 'ES'));
-        docs.add(makeDoctor(hcpRtId, 'Pablo', 'Herrera Molina', 'pablo.herrera@clinic.example.com', '+34 93 227 54 02', 'Carrer de Villarroel 170', 'Barcelona', null, '08036', 'ES'));
-        docs.add(makeDoctor(hcpRtId, 'Ana', 'López Serrano', 'ana.lopez@12octubre.example.com', '+34 91 390 80 01', 'Avenida de Córdoba s/n', 'Madrid', null, '28041', 'ES'));
-        docs.add(makeDoctor(hcpRtId, 'Javier', 'Ruiz Delgado', 'javier.ruiz@rocio.example.com', '+34 955 01 20 01', 'Avenida Manuel Siurot s/n', 'Seville', null, '41013', 'ES'));
-        docs.add(makeDoctor(hcpRtId, 'Lucía', 'Moreno Gil', 'lucia.moreno@incliva.example.com', '+34 96 386 26 01', 'Avenida Blasco Ibáñez 17', 'Valencia', null, '46010', 'ES'));
-        docs.add(makeDoctor(hcpRtId, 'Diego', 'Sánchez Ramos', 'diego.sanchez@lapaz.example.com', '+34 91 727 70 02', 'Paseo de la Castellana 261', 'Madrid', null, '28046', 'ES'));
         docs.add(makeDoctor(hcpRtId, 'Carmen', 'Torres Vega', 'carmen.torres@vhebron.example.com', '+34 93 274 60 02', 'Passeig de la Vall d\'Hebron 119', 'Barcelona', null, '08035', 'ES'));
+        // Spain Doctors — Seville (4)
+        docs.add(makeDoctor(hcpRtId, 'Javier', 'Ruiz Delgado', 'javier.ruiz@rocio.example.com', '+34 955 01 20 01', 'Avenida Manuel Siurot s/n', 'Seville', null, '41013', 'ES'));
+        docs.add(makeDoctor(hcpRtId, 'Pablo', 'Herrera Molina', 'pablo.herrera@macarena.example.com', '+34 955 00 80 01', 'Avenida Dr. Fedriani 3', 'Seville', null, '41009', 'ES'));
+        docs.add(makeDoctor(hcpRtId, 'Rosa', 'Gallego Cruz', 'rosa.gallego@rocio.example.com', '+34 955 01 20 02', 'Avenida Manuel Siurot s/n', 'Seville', null, '41013', 'ES'));
+        docs.add(makeDoctor(hcpRtId, 'Manuel', 'Ortega Vega', 'manuel.ortega@macarena.example.com', '+34 955 00 80 02', 'Avenida Dr. Fedriani 3', 'Seville', null, '41009', 'ES'));
 
-        // Japan Doctors (10)
+        // Japan Doctors — Tokyo (4)
         docs.add(makeDoctor(hcpRtId, '健', '山本', 'takeshi.yamamoto@todai.example.com', '+81 3 3815 5412', '本郷7-3-1', 'Tokyo', '13', '113-8655', 'JP'));
-        docs.add(makeDoctor(hcpRtId, '由紀', '田中', 'yuki.tanaka@osaka-u.example.com', '+81 6 6879 5112', '山田丘2-15', 'Osaka', '27', '565-0871', 'JP'));
         docs.add(makeDoctor(hcpRtId, '博', '鈴木', 'hiroshi.suzuki@keio.example.com', '+81 3 3353 1212', '信濃町35', 'Tokyo', '13', '160-8582', 'JP'));
         docs.add(makeDoctor(hcpRtId, '明子', '渡辺', 'akiko.watanabe@ncc.example.com', '+81 3 3542 2512', '築地5-1-1', 'Tokyo', '13', '104-0045', 'JP'));
-        docs.add(makeDoctor(hcpRtId, '健二', '伊藤', 'kenji.ito@nagoya-u.example.com', '+81 52 741 2112', '鶴舞町65', 'Nagoya', '23', '466-8560', 'JP'));
-        docs.add(makeDoctor(hcpRtId, '美香', '佐藤', 'mika.sato@kyoto-u.example.com', '+81 75 751 3112', '聖護院川原町54', 'Kyoto', '26', '606-8507', 'JP'));
         docs.add(makeDoctor(hcpRtId, '亮太', '中村', 'ryota.nakamura@luke.example.com', '+81 3 3541 5152', '明石町9-1', 'Tokyo', '13', '104-8560', 'JP'));
-        docs.add(makeDoctor(hcpRtId, '遥', '小林', 'haruka.kobayashi@todai.example.com', '+81 3 3815 5413', '本郷7-3-1', 'Tokyo', '13', '113-8655', 'JP'));
+        // Japan Doctors — Osaka (4)
+        docs.add(makeDoctor(hcpRtId, '由紀', '田中', 'yuki.tanaka@osaka-u.example.com', '+81 6 6879 5112', '山田丘2-15', 'Osaka', '27', '565-0871', 'JP'));
         docs.add(makeDoctor(hcpRtId, '聡', '橋本', 'satoshi.hashimoto@osaka-u.example.com', '+81 6 6879 5113', '山田丘2-15', 'Osaka', '27', '565-0871', 'JP'));
-        docs.add(makeDoctor(hcpRtId, '恵美', '小川', 'emi.ogawa@kameda.example.com', '+81 4 7092 2212', '東町929', 'Kamogawa', '12', '296-8602', 'JP'));
+        docs.add(makeDoctor(hcpRtId, '遥', '小林', 'haruka.kobayashi@osakacity.example.com', '+81 6 6929 1222', '都島本通2-13-22', 'Osaka', '27', '534-0021', 'JP'));
+        docs.add(makeDoctor(hcpRtId, '健二', '伊藤', 'kenji.ito@osaka-u.example.com', '+81 6 6879 5114', '山田丘2-15', 'Osaka', '27', '565-0871', 'JP'));
+        // Japan Doctors — Kyoto (4)
+        docs.add(makeDoctor(hcpRtId, '美香', '佐藤', 'mika.sato@kyoto-u.example.com', '+81 75 751 3112', '聖護院川原町54', 'Kyoto', '26', '606-8507', 'JP'));
+        docs.add(makeDoctor(hcpRtId, '恵美', '小川', 'emi.ogawa@kpu-m.example.com', '+81 75 251 5112', '河原町通広小路上ル梶井町465', 'Kyoto', '26', '602-8566', 'JP'));
+        docs.add(makeDoctor(hcpRtId, '大輔', '高橋', 'daisuke.takahashi@kyoto-u.example.com', '+81 75 751 3113', '聖護院川原町54', 'Kyoto', '26', '606-8507', 'JP'));
+        docs.add(makeDoctor(hcpRtId, '裕子', '松本', 'yuko.matsumoto@kpu-m.example.com', '+81 75 251 5113', '河原町通広小路上ル梶井町465', 'Kyoto', '26', '602-8566', 'JP'));
 
-        // South Korea Doctors (10)
+        // South Korea Doctors — Seoul (4)
         docs.add(makeDoctor(hcpRtId, '준호', '김', 'joonho.kim@snuh.example.com', '+82 2 2072 2115', '대학로 101', 'Seoul', '', '03080', 'KR'));
         docs.add(makeDoctor(hcpRtId, '수연', '박', 'sooyeon.park@smc.example.com', '+82 2 3410 2115', '일원로 81', 'Seoul', '', '06351', 'KR'));
         docs.add(makeDoctor(hcpRtId, '민준', '이', 'minjun.lee@amc.example.com', '+82 2 3010 3115', '올림픽로43길 88', 'Seoul', '', '05505', 'KR'));
-        docs.add(makeDoctor(hcpRtId, '혜진', '최', 'hyejin.choi@severance.example.com', '+82 2 2228 5801', '연세로 50-1', 'Seoul', '', '03722', 'KR'));
-        docs.add(makeDoctor(hcpRtId, '성우', '정', 'sungwoo.jung@cmcseoul.example.com', '+82 2 1588 1512', '반포대로 222', 'Seoul', '', '06591', 'KR'));
-        docs.add(makeDoctor(hcpRtId, '은비', '한', 'eunbi.han@pnuh.example.com', '+82 51 240 7001', '구덕로 179', 'Busan', '', '49241', 'KR'));
-        docs.add(makeDoctor(hcpRtId, '동현', '윤', 'donghyun.yoon@chamc.example.com', '+82 31 780 5001', '야탑로 59', 'Seongnam', '', '13496', 'KR'));
-        docs.add(makeDoctor(hcpRtId, '지연', '강', 'jiyeon.kang@snuh.example.com', '+82 2 2072 2116', '대학로 101', 'Seoul', '', '03080', 'KR'));
-        docs.add(makeDoctor(hcpRtId, '태현', '신', 'taehyun.shin@smc.example.com', '+82 2 3410 2116', '일원로 81', 'Seoul', '', '06351', 'KR'));
         docs.add(makeDoctor(hcpRtId, '나영', '임', 'nayoung.lim@gs.example.com', '+82 2 2019 3115', '언주로 211', 'Seoul', '', '06273', 'KR'));
+        // South Korea Doctors — Busan (4)
+        docs.add(makeDoctor(hcpRtId, '은비', '한', 'eunbi.han@pnuh.example.com', '+82 51 240 7001', '구덕로 179', 'Busan', '', '49241', 'KR'));
+        docs.add(makeDoctor(hcpRtId, '동현', '윤', 'donghyun.yoon@dauh.example.com', '+82 51 240 2401', '대신공원로 26', 'Busan', '', '49201', 'KR'));
+        docs.add(makeDoctor(hcpRtId, '지연', '강', 'jiyeon.kang@pnuh.example.com', '+82 51 240 7002', '구덕로 179', 'Busan', '', '49241', 'KR'));
+        docs.add(makeDoctor(hcpRtId, '태현', '신', 'taehyun.shin@dauh.example.com', '+82 51 240 2402', '대신공원로 26', 'Busan', '', '49201', 'KR'));
+        // South Korea Doctors — Incheon (4)
+        docs.add(makeDoctor(hcpRtId, '혜진', '최', 'hyejin.choi@inha.example.com', '+82 32 890 2115', '인하로 27', 'Incheon', '', '22332', 'KR'));
+        docs.add(makeDoctor(hcpRtId, '성우', '정', 'sungwoo.jung@gil.example.com', '+82 32 460 3115', '남동대로774번길 21', 'Incheon', '', '21565', 'KR'));
+        docs.add(makeDoctor(hcpRtId, '서준', '오', 'seojun.oh@inha.example.com', '+82 32 890 2116', '인하로 27', 'Incheon', '', '22332', 'KR'));
+        docs.add(makeDoctor(hcpRtId, '예진', '송', 'yejin.song@gil.example.com', '+82 32 460 3116', '남동대로774번길 21', 'Incheon', '', '21565', 'KR'));
 
-        // Brazil Doctors (10)
+        // Brazil Doctors — São Paulo (4)
         docs.add(makeDoctor(hcpRtId, 'Ricardo', 'Silva', 'ricardo.silva@hcfmusp.example.com', '+55 11 2661 0001', 'Rua Dr. Ovídio Pires de Campos 225', 'São Paulo', 'SP', '05403-010', 'BR'));
         docs.add(makeDoctor(hcpRtId, 'Ana Paula', 'Santos', 'ana.santos@siriolibanes.example.com', '+55 11 3155 0201', 'Rua Dona Adma Jafet 91', 'São Paulo', 'SP', '01308-050', 'BR'));
         docs.add(makeDoctor(hcpRtId, 'Fernando', 'Oliveira', 'fernando.oliveira@einstein.example.com', '+55 11 2151 1234', 'Avenida Albert Einstein 627', 'São Paulo', 'SP', '05652-900', 'BR'));
-        docs.add(makeDoctor(hcpRtId, 'Mariana', 'Costa', 'mariana.costa@inca.example.com', '+55 21 3207 1001', 'Praça Cruz Vermelha 23', 'Rio de Janeiro', 'RJ', '20230-130', 'BR'));
-        docs.add(makeDoctor(hcpRtId, 'Carlos Eduardo', 'Pereira', 'carlos.pereira@hcpa.example.com', '+55 51 3359 8001', 'Rua Ramiro Barcelos 2350', 'Porto Alegre', 'RS', '90035-903', 'BR'));
-        docs.add(makeDoctor(hcpRtId, 'Juliana', 'Almeida', 'juliana.almeida@hcufmg.example.com', '+55 31 3307 9101', 'Avenida Professor Alfredo Balena 110', 'Belo Horizonte', 'MG', '30130-100', 'BR'));
-        docs.add(makeDoctor(hcpRtId, 'Roberto', 'Ferreira', 'roberto.ferreira@saorafael.example.com', '+55 71 3281 6001', 'Avenida São Rafael 2152', 'Salvador', 'BA', '41253-190', 'BR'));
         docs.add(makeDoctor(hcpRtId, 'Patrícia', 'Souza', 'patricia.souza@hcfmusp.example.com', '+55 11 2661 0002', 'Rua Dr. Ovídio Pires de Campos 225', 'São Paulo', 'SP', '05403-010', 'BR'));
-        docs.add(makeDoctor(hcpRtId, 'Gustavo', 'Lima', 'gustavo.lima@einstein.example.com', '+55 11 2151 1235', 'Avenida Albert Einstein 627', 'São Paulo', 'SP', '05652-900', 'BR'));
-        docs.add(makeDoctor(hcpRtId, 'Camila', 'Rodrigues', 'camila.rodrigues@oncoabc.example.com', '+55 11 3120 4701', 'Rua Piauí 421', 'São Paulo', 'SP', '01241-001', 'BR'));
+        // Brazil Doctors — Rio de Janeiro (4)
+        docs.add(makeDoctor(hcpRtId, 'Mariana', 'Costa', 'mariana.costa@inca.example.com', '+55 21 3207 1001', 'Praça Cruz Vermelha 23', 'Rio de Janeiro', 'RJ', '20230-130', 'BR'));
+        docs.add(makeDoctor(hcpRtId, 'Roberto', 'Ferreira', 'roberto.ferreira@copastar.example.com', '+55 21 2545 3601', 'Rua Figueiredo Magalhães 875', 'Rio de Janeiro', 'RJ', '22031-011', 'BR'));
+        docs.add(makeDoctor(hcpRtId, 'Juliana', 'Almeida', 'juliana.almeida@inca.example.com', '+55 21 3207 1002', 'Praça Cruz Vermelha 23', 'Rio de Janeiro', 'RJ', '20230-130', 'BR'));
+        docs.add(makeDoctor(hcpRtId, 'Gustavo', 'Lima', 'gustavo.lima@copastar.example.com', '+55 21 2545 3602', 'Rua Figueiredo Magalhães 875', 'Rio de Janeiro', 'RJ', '22031-011', 'BR'));
+        // Brazil Doctors — Porto Alegre (4)
+        docs.add(makeDoctor(hcpRtId, 'Carlos Eduardo', 'Pereira', 'carlos.pereira@hcpa.example.com', '+55 51 3359 8001', 'Rua Ramiro Barcelos 2350', 'Porto Alegre', 'RS', '90035-903', 'BR'));
+        docs.add(makeDoctor(hcpRtId, 'Camila', 'Rodrigues', 'camila.rodrigues@moinhos.example.com', '+55 51 3314 3435', 'Rua Ramiro Barcelos 910', 'Porto Alegre', 'RS', '90035-001', 'BR'));
+        docs.add(makeDoctor(hcpRtId, 'Thiago', 'Moreira', 'thiago.moreira@hcpa.example.com', '+55 51 3359 8002', 'Rua Ramiro Barcelos 2350', 'Porto Alegre', 'RS', '90035-903', 'BR'));
+        docs.add(makeDoctor(hcpRtId, 'Fernanda', 'Barbosa', 'fernanda.barbosa@moinhos.example.com', '+55 51 3314 3436', 'Rua Ramiro Barcelos 910', 'Porto Alegre', 'RS', '90035-001', 'BR'));
 
-        // Mexico Doctors (10)
+        // Mexico Doctors — Mexico City (4)
         docs.add(makeDoctor(hcpRtId, 'Alejandro', 'Hernández Vega', 'alejandro.hernandez@incan.example.com', '+52 55 5628 0401', 'Avenida San Fernando 22', 'Mexico City', '', '14080', 'MX'));
         docs.add(makeDoctor(hcpRtId, 'Sofía', 'Ramírez Cruz', 'sofia.ramirez@hgm.example.com', '+52 55 2789 2001', 'Dr. Balmis 148', 'Mexico City', '', '06720', 'MX'));
-        docs.add(makeDoctor(hcpRtId, 'Diego', 'Torres Medina', 'diego.torres@cardio.example.com', '+52 55 5573 2912', 'Juan Badiano 1', 'Mexico City', '', '14080', 'MX'));
-        docs.add(makeDoctor(hcpRtId, 'Valentina', 'López Ortega', 'valentina.lopez@hcg.example.com', '+52 33 3614 5502', 'Hospital 278', 'Guadalajara', '', '44280', 'MX'));
-        docs.add(makeDoctor(hcpRtId, 'Luis Miguel', 'García Ríos', 'luis.garcia@hu.example.com', '+52 81 8348 7201', 'Avenida Francisco I. Madero s/n', 'Monterrey', '', '64460', 'MX'));
-        docs.add(makeDoctor(hcpRtId, 'María José', 'Sánchez Flores', 'mariajose.sanchez@angeles.example.com', '+52 222 309 7901', 'Avenida Kepler 2143', 'Puebla', '', '72190', 'MX'));
         docs.add(makeDoctor(hcpRtId, 'Carlos Alberto', 'Morales Díaz', 'carlos.morales@imss.example.com', '+52 55 5627 6901', 'Avenida Cuauhtémoc 330', 'Mexico City', '', '06720', 'MX'));
         docs.add(makeDoctor(hcpRtId, 'Daniela', 'Mendoza Ruiz', 'daniela.mendoza@medicasur.example.com', '+52 55 5424 7201', 'Puente de Piedra 150', 'Mexico City', '', '14050', 'MX'));
-        docs.add(makeDoctor(hcpRtId, 'Fernando', 'Castillo Reyes', 'fernando.castillo@incan.example.com', '+52 55 5628 0402', 'Avenida San Fernando 22', 'Mexico City', '', '14080', 'MX'));
-        docs.add(makeDoctor(hcpRtId, 'Andrea', 'Vargas Luna', 'andrea.vargas@hgm.example.com', '+52 55 2789 2002', 'Dr. Balmis 148', 'Mexico City', '', '06720', 'MX'));
+        // Mexico Doctors — Guadalajara (4)
+        docs.add(makeDoctor(hcpRtId, 'Valentina', 'López Ortega', 'valentina.lopez@hcg.example.com', '+52 33 3614 5502', 'Hospital 278', 'Guadalajara', '', '44280', 'MX'));
+        docs.add(makeDoctor(hcpRtId, 'Diego', 'Torres Medina', 'diego.torres@hcountry.example.com', '+52 33 3854 2001', 'Avenida Jorge Álvarez del Castillo 1545', 'Guadalajara', '', '44610', 'MX'));
+        docs.add(makeDoctor(hcpRtId, 'María José', 'Sánchez Flores', 'mariajose.sanchez@hcg.example.com', '+52 33 3614 5503', 'Hospital 278', 'Guadalajara', '', '44280', 'MX'));
+        docs.add(makeDoctor(hcpRtId, 'Fernando', 'Castillo Reyes', 'fernando.castillo@hcountry.example.com', '+52 33 3854 2002', 'Avenida Jorge Álvarez del Castillo 1545', 'Guadalajara', '', '44610', 'MX'));
+        // Mexico Doctors — Monterrey (4)
+        docs.add(makeDoctor(hcpRtId, 'Luis Miguel', 'García Ríos', 'luis.garcia@hu.example.com', '+52 81 8348 7201', 'Avenida Francisco I. Madero s/n', 'Monterrey', '', '64460', 'MX'));
+        docs.add(makeDoctor(hcpRtId, 'Andrea', 'Vargas Luna', 'andrea.vargas@tecsalud.example.com', '+52 81 8888 0001', 'Avenida Ignacio Morones Prieto 3000', 'Monterrey', '', '64710', 'MX'));
+        docs.add(makeDoctor(hcpRtId, 'Roberto', 'Guzmán Pérez', 'roberto.guzman@hu.example.com', '+52 81 8348 7202', 'Avenida Francisco I. Madero s/n', 'Monterrey', '', '64460', 'MX'));
+        docs.add(makeDoctor(hcpRtId, 'Patricia', 'Navarro Ríos', 'patricia.navarro@tecsalud.example.com', '+52 81 8888 0002', 'Avenida Ignacio Morones Prieto 3000', 'Monterrey', '', '64710', 'MX'));
 
-        // Argentina Doctors (10)
+        // Argentina Doctors — Buenos Aires (4)
         docs.add(makeDoctor(hcpRtId, 'Martín', 'González', 'martin.gonzalez@hital.example.com', '+54 11 4959 0201', 'Juan D. Perón 4190', 'Buenos Aires', '', 'C1199ABB', 'AR'));
         docs.add(makeDoctor(hcpRtId, 'Lucía', 'Fernández', 'lucia.fernandez@clinicas.example.com', '+54 11 5950 8001', 'Avenida Córdoba 2351', 'Buenos Aires', '', 'C1120AAR', 'AR'));
         docs.add(makeDoctor(hcpRtId, 'Santiago', 'Rodríguez', 'santiago.rodriguez@garrahan.example.com', '+54 11 4122 6001', 'Combate de los Pozos 1881', 'Buenos Aires', '', 'C1245AAM', 'AR'));
-        docs.add(makeDoctor(hcpRtId, 'Valentina', 'Martínez', 'valentina.martinez@austral.example.com', '+54 11 2304 6001', 'Avenida Juan D. Perón 1500', 'Pilar', '', 'B1629AHJ', 'AR'));
+        docs.add(makeDoctor(hcpRtId, 'Mateo', 'Álvarez', 'mateo.alvarez@hital.example.com', '+54 11 4959 0203', 'Juan D. Perón 4190', 'Buenos Aires', '', 'C1199ABB', 'AR'));
+        // Argentina Doctors — Córdoba (4)
         docs.add(makeDoctor(hcpRtId, 'Nicolás', 'López', 'nicolas.lopez@hncordoba.example.com', '+54 351 433 4042', 'Bajada Pucará s/n', 'Córdoba', '', 'X5000', 'AR'));
+        docs.add(makeDoctor(hcpRtId, 'Valentina', 'Martínez', 'valentina.martinez@hpucordoba.example.com', '+54 351 468 8811', 'Naciones Unidas 346', 'Córdoba', '', 'X5016', 'AR'));
+        docs.add(makeDoctor(hcpRtId, 'Florencia', 'Díaz', 'florencia.diaz@hncordoba.example.com', '+54 351 433 4043', 'Bajada Pucará s/n', 'Córdoba', '', 'X5000', 'AR'));
+        docs.add(makeDoctor(hcpRtId, 'Tomás', 'Romero', 'tomas.romero@hpucordoba.example.com', '+54 351 468 8812', 'Naciones Unidas 346', 'Córdoba', '', 'X5016', 'AR'));
+        // Argentina Doctors — Rosario (4)
         docs.add(makeDoctor(hcpRtId, 'Camila', 'García', 'camila.garcia@hpc.example.com', '+54 341 472 1112', 'Urquiza 3101', 'Rosario', '', 'S2000', 'AR'));
-        docs.add(makeDoctor(hcpRtId, 'Mateo', 'Álvarez', 'mateo.alvarez@fleming.example.com', '+54 11 6323 2901', 'Crámer 1180', 'Buenos Aires', '', 'C1426ANZ', 'AR'));
-        docs.add(makeDoctor(hcpRtId, 'Florencia', 'Díaz', 'florencia.diaz@hital.example.com', '+54 11 4959 0202', 'Juan D. Perón 4190', 'Buenos Aires', '', 'C1199ABB', 'AR'));
-        docs.add(makeDoctor(hcpRtId, 'Tomás', 'Romero', 'tomas.romero@cemic.example.com', '+54 11 5299 0101', 'Avenida Galván 4102', 'Buenos Aires', '', 'C1431FWO', 'AR'));
-        docs.add(makeDoctor(hcpRtId, 'Agustina', 'Pereyra', 'agustina.pereyra@clinicas.example.com', '+54 11 5950 8002', 'Avenida Córdoba 2351', 'Buenos Aires', '', 'C1120AAR', 'AR'));
+        docs.add(makeDoctor(hcpRtId, 'Agustina', 'Pereyra', 'agustina.pereyra@sparque.example.com', '+54 341 420 4001', 'Bulevar Oroño 860', 'Rosario', '', 'S2000', 'AR'));
+        docs.add(makeDoctor(hcpRtId, 'Federico', 'Sosa', 'federico.sosa@hpc.example.com', '+54 341 472 1113', 'Urquiza 3101', 'Rosario', '', 'S2000', 'AR'));
+        docs.add(makeDoctor(hcpRtId, 'Carolina', 'Méndez', 'carolina.mendez@sparque.example.com', '+54 341 420 4002', 'Bulevar Oroño 860', 'Rosario', '', 'S2000', 'AR'));
 
         return docs;
     }
@@ -1623,70 +1676,51 @@ public with sharing class DemoAccountProviderController {
 
         // GB cities
         m.put('GB:London', 'GB_England_London');
-        m.put('GB:Cambridge', 'GB_England_London');
-        m.put('GB:Nottingham', 'GB_England_Birmingham');
         m.put('GB:Manchester', 'GB_England_Manchester');
+        m.put('GB:Edinburgh', 'GB_Scotland_Edinburgh');
 
         // FR cities
         m.put('FR:Paris', 'FR_Ile_de_France_Paris');
-        m.put('FR:Villejuif', 'FR_Ile_de_France_Paris');
         m.put('FR:Lyon', 'FR_Auvergne_Lyon');
-        m.put('FR:Toulouse', 'FR_Occitanie_Toulouse');
+        m.put('FR:Marseille', 'FR_PACA_Marseille');
 
         // DE cities
         m.put('DE:Berlin', 'DE_Berlin_Berlin');
-        m.put('DE:Heidelberg', 'DE_Hesse_Frankfurt');
-        m.put('DE:Hamburg', 'DE_Hamburg_Hamburg');
         m.put('DE:Munich', 'DE_Bavaria_Munich');
-        m.put('DE:Heerlen', 'DE_NRW_Dusseldorf');
-        m.put('DE:Dusseldorf', 'DE_NRW_Dusseldorf');
-        m.put('DE:Frankfurt', 'DE_Hesse_Frankfurt');
+        m.put('DE:Hamburg', 'DE_Hamburg_Hamburg');
 
         // IT cities
         m.put('IT:Rome', 'IT_Lazio_Rome');
         m.put('IT:Milan', 'IT_Lombardy_Milan');
-        m.put('IT:Padua', 'IT_Veneto_Venice');
         m.put('IT:Naples', 'IT_Campania_Naples');
-        m.put('IT:Florence', 'IT_Tuscany_Florence');
 
         // ES cities
-        m.put('ES:Barcelona', 'ES_Catalonia_Barcelona');
         m.put('ES:Madrid', 'ES_Madrid_Madrid');
+        m.put('ES:Barcelona', 'ES_Catalonia_Barcelona');
         m.put('ES:Seville', 'ES_Andalusia_Seville');
-        m.put('ES:Valencia', 'ES_Valencia_Valencia');
 
         // JP cities
         m.put('JP:Tokyo', 'JP_Kanto_Tokyo');
         m.put('JP:Osaka', 'JP_Kansai_Osaka');
-        m.put('JP:Nagoya', 'JP_Chubu_Nagoya');
-        m.put('JP:Yokohama', 'JP_Kanto_Yokohama');
         m.put('JP:Kyoto', 'JP_Kansai_Kyoto');
-        m.put('JP:Kamogawa', 'JP_Kanto_Tokyo');
 
         // KR cities
         m.put('KR:Seoul', 'KR_Seoul_Seoul');
         m.put('KR:Busan', 'KR_Busan_Busan');
-        m.put('KR:Seongnam', 'KR_Gyeonggi_Seongnam');
-        m.put('KR:Wonju', 'KR_Seoul_Seoul');
         m.put('KR:Incheon', 'KR_Incheon_Incheon');
 
         // BR cities
         m.put('BR:São Paulo', 'BR_SP_Sao_Paulo');
         m.put('BR:Rio de Janeiro', 'BR_RJ_Rio_de_Janeiro');
         m.put('BR:Porto Alegre', 'BR_RS_Porto_Alegre');
-        m.put('BR:Belo Horizonte', 'BR_MG_Belo_Horizonte');
-        m.put('BR:Salvador', 'BR_BA_Salvador');
-        m.put('BR:Brasília', 'BR_SP_Sao_Paulo');
 
         // MX cities
         m.put('MX:Mexico City', 'MX_CDMX_Mexico_City');
         m.put('MX:Guadalajara', 'MX_Jalisco_Guadalajara');
         m.put('MX:Monterrey', 'MX_NuevoLeon_Monterrey');
-        m.put('MX:Puebla', 'MX_Puebla_Puebla');
 
         // AR cities
         m.put('AR:Buenos Aires', 'AR_CABA_Buenos_Aires');
-        m.put('AR:Pilar', 'AR_BuenosAires_La_Plata');
         m.put('AR:Córdoba', 'AR_Cordoba_Cordoba');
         m.put('AR:Rosario', 'AR_SantaFe_Rosario');
 

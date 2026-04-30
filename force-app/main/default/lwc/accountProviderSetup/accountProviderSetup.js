@@ -6,6 +6,7 @@ import getAccountRecordTypes from '@salesforce/apex/DemoAccountProviderControlle
 import createAccountsAndProviders from '@salesforce/apex/DemoAccountProviderController.createAccountsAndProviders';
 import deleteAccountsAndProviders from '@salesforce/apex/DemoAccountProviderController.deleteAccountsAndProviders';
 import assignTerritories from '@salesforce/apex/DemoAccountProviderController.assignTerritories';
+import getTerritorySummary from '@salesforce/apex/DemoTerritoryController.getTerritorySummary';
 
 export default class AccountProviderSetup extends LightningElement {
     statusData;
@@ -18,6 +19,8 @@ export default class AccountProviderSetup extends LightningElement {
     recordTypes = [];
     hcoRecordTypeId;
     hcpRecordTypeId;
+    wiredSummaryResult;
+    summaryRows;
 
     @wire(getStatus)
     wiredStatus(result) {
@@ -44,6 +47,33 @@ export default class AccountProviderSetup extends LightningElement {
         } else if (error) {
             this.recordTypes = [];
         }
+    }
+
+    @wire(getTerritorySummary)
+    wiredSummary(result) {
+        this.wiredSummaryResult = result;
+        if (result.data) {
+            this.summaryRows = result.data;
+        } else if (result.error) {
+            this.summaryRows = undefined;
+        }
+    }
+
+    get hasSummaryRows() {
+        return this.summaryRows && this.summaryRows.length > 0;
+    }
+
+    get summaryTotals() {
+        if (!this.summaryRows) return null;
+        const t = { hcp: 0, hco: 0, pati: 0, pats: 0, affl: 0 };
+        for (const r of this.summaryRows) {
+            t.hcp += r.hcpCount;
+            t.hco += r.hcoCount;
+            t.pati += r.patiCount;
+            t.pats += r.patsCount;
+            t.affl += r.affiliationCount;
+        }
+        return t;
     }
 
     autoSelectDefaults() {
@@ -120,6 +150,7 @@ export default class AccountProviderSetup extends LightningElement {
         } finally {
             this.isLoading = false;
             await refreshApex(this.wiredStatusResult);
+            await refreshApex(this.wiredSummaryResult);
         }
     }
 
@@ -150,6 +181,7 @@ export default class AccountProviderSetup extends LightningElement {
         } finally {
             this.isLoading = false;
             await refreshApex(this.wiredStatusResult);
+            await refreshApex(this.wiredSummaryResult);
         }
     }
 
@@ -180,6 +212,7 @@ export default class AccountProviderSetup extends LightningElement {
         } finally {
             this.isLoading = false;
             await refreshApex(this.wiredStatusResult);
+            await refreshApex(this.wiredSummaryResult);
         }
     }
 }
