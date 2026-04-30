@@ -24,6 +24,14 @@
         <enabled>true</enabled>
     </classAccesses>
     <classAccesses>
+        <apexClass>DemoActivityPlanController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>DemoAccountPlanController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
         <apexClass>DemoProductAlignmentController</apexClass>
         <enabled>true</enabled>
     </classAccesses>

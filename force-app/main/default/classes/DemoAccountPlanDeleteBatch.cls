@@ -1,13 +1,13 @@
-public without sharing class DemoActivityPlanDeleteBatch implements Database.Batchable<SObject>, Database.Stateful {
+public without sharing class DemoAccountPlanDeleteBatch implements Database.Batchable<SObject>, Database.Stateful {
 
     private static final String DEMO_TAG = 'AFLSCE-Demo-Data';
     private Integer stage;
 
-    public DemoActivityPlanDeleteBatch() {
+    public DemoAccountPlanDeleteBatch() {
         this.stage = 0;
     }
 
-    private DemoActivityPlanDeleteBatch(Integer stage) {
+    private DemoAccountPlanDeleteBatch(Integer stage) {
         this.stage = stage;
     }
 
@@ -41,7 +41,7 @@ public without sharing class DemoActivityPlanDeleteBatch implements Database.Bat
 
     public void finish(Database.BatchableContext bc) {
         if (stage < 2) {
-            Database.executeBatch(new DemoActivityPlanDeleteBatch(stage + 1), 2000);
+            Database.executeBatch(new DemoAccountPlanDeleteBatch(stage + 1), 2000);
         }
     }
 }

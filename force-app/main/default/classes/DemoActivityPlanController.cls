@@ -2,47 +2,35 @@ public without sharing class DemoActivityPlanController {
 
     private static final String DEMO_TAG = 'AFLSCE-Demo-Data';
 
-    private static final Map<String, String> COUNTRY_TERRITORY = new Map<String, String>{
-        'US' => 'US_COUNTRY', 'GB' => 'GB_COUNTRY', 'FR' => 'FR_COUNTRY',
-        'DE' => 'DE_COUNTRY', 'IT' => 'IT_COUNTRY', 'ES' => 'ES_COUNTRY',
-        'JP' => 'JP_COUNTRY', 'KR' => 'KR_COUNTRY', 'BR' => 'BR_COUNTRY',
-        'MX' => 'MX_COUNTRY', 'AR' => 'AR_COUNTRY'
+    private static final List<String> BRAND_NAMES = new List<String>{
+        'Immunexis', 'Immunonco'
     };
-
-    public static final List<String> KAM_TEMPLATES = new List<String>{
-        'Market Access & Contracting',
-        'Supply Chain & Distribution Readiness',
-        'P&T Committee Prep: Proactive Partnership for Formulary',
-        'Field Readiness & Pull-Through',
-        'Analyse Diagnostic Gaps for Rheumatoid Arthritis',
-        'Implement & Monitor new Diagnostic Protocols'
-    };
-
-    private static final Schema.SObjectType ACCOUNT_PLAN_TYPE = Schema.getGlobalDescribe().get('AccountPlan');
-    private static final Schema.SObjectType OBJECTIVE_TYPE = Schema.getGlobalDescribe().get('AccountPlanObjective');
 
     @AuraEnabled(cacheable=true)
     public static String getStatus() {
         try {
             List<String> parts = new List<String>();
+            String escaped = String.escapeSingleQuotes(DEMO_TAG);
 
-            Integer planCount = [SELECT COUNT() FROM AccountPlan
-                WHERE SourceSystemName = :DEMO_TAG];
-            parts.add('Account Plans: ' + planCount);
+            Integer tpCount = Database.countQuery(
+                'SELECT COUNT() FROM TimePeriod WHERE Name LIKE \'%' + escaped + '%\'');
+            parts.add('Time Periods: ' + tpCount);
 
-            Integer objCount = [SELECT COUNT() FROM AccountPlanObjective
-                WHERE SourceSystemName = :DEMO_TAG];
-            parts.add('Objectives: ' + objCount);
+            Integer apCount = Database.countQuery(
+                'SELECT COUNT() FROM ActivityPlan WHERE SourceSystemName = \'' + escaped + '\'');
+            parts.add('Activity Plans: ' + apCount);
 
-            Integer apCount = [SELECT COUNT() FROM ActionPlan
-                WHERE SourceSystemName = :DEMO_TAG AND ActionPlanType = 'KAM'];
-            parts.add('Action Plans: ' + apCount);
+            Integer aptCount = Database.countQuery(
+                'SELECT COUNT() FROM ActivityPlanTerritory WHERE ActivityPlan.SourceSystemName = \'' + escaped + '\'');
+            parts.add('Activity Plan Territories: ' + aptCount);
 
-            Integer taskCount = [SELECT COUNT() FROM AssessmentTask
-                WHERE ReferenceRecordId IN (
-                    SELECT Id FROM ActionPlan
-                    WHERE SourceSystemName = :DEMO_TAG AND ActionPlanType = 'KAM')];
-            parts.add('Assessment Tasks: ' + taskCount);
+            Integer pagCount = Database.countQuery(
+                'SELECT COUNT() FROM ProviderActivityGoal WHERE SourceSystemName = \'' + escaped + '\'');
+            parts.add('Provider Activity Goals: ' + pagCount);
+
+            Integer pagmCount = Database.countQuery(
+                'SELECT COUNT() FROM ProviderActivityGoalMeasure WHERE SourceSystemName = \'' + escaped + '\'');
+            parts.add('Goal Measures: ' + pagmCount);
 
             return String.join(parts, ', ');
         } catch (Exception e) {
@@ -51,74 +39,75 @@ public without sharing class DemoActivityPlanController {
     }
 
     @AuraEnabled
-    public static String getBatchProgress() {
-        try {
-            List<AsyncApexJob> jobs = [
-                SELECT Status, JobItemsProcessed, TotalJobItems, NumberOfErrors
-                FROM AsyncApexJob
-                WHERE ApexClass.Name = 'DemoActionPlanBatch'
-                AND Status IN ('Queued', 'Preparing', 'Processing', 'Holding')
-                ORDER BY CreatedDate DESC LIMIT 1
-            ];
-            if (jobs.isEmpty()) {
-                return 'DONE';
-            }
-            AsyncApexJob j = jobs[0];
-
-            Integer apCount = [SELECT COUNT() FROM ActionPlan
-                WHERE SourceSystemName = :DEMO_TAG AND ActionPlanType = 'KAM'];
-            Integer taskCount = [SELECT COUNT() FROM AssessmentTask
-                WHERE ReferenceRecordId IN (
-                    SELECT Id FROM ActionPlan
-                    WHERE SourceSystemName = :DEMO_TAG AND ActionPlanType = 'KAM')];
-
-            return j.Status + '|' + j.JobItemsProcessed + '|' + j.TotalJobItems + '|' + apCount + '|' + taskCount;
-        } catch (Exception e) {
-            throw new AuraHandledException('Error: ' + e.getMessage());
-        }
-    }
-
-    @AuraEnabled
-    public static String createActivityPlans() {
+    public static String createProviderActivityPlans() {
         List<String> details = new List<String>();
         List<String> errors = new List<String>();
 
         try {
-            Integer existingCount = [SELECT COUNT() FROM AccountPlan
-                WHERE SourceSystemName = :DEMO_TAG];
+            String escaped = String.escapeSingleQuotes(DEMO_TAG);
+            Integer existingCount = Database.countQuery(
+                'SELECT COUNT() FROM ActivityPlan WHERE SourceSystemName = \'' + escaped + '\'');
             if (existingCount > 0) {
                 throw new AuraHandledException(
-                    'Activity Plans already exist (' + existingCount + ' account plans). Delete first to re-create.');
+                    'Provider Activity Plans already exist (' + existingCount + '). Delete first to re-create.');
             }
 
             details.add('HEADER:Step 1 — Gathering territory and account data');
-            Map<Id, AccountInfo> accountInfoMap = new Map<Id, AccountInfo>();
-            Map<Id, TerritoryInfo> terrInfoMap = gatherTerritoryData(accountInfoMap, details, errors);
+            Map<Id, TerritoryInfo> terrInfoMap = gatherTerritoryData(details, errors);
             if (terrInfoMap.isEmpty()) {
-                throw new AuraHandledException('No territories with demo accounts found. Run Accounts & Providers setup first.');
+                throw new AuraHandledException('No territories with assigned users and demo accounts found.');
             }
 
-            details.add('HEADER:Step 2 — Loading KAM action plan templates');
-            Map<String, Id> templateVersionMap = loadTemplateVersions(details, errors);
-
-            details.add('HEADER:Step 3 — Creating Account Plans');
+            details.add('HEADER:Step 2 — Creating Time Period');
             Date startDate = Date.newInstance(Date.today().year(), 1, 1);
             Date endDate = Date.newInstance(Date.today().year(), 12, 31);
-            Map<Id, Id> acctToAccountPlan = createAccountPlans(terrInfoMap, accountInfoMap, startDate, endDate, details, errors);
+            Id timePeriodId = ensureTimePeriod(startDate, endDate, details);
 
-            details.add('HEADER:Step 4 — Creating Account Plan Objectives');
-            Integer objCount = createObjectives(acctToAccountPlan, accountInfoMap, startDate, endDate, details, errors);
+            details.add('HEADER:Step 3 — Loading Activity Measure Types');
+            List<SObject> visitMeasureTypes = Database.query(
+                'SELECT Id, DeveloperName, MasterLabel, DisplayOrder FROM ProviderActivityMeasureType ' +
+                'WHERE IsActive = true AND ActivityObject = \'Visit\' ORDER BY DisplayOrder');
+            if (visitMeasureTypes.isEmpty()) {
+                throw new AuraHandledException('No active Visit-level ProviderActivityMeasureType records found.');
+            }
+            details.add('SUCCESS:Found ' + visitMeasureTypes.size() + ' visit measure types: ' +
+                buildMeasureTypeLabels(visitMeasureTypes));
 
-            details.add('HEADER:Step 5 — Queuing Action Plan creation (batch)');
-            Map<String, String> localNameMap = buildLocalNameMap();
-            Map<String, List<String>> localTaskMap = buildLocalTaskMap();
-            Database.executeBatch(new DemoActionPlanBatch(templateVersionMap, startDate, localNameMap, localTaskMap), 10);
-            Integer expectedAPs = objCount * templateVersionMap.size();
-            details.add('SUCCESS:Batch queued — will create ~' + expectedAPs + ' action plans asynchronously');
-            details.add('Refresh the page in a minute to see the final Action Plans count');
+            List<SObject> productMeasureTypes = Database.query(
+                'SELECT Id, DeveloperName, MasterLabel, DisplayOrder FROM ProviderActivityMeasureType ' +
+                'WHERE IsActive = true AND ActivityObject = \'ProviderVisitProdDetailing\' ORDER BY DisplayOrder');
+            details.add('SUCCESS:Found ' + productMeasureTypes.size() + ' product measure types: ' +
+                buildMeasureTypeLabels(productMeasureTypes));
 
+            details.add('HEADER:Step 4 — Loading brand products by country');
+            Map<String, List<Id>> countryToBrandIds = loadBrandsByCountry(details, errors);
+
+            details.add('HEADER:Step 5 — Creating Activity Plans');
+            Map<Id, Id> terrToActivityPlan = createActivityPlans(terrInfoMap, timePeriodId, details, errors);
+
+            details.add('HEADER:Step 6 — Creating Provider Activity Goals');
+            Boolean hasProducts = !productMeasureTypes.isEmpty() && !countryToBrandIds.isEmpty();
+            Map<Id, List<Id>> terrToGoalIds = createProviderActivityGoals(
+                terrInfoMap, terrToActivityPlan, hasProducts, details, errors);
+
+            details.add('HEADER:Step 7 — Creating Visit Goal Measures');
+            Integer visitMeasureCount = createGoalMeasures(terrToGoalIds, visitMeasureTypes, false, details, errors);
+
+            Integer productMeasureCount = 0;
+            if (hasProducts) {
+                details.add('HEADER:Step 8 — Creating Product Goal Measures');
+                productMeasureCount = createProductGoalMeasures(
+                    terrInfoMap, terrToGoalIds, productMeasureTypes, countryToBrandIds, details, errors);
+            }
+
+            details.add('HEADER:Step ' + (hasProducts ? '9' : '8') + ' — Activating Activity Plans');
+            activateActivityPlans(terrToActivityPlan, details, errors);
+
+            Integer totalMeasures = visitMeasureCount + productMeasureCount;
             String summary = errors.isEmpty()
-                ? 'Created ' + acctToAccountPlan.size() + ' account plans and ' + objCount + ' objectives. Action plans creating in background.'
+                ? 'Created ' + terrToActivityPlan.size() + ' activity plans, '
+                    + countGoals(terrToGoalIds) + ' goals, '
+                    + totalMeasures + ' measures (' + visitMeasureCount + ' visit + ' + productMeasureCount + ' product).'
                 : 'Completed with ' + errors.size() + ' error(s).';
             Map<String, Object> result = new Map<String, Object>{
                 'summary' => summary,
@@ -134,52 +123,43 @@ public without sharing class DemoActivityPlanController {
     }
 
     @AuraEnabled
-    public static String deleteActivityPlans() {
+    public static String deleteProviderActivityPlans() {
         try {
-            String tag = DEMO_TAG;
             Integer deleted = 0;
-            Integer lim = 9500;
+            String escaped = String.escapeSingleQuotes(DEMO_TAG);
 
-            List<AssessmentTask> tasks = [SELECT Id FROM AssessmentTask
-                WHERE ReferenceRecordId IN (SELECT Id FROM ActionPlan
-                    WHERE SourceSystemName = :tag AND ActionPlanType = 'KAM') LIMIT :lim];
-            if (!tasks.isEmpty()) {
-                Database.delete(tasks, false);
-                deleted += tasks.size();
-                lim -= tasks.size();
+            List<SObject> measures = Database.query(
+                'SELECT Id FROM ProviderActivityGoalMeasure WHERE SourceSystemName = \'' + escaped + '\' LIMIT 9500');
+            if (!measures.isEmpty()) {
+                Database.delete(measures, false);
+                deleted += measures.size();
             }
 
-            if (lim > 0) {
-                List<ActionPlan> aps = [SELECT Id FROM ActionPlan
-                    WHERE SourceSystemName = :tag AND ActionPlanType = 'KAM' LIMIT :lim];
-                if (!aps.isEmpty()) {
-                    Database.delete(aps, false);
-                    deleted += aps.size();
-                    lim -= aps.size();
-                }
+            List<SObject> goals = Database.query(
+                'SELECT Id FROM ProviderActivityGoal WHERE SourceSystemName = \'' + escaped + '\' LIMIT 9500');
+            if (!goals.isEmpty()) {
+                Database.delete(goals, false);
+                deleted += goals.size();
             }
 
-            if (lim > 0) {
-                List<AccountPlanObjective> objs = [SELECT Id FROM AccountPlanObjective
-                    WHERE SourceSystemName = :tag LIMIT :lim];
-                if (!objs.isEmpty()) {
-                    Database.delete(objs, false);
-                    deleted += objs.size();
-                    lim -= objs.size();
-                }
+            List<SObject> plans = Database.query(
+                'SELECT Id FROM ActivityPlan WHERE SourceSystemName = \'' + escaped + '\' LIMIT 9500');
+            if (!plans.isEmpty()) {
+                Database.delete(plans, false);
+                deleted += plans.size();
             }
 
-            if (lim > 0) {
-                List<AccountPlan> plans = [SELECT Id FROM AccountPlan
-                    WHERE SourceSystemName = :tag LIMIT :lim];
-                if (!plans.isEmpty()) {
-                    Database.delete(plans, false);
-                    deleted += plans.size();
-                }
+            List<SObject> tps = Database.query(
+                'SELECT Id FROM TimePeriod WHERE Name LIKE \'%' + escaped + '%\' LIMIT 100');
+            if (!tps.isEmpty()) {
+                Database.delete(tps, false);
+                deleted += tps.size();
             }
 
-            Integer remaining = [SELECT COUNT() FROM AccountPlan WHERE SourceSystemName = :tag]
-                + [SELECT COUNT() FROM ActionPlan WHERE SourceSystemName = :tag AND ActionPlanType = 'KAM'];
+            Integer remaining = Database.countQuery(
+                'SELECT COUNT() FROM ActivityPlan WHERE SourceSystemName = \'' + escaped + '\'')
+                + Database.countQuery(
+                'SELECT COUNT() FROM ProviderActivityGoal WHERE SourceSystemName = \'' + escaped + '\'');
             String msg = 'Deleted ' + deleted + ' records.';
             if (remaining > 0) {
                 msg += ' More records remain — click delete again.';
@@ -190,119 +170,63 @@ public without sharing class DemoActivityPlanController {
         }
     }
 
-    public class AccountInfo {
-        public String name;
-        public String countryCode;
-        public String accountType;
-        public Boolean isPersonAccount;
-        public String mapKey;
-        public Integer archetypeIndex;
-    }
+    // ── Data gathering ──
 
     private class TerritoryInfo {
         public Id territoryId;
         public String territoryName;
+        public String countryCode;
         public Id ownerId;
-        public List<Id> accountIds;
+        public List<Id> hcpAccountIds;
 
         public TerritoryInfo() {
-            accountIds = new List<Id>();
+            hcpAccountIds = new List<Id>();
         }
     }
 
     private static Map<Id, TerritoryInfo> gatherTerritoryData(
-            Map<Id, AccountInfo> accountInfoMap, List<String> details, List<String> errors) {
+            List<String> details, List<String> errors) {
 
-        Set<String> countryDevNames = new Set<String>(COUNTRY_TERRITORY.values());
-        Map<Id, String> countryTerrIds = new Map<Id, String>();
-        for (Territory2 t : [SELECT Id, DeveloperName FROM Territory2 WHERE DeveloperName IN :countryDevNames]) {
-            countryTerrIds.put(t.Id, t.DeveloperName);
-        }
-
-        Map<Id, Id> allTerrToCountry = new Map<Id, Id>();
-        for (Id tId : countryTerrIds.keySet()) {
-            allTerrToCountry.put(tId, tId);
-        }
-        Set<Id> currentLevel = countryTerrIds.keySet();
-        Map<Id, Territory2> allTerritories = new Map<Id, Territory2>();
-        for (Territory2 t : [SELECT Id, Name, DeveloperName, ParentTerritory2Id FROM Territory2 WHERE Id IN :currentLevel]) {
-            allTerritories.put(t.Id, t);
-        }
-
-        for (Integer depth = 0; depth < 5 && !currentLevel.isEmpty(); depth++) {
-            List<Territory2> children = [SELECT Id, Name, DeveloperName, ParentTerritory2Id
-                FROM Territory2 WHERE ParentTerritory2Id IN :currentLevel];
-            Set<Id> nextLevel = new Set<Id>();
-            for (Territory2 child : children) {
-                nextLevel.add(child.Id);
-                allTerrToCountry.put(child.Id, allTerrToCountry.get(child.ParentTerritory2Id));
-                allTerritories.put(child.Id, child);
-            }
-            currentLevel = nextLevel;
-        }
-
-        Set<Id> parentIds = new Set<Id>();
-        for (Territory2 t : allTerritories.values()) {
-            if (t.ParentTerritory2Id != null) {
-                parentIds.add(t.ParentTerritory2Id);
-            }
-        }
-        Set<Id> leafTerrIds = new Set<Id>();
-        for (Id tId : allTerritories.keySet()) {
-            if (!parentIds.contains(tId)) {
-                leafTerrIds.add(tId);
-            }
-        }
+        Set<Id> leafTerrIds = getLeafTerritoryIds();
         details.add('Found ' + leafTerrIds.size() + ' leaf territories');
 
         Map<Id, Id> terrToOwner = new Map<Id, Id>();
         for (UserTerritory2Association uta : [
-            SELECT Territory2Id, UserId
-            FROM UserTerritory2Association
-            WHERE Territory2Id IN :leafTerrIds
-            ORDER BY Territory2Id
+            SELECT Territory2Id, UserId FROM UserTerritory2Association
+            WHERE Territory2Id IN :leafTerrIds ORDER BY Territory2Id
         ]) {
             if (!terrToOwner.containsKey(uta.Territory2Id)) {
                 terrToOwner.put(uta.Territory2Id, uta.UserId);
             }
         }
 
-        Map<Id, Account> demoAccounts = new Map<Id, Account>([
-            SELECT Id, Name, BillingCountryCode, Type, IsPersonAccount
-            FROM Account
-            WHERE Site = :DEMO_TAG
-        ]);
-        Integer hcpCount = 0;
-        Integer hcoCount = 0;
-        for (Account a : demoAccounts.values()) {
-            AccountInfo ai = new AccountInfo();
-            ai.name = a.Name;
-            ai.countryCode = a.BillingCountryCode;
-            ai.accountType = a.Type;
-            ai.isPersonAccount = a.IsPersonAccount;
-            ai.mapKey = DemoAccountPlanData.getAccountTypeKey(
-                a.BillingCountryCode, a.Type, a.IsPersonAccount);
-            accountInfoMap.put(a.Id, ai);
-            if (a.IsPersonAccount) { hcpCount++; } else { hcoCount++; }
+        Set<Id> demoHcpIds = new Set<Id>();
+        for (Account a : [SELECT Id FROM Account
+                WHERE Site = :DEMO_TAG AND IsPersonAccount = true]) {
+            demoHcpIds.add(a.Id);
         }
-        details.add('Found ' + hcpCount + ' demo HCPs and ' + hcoCount + ' demo HCOs');
+        details.add('Found ' + demoHcpIds.size() + ' demo HCP accounts');
 
         Map<Id, TerritoryInfo> terrInfoMap = new Map<Id, TerritoryInfo>();
+        Map<Id, String> terrNames = new Map<Id, String>();
+        for (Territory2 t : [SELECT Id, Name FROM Territory2 WHERE Id IN :leafTerrIds]) {
+            terrNames.put(t.Id, t.Name);
+        }
+
         for (ObjectTerritory2Association ota : [
-            SELECT ObjectId, Territory2Id
-            FROM ObjectTerritory2Association
-            WHERE Territory2Id IN :leafTerrIds AND ObjectId IN :demoAccounts.keySet()
+            SELECT ObjectId, Territory2Id FROM ObjectTerritory2Association
+            WHERE Territory2Id IN :leafTerrIds AND ObjectId IN :demoHcpIds
         ]) {
             TerritoryInfo ti = terrInfoMap.get(ota.Territory2Id);
             if (ti == null) {
                 ti = new TerritoryInfo();
                 ti.territoryId = ota.Territory2Id;
-                Territory2 terr = allTerritories.get(ota.Territory2Id);
-                ti.territoryName = terr != null ? terr.Name : 'Unknown';
+                ti.territoryName = terrNames.get(ota.Territory2Id);
+                ti.countryCode = extractCountryCode(ti.territoryName);
                 ti.ownerId = terrToOwner.get(ota.Territory2Id);
                 terrInfoMap.put(ota.Territory2Id, ti);
             }
-            ti.accountIds.add(ota.ObjectId);
+            ti.hcpAccountIds.add(ota.ObjectId);
         }
 
         Integer noOwner = 0;
@@ -313,190 +237,406 @@ public without sharing class DemoActivityPlanController {
             }
         }
         if (noOwner > 0) {
-            details.add('WARNING: Skipped ' + noOwner + ' territories with no assigned user');
+            details.add('WARNING:Skipped ' + noOwner + ' territories with no assigned user');
         }
 
-        Integer totalAccounts = 0;
+        Integer totalHcps = 0;
         for (TerritoryInfo ti : terrInfoMap.values()) {
-            totalAccounts += ti.accountIds.size();
+            totalHcps += ti.hcpAccountIds.size();
         }
-        details.add('SUCCESS:' + terrInfoMap.size() + ' territories with ' + totalAccounts + ' accounts');
+        details.add('SUCCESS:' + terrInfoMap.size() + ' territories with ' + totalHcps + ' HCP accounts');
         return terrInfoMap;
     }
 
-    private static Map<String, Id> loadTemplateVersions(List<String> details, List<String> errors) {
-        Map<String, Id> engMap = new Map<String, Id>();
-        Set<String> engNames = new Set<String>(KAM_TEMPLATES);
-        for (ActionPlanTemplateVersion tv : [
-            SELECT Id, Name FROM ActionPlanTemplateVersion
-            WHERE Name IN :engNames AND Status = 'Final'
-        ]) {
-            engMap.put(tv.Name.trim(), tv.Id);
-        }
-
-        for (String name : KAM_TEMPLATES) {
-            if (!engMap.containsKey(name)) {
-                errors.add('Template not found (or not Final): ' + name);
-            }
-        }
-
-        details.add('SUCCESS:Loaded ' + engMap.size() + '/' + KAM_TEMPLATES.size() + ' English Final templates');
-        return engMap;
+    private static String extractCountryCode(String territoryName) {
+        if (String.isBlank(territoryName)) return null;
+        Integer dash = territoryName.indexOf('-');
+        if (dash > 0) return territoryName.substring(0, dash);
+        return null;
     }
 
-    private static Map<String, String> buildLocalNameMap() {
-        Map<String, String> result = new Map<String, String>();
-        for (String langKey : DemoAccountPlanLocale.KAM_TEMPLATES_BY_LANG.keySet()) {
-            List<String> localNames = DemoAccountPlanLocale.KAM_TEMPLATES_BY_LANG.get(langKey);
-            List<String> countryCodes = DemoAccountPlanLocale.getCountriesForLang(langKey);
-            for (String cc : countryCodes) {
-                for (Integer i = 0; i < KAM_TEMPLATES.size(); i++) {
-                    result.put(cc + '|' + KAM_TEMPLATES[i], localNames[i]);
-                }
-            }
+    private static Set<Id> getLeafTerritoryIds() {
+        List<Territory2> allTerrs = [
+            SELECT Id, ParentTerritory2Id FROM Territory2
+            WHERE Territory2Model.State = 'Active'
+        ];
+        Set<Id> parentIds = new Set<Id>();
+        for (Territory2 t : allTerrs) {
+            if (t.ParentTerritory2Id != null) parentIds.add(t.ParentTerritory2Id);
         }
-        return result;
+        Set<Id> leafIds = new Set<Id>();
+        for (Territory2 t : allTerrs) {
+            if (!parentIds.contains(t.Id)) leafIds.add(t.Id);
+        }
+        return leafIds;
     }
 
-    private static Map<String, List<String>> buildLocalTaskMap() {
-        Map<String, List<String>> result = new Map<String, List<String>>();
-        Set<String> localNames = new Set<String>();
-        for (List<String> langNames : DemoAccountPlanLocale.KAM_TEMPLATES_BY_LANG.values()) {
-            localNames.addAll(langNames);
-        }
+    // ── Brand Products ──
 
-        Map<String, List<String>> tasksByTplName = new Map<String, List<String>>();
-        Map<Id, String> versionToName = new Map<Id, String>();
-        for (ActionPlanTemplateVersion tv : [
-            SELECT Id, Name FROM ActionPlanTemplateVersion WHERE Name IN :localNames
-        ]) {
-            versionToName.put(tv.Id, tv.Name.trim());
-        }
-        for (ActionPlanTemplateItem item : [
-            SELECT Name, ActionPlanTemplateVersionId FROM ActionPlanTemplateItem
-            WHERE ActionPlanTemplateVersionId IN :versionToName.keySet() ORDER BY Name
-        ]) {
-            String tplName = versionToName.get(item.ActionPlanTemplateVersionId);
-            if (!tasksByTplName.containsKey(tplName)) tasksByTplName.put(tplName, new List<String>());
-            tasksByTplName.get(tplName).add(item.Name);
-        }
+    private static Map<String, List<Id>> loadBrandsByCountry(
+            List<String> details, List<String> errors) {
 
-        for (String langKey : DemoAccountPlanLocale.KAM_TEMPLATES_BY_LANG.keySet()) {
-            List<String> langTplNames = DemoAccountPlanLocale.KAM_TEMPLATES_BY_LANG.get(langKey);
-            List<String> countryCodes = DemoAccountPlanLocale.getCountriesForLang(langKey);
-            for (String cc : countryCodes) {
-                for (Integer i = 0; i < KAM_TEMPLATES.size(); i++) {
-                    String key = cc + '|' + KAM_TEMPLATES[i];
-                    List<String> tasks = tasksByTplName.get(langTplNames[i]);
-                    if (tasks != null) {
-                        result.put(key, tasks);
+        Map<String, List<Id>> countryToBrandIds = new Map<String, List<Id>>();
+
+        List<SObject> brands = Database.query(
+            'SELECT Id, Name FROM LifeSciMarketableProduct ' +
+            'WHERE Type = \'Brand\' AND IsActive = true ORDER BY Name');
+
+        for (SObject brand : brands) {
+            String name = (String) brand.get('Name');
+            for (String baseName : BRAND_NAMES) {
+                String countryPattern = baseName + ' (';
+                if (name.startsWith(countryPattern) && name.endsWith(')')) {
+                    String cc = name.substring(countryPattern.length(), name.length() - 1);
+                    if (!countryToBrandIds.containsKey(cc)) {
+                        countryToBrandIds.put(cc, new List<Id>());
                     }
+                    countryToBrandIds.get(cc).add(brand.Id);
                 }
             }
         }
-        return result;
+
+        Integer totalBrands = 0;
+        for (List<Id> ids : countryToBrandIds.values()) {
+            totalBrands += ids.size();
+        }
+        details.add('SUCCESS:Found ' + totalBrands + ' country brand products across ' +
+            countryToBrandIds.size() + ' countries');
+        return countryToBrandIds;
     }
 
-    private static Map<Id, Id> createAccountPlans(Map<Id, TerritoryInfo> terrInfoMap,
-            Map<Id, AccountInfo> accountInfoMap,
-            Date startDate, Date endDate, List<String> details, List<String> errors) {
+    // ── TimePeriod ──
 
+    private static Id ensureTimePeriod(Date startDate, Date endDate, List<String> details) {
+        String tpName = Date.today().year() + ' Activity Plan (' + DEMO_TAG + ')';
+        Datetime startDt = Datetime.newInstance(startDate, Time.newInstance(0, 0, 0, 0));
+        Datetime endDt = Datetime.newInstance(endDate, Time.newInstance(23, 59, 59, 0));
+
+        List<SObject> existing = Database.query(
+            'SELECT Id FROM TimePeriod WHERE Name = \'' + String.escapeSingleQuotes(tpName) + '\' LIMIT 1');
+        if (!existing.isEmpty()) {
+            details.add('SUCCESS:Reusing existing TimePeriod: ' + tpName);
+            return existing[0].Id;
+        }
+
+        Schema.SObjectType tpType = Schema.getGlobalDescribe().get('TimePeriod');
+        SObject tp = tpType.newSObject();
+        tp.put('Name', tpName);
+        tp.put('StartDate', startDt);
+        tp.put('EndDate', endDt);
+        insert tp;
+        details.add('SUCCESS:Created TimePeriod: ' + tpName + ' (Jan 1 – Dec 31 ' + Date.today().year() + ')');
+        return tp.Id;
+    }
+
+    // ── ActivityPlan + ActivityPlanTerritory ──
+
+    private static Map<Id, Id> createActivityPlans(Map<Id, TerritoryInfo> terrInfoMap,
+            Id timePeriodId, List<String> details, List<String> errors) {
+
+        Schema.SObjectType apType = Schema.getGlobalDescribe().get('ActivityPlan');
         List<SObject> plans = new List<SObject>();
-        List<Id> planAcctIds = new List<Id>();
+        List<Id> planTerrIds = new List<Id>();
 
         for (TerritoryInfo ti : terrInfoMap.values()) {
-            Map<String, Integer> typeCounters = new Map<String, Integer>();
-            Integer hcpCount = 0;
-            Integer hcoCount = 0;
-            for (Id acctId : ti.accountIds) {
-                AccountInfo ai = accountInfoMap.get(acctId);
-                if (ai == null) continue;
-                if (ai.isPersonAccount) {
-                    if (hcpCount >= 1) continue;
-                    hcpCount++;
-                } else {
-                    if (hcoCount >= 2) continue;
-                    hcoCount++;
-                }
-
-                String baseType = DemoAccountPlanData.getBaseType(ai.mapKey);
-                List<String> archetypes = DemoAccountPlanLocale.getArchetypes(ai.countryCode, baseType);
-                if (archetypes == null || archetypes.isEmpty()) continue;
-
-                Integer counter = typeCounters.containsKey(baseType) ? typeCounters.get(baseType) : 0;
-                Integer archIdx = Math.mod(counter, archetypes.size());
-                typeCounters.put(baseType, counter + 1);
-                ai.archetypeIndex = archIdx;
-
-                String planName = DemoAccountPlanLocale.formatArchetype(archetypes[archIdx], ai.name);
-
-                SObject plan = ACCOUNT_PLAN_TYPE.newSObject();
-                plan.put('Name', planName.left(255));
-                plan.put('AccountId', acctId);
-                plan.put('OwnerId', ti.ownerId);
-                plan.put('StartDate', startDate);
-                plan.put('EndDate', endDate);
-                plan.put('Status', 'Active');
-                plan.put('SourceSystemName', DEMO_TAG);
-                plans.add(plan);
-                planAcctIds.add(acctId);
-            }
+            SObject ap = apType.newSObject();
+            ap.put('Name', ti.territoryName + ' ' + Date.today().year());
+            ap.put('TimePeriodId', timePeriodId);
+            ap.put('Type', 'AccountGoal');
+            ap.put('UsageType', 'ProviderPlanCycle');
+            ap.put('Status', 'InProgress');
+            ap.put('IsActive', false);
+            ap.put('OwnerId', ti.ownerId);
+            ap.put('TerritoryList', (String) ti.territoryId);
+            ap.put('ActivityChgRvwThresholdPct', 50);
+            ap.put('TotalActvtyChgThresholdPct', 50);
+            ap.put('TotalAcctChgThresholdPct', 50);
+            ap.put('SourceSystemName', DEMO_TAG);
+            plans.add(ap);
+            planTerrIds.add(ti.territoryId);
         }
 
-        Map<Id, Id> acctToAccountPlan = new Map<Id, Id>();
+        Map<Id, Id> terrToActivityPlan = new Map<Id, Id>();
         Database.SaveResult[] results = Database.insert(plans, false);
         Integer created = 0;
         for (Integer i = 0; i < results.size(); i++) {
             if (results[i].isSuccess()) {
-                acctToAccountPlan.put(planAcctIds[i], results[i].getId());
+                terrToActivityPlan.put(planTerrIds[i], results[i].getId());
                 created++;
             } else if (errors.size() < 20) {
-                errors.add('AccountPlan: ' + results[i].getErrors()[0].getMessage());
+                errors.add('ActivityPlan: ' + results[i].getErrors()[0].getMessage());
             }
         }
-        details.add('SUCCESS:Created ' + created + ' account plans');
-        return acctToAccountPlan;
+        details.add('SUCCESS:Created ' + created + ' activity plans');
+
+        Schema.SObjectType aptType = Schema.getGlobalDescribe().get('ActivityPlanTerritory');
+        List<SObject> apts = new List<SObject>();
+        for (Id terrId : terrToActivityPlan.keySet()) {
+            SObject apt = aptType.newSObject();
+            apt.put('ActivityPlanId', terrToActivityPlan.get(terrId));
+            apt.put('TerritoryId', terrId);
+            apts.add(apt);
+        }
+        if (!apts.isEmpty()) {
+            Database.SaveResult[] aptResults = Database.insert(apts, false);
+            Integer aptCreated = 0;
+            for (Database.SaveResult sr : aptResults) {
+                if (sr.isSuccess()) aptCreated++;
+            }
+            details.add('SUCCESS:Created ' + aptCreated + ' activity plan territory links');
+        }
+
+        return terrToActivityPlan;
     }
 
-    private static Integer createObjectives(Map<Id, Id> acctToAccountPlan,
-            Map<Id, AccountInfo> accountInfoMap,
-            Date startDate, Date endDate, List<String> details, List<String> errors) {
+    // ── ProviderActivityGoal ──
 
-        List<SObject> objectives = new List<SObject>();
+    private static Map<Id, List<Id>> createProviderActivityGoals(
+            Map<Id, TerritoryInfo> terrInfoMap,
+            Map<Id, Id> terrToActivityPlan,
+            Boolean hasProducts,
+            List<String> details, List<String> errors) {
 
-        for (Id acctId : acctToAccountPlan.keySet()) {
-            Id planId = acctToAccountPlan.get(acctId);
-            AccountInfo ai = accountInfoMap.get(acctId);
-            if (ai == null) continue;
+        Schema.SObjectType pagType = Schema.getGlobalDescribe().get('ProviderActivityGoal');
+        List<SObject> goals = new List<SObject>();
+        List<Id> goalTerrIds = new List<Id>();
 
-            String baseType = DemoAccountPlanData.getBaseType(ai.mapKey);
-            String objKey = baseType + '_' + (ai.archetypeIndex != null ? ai.archetypeIndex : 0);
-            List<String> objNames = DemoAccountPlanLocale.getObjectives(ai.countryCode, objKey);
-            if (objNames == null || objNames.isEmpty()) continue;
+        List<Integer> goalValues = new List<Integer>{ 60, 40, 30, 20, 15, 10, 10, 8 };
 
-            for (String objName : objNames) {
-                SObject obj = OBJECTIVE_TYPE.newSObject();
-                obj.put('Name', objName.left(255));
-                obj.put('AccountPlanId', planId);
-                obj.put('Description', objName);
-                obj.put('StartDate', startDate);
-                obj.put('EndDate', endDate);
-                obj.put('SourceSystemName', DEMO_TAG);
-                objectives.add(obj);
+        for (Id terrId : terrToActivityPlan.keySet()) {
+            TerritoryInfo ti = terrInfoMap.get(terrId);
+            Id activityPlanId = terrToActivityPlan.get(terrId);
+            if (ti == null || activityPlanId == null) continue;
+
+            for (Integer i = 0; i < ti.hcpAccountIds.size(); i++) {
+                Integer goalVal = i < goalValues.size() ? goalValues[i] : 8;
+                Integer nonProdGoal = hasProducts ? (Integer) Math.round(goalVal * 0.6) : goalVal;
+                Integer prodGoal = hasProducts ? goalVal - nonProdGoal : 0;
+
+                SObject pag = pagType.newSObject();
+                pag.put('ActivityPlanId', activityPlanId);
+                pag.put('AccountId', ti.hcpAccountIds[i]);
+                pag.put('OverallGoal', goalVal);
+                pag.put('NonProductGoal', nonProdGoal);
+                pag.put('ProductLevelGoal', prodGoal);
+                pag.put('SourceSystemName', DEMO_TAG);
+                goals.add(pag);
+                goalTerrIds.add(terrId);
             }
         }
 
-        Database.SaveResult[] results = Database.insert(objectives, false);
+        Map<Id, List<Id>> terrToGoalIds = new Map<Id, List<Id>>();
+        Database.SaveResult[] results = Database.insert(goals, false);
         Integer created = 0;
         for (Integer i = 0; i < results.size(); i++) {
             if (results[i].isSuccess()) {
+                Id terrId = goalTerrIds[i];
+                if (!terrToGoalIds.containsKey(terrId)) {
+                    terrToGoalIds.put(terrId, new List<Id>());
+                }
+                terrToGoalIds.get(terrId).add(results[i].getId());
                 created++;
             } else if (errors.size() < 20) {
-                errors.add('Objective: ' + results[i].getErrors()[0].getMessage());
+                errors.add('ProviderActivityGoal: ' + results[i].getErrors()[0].getMessage());
             }
         }
-        details.add('SUCCESS:Created ' + created + ' objectives');
+        details.add('SUCCESS:Created ' + created + ' provider activity goals');
+        return terrToGoalIds;
+    }
+
+    // ── Visit-level GoalMeasures ──
+
+    private static Integer createGoalMeasures(
+            Map<Id, List<Id>> terrToGoalIds,
+            List<SObject> measureTypes,
+            Boolean isProduct,
+            List<String> details, List<String> errors) {
+
+        Schema.SObjectType pagmType = Schema.getGlobalDescribe().get('ProviderActivityGoalMeasure');
+        if (pagmType == null) {
+            errors.add('ProviderActivityGoalMeasure object not found in schema');
+            return 0;
+        }
+
+        Set<Id> allGoalIds = new Set<Id>();
+        for (List<Id> ids : terrToGoalIds.values()) {
+            allGoalIds.addAll(ids);
+        }
+        String goalField = isProduct ? 'ProductLevelGoal' : 'NonProductGoal';
+        Map<Id, Decimal> goalMap = new Map<Id, Decimal>();
+        for (SObject pag : Database.query(
+            'SELECT Id, ' + goalField + ' FROM ProviderActivityGoal WHERE Id IN :allGoalIds'
+        )) {
+            goalMap.put(pag.Id, (Decimal) pag.get(goalField));
+        }
+
+        List<Decimal> splits;
+        if (measureTypes.size() == 3) {
+            splits = new List<Decimal>{ 0.45, 0.35, 0.20 };
+        } else if (measureTypes.size() == 2) {
+            splits = new List<Decimal>{ 0.60, 0.40 };
+        } else {
+            splits = new List<Decimal>();
+            for (Integer i = 0; i < measureTypes.size(); i++) {
+                splits.add(1.0 / measureTypes.size());
+            }
+        }
+
+        List<SObject> measures = new List<SObject>();
+        for (List<Id> goalIds : terrToGoalIds.values()) {
+            for (Id goalId : goalIds) {
+                Decimal goalVal = goalMap.get(goalId);
+                if (goalVal == null) goalVal = 0;
+
+                for (Integer m = 0; m < measureTypes.size(); m++) {
+                    Integer measureGoal = (Integer) Math.round(goalVal * splits[m]);
+
+                    SObject pagm = pagmType.newSObject();
+                    pagm.put('ProviderActivityGoalId', goalId);
+                    pagm.put('ProviderActivityMeasureTypeId', measureTypes[m].Id);
+                    pagm.put('OverallGoal', measureGoal);
+                    pagm.put('Type', 'Goal');
+                    pagm.put('SourceSystemName', DEMO_TAG);
+                    measures.add(pagm);
+                }
+            }
+        }
+
+        Database.SaveResult[] results = Database.insert(measures, false);
+        Integer created = 0;
+        for (Database.SaveResult sr : results) {
+            if (sr.isSuccess()) {
+                created++;
+            } else if (errors.size() < 20) {
+                errors.add('GoalMeasure: ' + sr.getErrors()[0].getMessage());
+            }
+        }
+        String label = isProduct ? 'product' : 'visit';
+        details.add('SUCCESS:Created ' + created + ' ' + label + ' goal measures');
         return created;
     }
 
+    // ── Product-level GoalMeasures ──
+
+    private static Integer createProductGoalMeasures(
+            Map<Id, TerritoryInfo> terrInfoMap,
+            Map<Id, List<Id>> terrToGoalIds,
+            List<SObject> productMeasureTypes,
+            Map<String, List<Id>> countryToBrandIds,
+            List<String> details, List<String> errors) {
+
+        Schema.SObjectType pagmType = Schema.getGlobalDescribe().get('ProviderActivityGoalMeasure');
+        if (pagmType == null) {
+            errors.add('ProviderActivityGoalMeasure object not found in schema');
+            return 0;
+        }
+
+        Set<Id> allGoalIds = new Set<Id>();
+        for (List<Id> ids : terrToGoalIds.values()) {
+            allGoalIds.addAll(ids);
+        }
+        Map<Id, Decimal> goalProdMap = new Map<Id, Decimal>();
+        for (SObject pag : Database.query(
+            'SELECT Id, ProductLevelGoal FROM ProviderActivityGoal WHERE Id IN :allGoalIds'
+        )) {
+            goalProdMap.put(pag.Id, (Decimal) pag.get('ProductLevelGoal'));
+        }
+
+        List<Decimal> splits;
+        if (productMeasureTypes.size() == 3) {
+            splits = new List<Decimal>{ 0.45, 0.35, 0.20 };
+        } else if (productMeasureTypes.size() == 2) {
+            splits = new List<Decimal>{ 0.60, 0.40 };
+        } else {
+            splits = new List<Decimal>();
+            for (Integer i = 0; i < productMeasureTypes.size(); i++) {
+                splits.add(1.0 / productMeasureTypes.size());
+            }
+        }
+
+        List<SObject> measures = new List<SObject>();
+        for (Id terrId : terrToGoalIds.keySet()) {
+            TerritoryInfo ti = terrInfoMap.get(terrId);
+            if (ti == null || ti.countryCode == null) continue;
+
+            List<Id> brandIds = countryToBrandIds.get(ti.countryCode);
+            if (brandIds == null || brandIds.isEmpty()) continue;
+
+            String productListValue = ';' + String.join(brandIds, ';') + ';';
+
+            for (Id goalId : terrToGoalIds.get(terrId)) {
+                Decimal prodGoal = goalProdMap.get(goalId);
+                if (prodGoal == null || prodGoal == 0) continue;
+
+                for (Integer m = 0; m < productMeasureTypes.size(); m++) {
+                    Integer measureGoal = (Integer) Math.round(prodGoal * splits[m]);
+
+                    SObject pagm = pagmType.newSObject();
+                    pagm.put('ProviderActivityGoalId', goalId);
+                    pagm.put('ProviderActivityMeasureTypeId', productMeasureTypes[m].Id);
+                    pagm.put('OverallGoal', measureGoal);
+                    pagm.put('ProductList', productListValue);
+                    pagm.put('Type', 'Goal');
+                    pagm.put('SourceSystemName', DEMO_TAG);
+                    measures.add(pagm);
+                }
+            }
+        }
+
+        Database.SaveResult[] results = Database.insert(measures, false);
+        Integer created = 0;
+        for (Database.SaveResult sr : results) {
+            if (sr.isSuccess()) {
+                created++;
+            } else if (errors.size() < 20) {
+                errors.add('ProductGoalMeasure: ' + sr.getErrors()[0].getMessage());
+            }
+        }
+        details.add('SUCCESS:Created ' + created + ' product goal measures across ' +
+            countryToBrandIds.size() + ' countries');
+        return created;
+    }
+
+    // ── Activate ──
+
+    private static void activateActivityPlans(Map<Id, Id> terrToActivityPlan,
+            List<String> details, List<String> errors) {
+
+        Schema.SObjectType apType = Schema.getGlobalDescribe().get('ActivityPlan');
+        List<SObject> toUpdate = new List<SObject>();
+        for (Id apId : terrToActivityPlan.values()) {
+            SObject upd = apType.newSObject(apId);
+            upd.put('IsActive', true);
+            upd.put('Status', 'Submitted');
+            toUpdate.add(upd);
+        }
+        Database.SaveResult[] results = Database.update(toUpdate, false);
+        Integer activated = 0;
+        for (Database.SaveResult sr : results) {
+            if (sr.isSuccess()) {
+                activated++;
+            } else if (errors.size() < 20) {
+                errors.add('Activate: ' + sr.getErrors()[0].getMessage());
+            }
+        }
+        details.add('SUCCESS:Activated ' + activated + ' activity plans (Status=Submitted)');
+    }
+
+    // ── Helpers ──
+
+    private static String buildMeasureTypeLabels(List<SObject> types) {
+        List<String> labels = new List<String>();
+        for (SObject t : types) {
+            labels.add((String) t.get('MasterLabel'));
+        }
+        return String.join(labels, ', ');
+    }
+
+    private static Integer countGoals(Map<Id, List<Id>> terrToGoalIds) {
+        Integer count = 0;
+        for (List<Id> ids : terrToGoalIds.values()) {
+            count += ids.size();
+        }
+        return count;
+    }
 }

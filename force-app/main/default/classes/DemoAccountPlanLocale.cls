@@ -298,7 +298,7 @@ public class DemoAccountPlanLocale {
         if (lang != null && KAM_TEMPLATES_BY_LANG.containsKey(lang)) {
             return KAM_TEMPLATES_BY_LANG.get(lang);
         }
-        return DemoActivityPlanController.KAM_TEMPLATES;
+        return DemoAccountPlanController.KAM_TEMPLATES;
     }
 
     public static String formatArchetype(String archetype, String accountName) {

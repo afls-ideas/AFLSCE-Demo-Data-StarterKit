@@ -1,12 +1,11 @@
 import { LightningElement, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
-import getStatus from '@salesforce/apex/DemoAccountPlanController.getStatus';
-import createAccountPlansAndActions from '@salesforce/apex/DemoAccountPlanController.createAccountPlansAndActions';
-import deleteAccountPlansAndActions from '@salesforce/apex/DemoAccountPlanController.deleteAccountPlansAndActions';
-import getBatchProgress from '@salesforce/apex/DemoAccountPlanController.getBatchProgress';
+import getStatus from '@salesforce/apex/DemoActivityPlanController.getStatus';
+import createProviderActivityPlans from '@salesforce/apex/DemoActivityPlanController.createProviderActivityPlans';
+import deleteProviderActivityPlans from '@salesforce/apex/DemoActivityPlanController.deleteProviderActivityPlans';
 
-export default class ActivityPlanSetup extends LightningElement {
+export default class ProviderActivityPlanSetup extends LightningElement {
     statusData;
     statusError;
     isLoading = false;
@@ -14,8 +13,6 @@ export default class ActivityPlanSetup extends LightningElement {
     isSuccess = false;
     wiredStatusResult;
     activityLog = [];
-    _pollTimer;
-    batchProgress;
 
     @wire(getStatus)
     wiredStatus(result) {
@@ -50,6 +47,8 @@ export default class ActivityPlanSetup extends LightningElement {
                 entries.push({ id: entries.length, message: item.substring(8), isSuccess: true });
             } else if (item.startsWith('ERROR:')) {
                 entries.push({ id: entries.length, message: item.substring(6), isError: true });
+            } else if (item.startsWith('WARNING:')) {
+                entries.push({ id: entries.length, message: item.substring(8), isWarning: true });
             } else {
                 entries.push({ id: entries.length, message: item, isDetail: true });
             }
@@ -61,59 +60,12 @@ export default class ActivityPlanSetup extends LightningElement {
         await refreshApex(this.wiredStatusResult);
     }
 
-    disconnectedCallback() {
-        this._stopPolling();
-    }
-
-    _stopPolling() {
-        if (this._pollTimer) {
-            clearInterval(this._pollTimer);
-            this._pollTimer = undefined;
-        }
-    }
-
-    _startPolling() {
-        this._stopPolling();
-        this.batchProgress = 'Batch queued — waiting for first update...';
-        this._pollTimer = setInterval(() => this._pollBatch(), 8000);
-    }
-
-    async _pollBatch() {
-        try {
-            const raw = await getBatchProgress();
-            if (raw === 'DONE') {
-                this._stopPolling();
-                this.batchProgress = undefined;
-                this.isLoading = false;
-                this.isSuccess = true;
-                this.resultMessage = 'Batch complete — all action plans created.';
-                this.activityLog = [
-                    ...this.activityLog,
-                    { id: this.activityLog.length, message: 'Batch finished', isSuccess: true }
-                ];
-                await refreshApex(this.wiredStatusResult);
-                return;
-            }
-            const parts = raw.split('|');
-            const status = parts[0];
-            const processed = parts[1];
-            const total = parts[2];
-            const apCount = parts[3];
-            const taskCount = parts[4];
-            this.batchProgress = `${status}: ${processed}/${total} batches — ${apCount} action plans, ${taskCount} assessment tasks created`;
-            await refreshApex(this.wiredStatusResult);
-        } catch (err) {
-            // keep polling
-        }
-    }
-
     async handleCreate() {
         this.isLoading = true;
         this.resultMessage = undefined;
         this.activityLog = [];
-        this.batchProgress = undefined;
         try {
-            const raw = await createAccountPlansAndActions();
+            const raw = await createProviderActivityPlans();
             let result;
             try {
                 result = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -134,15 +86,8 @@ export default class ActivityPlanSetup extends LightningElement {
             }
             this.isSuccess = !result.errors || result.errors.length === 0;
             this.resultMessage = result.summary || '';
-
-            if (this.isSuccess) {
-                this._startPolling();
-            } else {
-                this.isLoading = false;
-            }
         } catch (error) {
             this.isSuccess = false;
-            this.isLoading = false;
             this.resultMessage = error.body ? error.body.message : 'An error occurred.';
             this.dispatchEvent(
                 new ShowToastEvent({
@@ -151,6 +96,9 @@ export default class ActivityPlanSetup extends LightningElement {
                     variant: 'error'
                 })
             );
+        } finally {
+            this.isLoading = false;
+            await refreshApex(this.wiredStatusResult);
         }
     }
 
@@ -159,7 +107,7 @@ export default class ActivityPlanSetup extends LightningElement {
         this.resultMessage = undefined;
         this.activityLog = [];
         try {
-            const result = await deleteAccountPlansAndActions();
+            const result = await deleteProviderActivityPlans();
             this.isSuccess = true;
             this.resultMessage = result;
             this.activityLog = [
@@ -169,7 +117,7 @@ export default class ActivityPlanSetup extends LightningElement {
             this.dispatchEvent(
                 new ShowToastEvent({
                     title: 'Success',
-                    message: 'Activity plan records deleted.',
+                    message: 'Provider activity plan records deleted.',
                     variant: 'success'
                 })
             );

@@ -7,35 +7,26 @@ private class DemoActivityPlanControllerTest {
         String status = DemoActivityPlanController.getStatus();
         Test.stopTest();
         System.assertNotEquals(null, status);
+        System.assert(status.contains('Time Periods:'));
+        System.assert(status.contains('Activity Plans:'));
     }
 
     @isTest
     static void testCreateActivityPlans() {
         Test.startTest();
         try {
-            DemoActivityPlanController.createActivityPlans();
-        } catch (Exception e) { }
+            DemoActivityPlanController.createProviderActivityPlans();
+        } catch (Exception e) {
+            // Expected — no demo data in test context
+        }
         Test.stopTest();
     }
 
     @isTest
     static void testDeleteActivityPlans() {
         Test.startTest();
-        String result = DemoActivityPlanController.deleteActivityPlans();
+        String result = DemoActivityPlanController.deleteProviderActivityPlans();
         Test.stopTest();
-        System.assertNotEquals(null, result);
-    }
-
-    @isTest
-    static void testActionPlanBatch() {
-        Test.startTest();
-        try {
-            Map<String, Id> emptyMap = new Map<String, Id>();
-            Map<String, String> emptyNameMap = new Map<String, String>();
-            Map<String, List<String>> emptyTaskMap = new Map<String, List<String>>();
-            DemoActionPlanBatch batch = new DemoActionPlanBatch(emptyMap, Date.today(), emptyNameMap, emptyTaskMap);
-            Database.executeBatch(batch, 10);
-        } catch (Exception e) { }
-        Test.stopTest();
+        System.assert(result.contains('Deleted'));
     }
 }
