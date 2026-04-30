@@ -122,7 +122,7 @@ public with sharing class DemoAccountProviderController {
                 // 6. Affiliations: doctor PersonAccount -> organization
                 // Delegated to separate class due to Schema visibility issue
                 try {
-                    afflSuccess = DemoAffiliationHelper.createAffiliations(doctorNameToId, orgNameToId);
+                    afflSuccess = DemoAffiliationHelper.createAffiliations(doctorNameToId, orgNameToId, buildCityTerritoryMap());
                 } catch (Exception afflEx) {
                     errors.add('Affiliations: ' + afflEx.getMessage());
                 }
