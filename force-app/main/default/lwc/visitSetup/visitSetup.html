@@ -73,6 +73,18 @@
                 </lightning-combobox>
             </div>
 
+            <!-- Channel Picker -->
+            <div class="slds-m-bottom_medium">
+                <lightning-radio-group
+                    name="channel"
+                    label="Primary Channel (90% of visits)"
+                    options={channelOptions}
+                    value={selectedChannel}
+                    onchange={handleChannelChange}
+                    type="button">
+                </lightning-radio-group>
+            </div>
+
             <!-- Action Buttons -->
             <div class="slds-m-bottom_medium">
                 <lightning-button

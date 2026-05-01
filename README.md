@@ -34,14 +34,14 @@ sf project deploy start --source-dir force-app --target-org YOUR_ORG_ALIAS
 
 ### Tab 2: Accounts & Healthcare Providers
 
-**Accounts (110+ HCOs)**
+**Accounts (180+ HCOs)**
 - Real hospitals, clinics, payers, and pharmacies across US, GB, FR, DE, IT, ES, JP, KR, BR, MX, AR
-- 10 HCOs per country with culturally appropriate names and addresses
+- Major city in each country has 6-8 HCOs; secondary cities have 2-3 each
 - Uses Health_Care_Organization record type for orgs, Health_Care_Provider (PersonAccount) for doctors
 - Full billing addresses with country-specific formatting and state/country picklist codes
 
-**Healthcare Providers (110+ HCPs)**
-- 10 HCPs per country with culturally appropriate names
+**Healthcare Providers (380+ HCPs)**
+- 20 HCPs in the major city of each country (SF, London, Paris, Berlin, Rome, Madrid, Tokyo, Seoul, São Paulo, Mexico City, Buenos Aires); 4-5 in secondary cities
 - HealthcareProviderNpi records with unique 10-digit NPIs (US providers only)
 - HealthcareProviderSpecialty records (Oncology, Cardiology, Neurology, etc.)
 - CareSpecialty reference records
@@ -129,6 +129,28 @@ Requires 48 KAM Action Plan Templates (6 English + 6 per language for FR, DE, IT
 
 See [README-AccountActionPlans.md](README-AccountActionPlans.md) for full details on templates, permissions, mobile sync (DB Schema), and troubleshooting.
 
+### Tab 9: Provider Activity Plans
+
+Creates the activity plan structure for tracking visit goals per territory:
+
+- **TimePeriod** — current calendar year
+- **ActivityPlan** — one per leaf territory, tagged with `SourceSystemName = 'AFLSCE-Demo-Data'`
+- **ActivityPlanTerritory** — links activity plan to territory
+- **ProviderActivityGoal** — one per HCP in the territory, with realistic goals (50 down to 10 visits/year)
+- **ProviderActivityGoalMeasure** — visit-level measures (90/5/5 channel split) and product-level measures per country brand
+
+### Tab 10: Visits
+
+Creates completed Visit records for a selected territory with a UI-selectable primary channel:
+
+- **Channel picker** — radio button group showing all active `Visit.Channel` picklist values, auto-defaults to "In-Person". 90% of visits use the primary channel; remaining 10% split evenly across other channels
+- **Visit** — spread across weekdays from Jan 1 to today, 600 yearly total prorated to current date. Status=Completed, with timezone-aware scheduling (8am–4pm local)
+- **ProviderVisit** — one per visit, with `VisitSubmitDateTime` set for activity plan progress tracking
+- **ProviderVisitProdDetailing** — one per brand per visit (Immunexis + Immunonco for territory's country)
+- **Batched delete** — unlocks completed/submitted visits, deletes children first, loops in batches with error reporting
+
+> **Before deleting visits:** Disable `VisitLockHandler` and `RemoteSessionInvitationVisitHandler` trigger handlers in Admin Console → Trigger Settings, then re-enable after.
+
 ## Tagging & Cleanup
 
 All created records are tagged for safe cleanup:
@@ -198,7 +220,7 @@ force-app/main/default/
 │   ├── scenarioBuilder         Therapy-area scenario layering
 │   ├── activityPlanSetup       Account & Action Plans creation UI
 │   ├── providerActivityPlanSetup  Provider Activity Plans & Goals
-│   └── visitSetup              Visit creation with territory picker & batched delete
+│   └── visitSetup              Visit creation with channel picker, territory selector & batched delete
 ├── flexipages/           Lightning Record Pages
 │   ├── Action_Plan_Record_Page              ActionPlan record page
 │   └── Action_Plan_Template_Record_Page     ActionPlanTemplate record page

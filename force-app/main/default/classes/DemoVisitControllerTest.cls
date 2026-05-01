@@ -21,10 +21,10 @@ private class DemoVisitControllerTest {
     @isTest
     static void testDeleteVisits() {
         Test.startTest();
-        String result = DemoVisitController.deleteVisits();
+        Map<String, Object> result = DemoVisitController.deleteVisitBatch();
         Test.stopTest();
         System.assertNotEquals(null, result);
-        System.assert(result.contains('Deleted'));
+        System.assert(result.containsKey('remaining'));
     }
 
     @isTest

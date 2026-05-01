@@ -3,6 +3,7 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
 import getStatus from '@salesforce/apex/DemoVisitController.getStatus';
 import getTerritories from '@salesforce/apex/DemoVisitController.getTerritories';
+import getChannelOptions from '@salesforce/apex/DemoVisitController.getChannelOptions';
 import createVisits from '@salesforce/apex/DemoVisitController.createVisits';
 import deleteVisitBatch from '@salesforce/apex/DemoVisitController.deleteVisitBatch';
 
@@ -16,6 +17,8 @@ export default class VisitSetup extends LightningElement {
     activityLog = [];
     territoryOptions = [];
     selectedTerritoryId;
+    channelOptions = [];
+    selectedChannel;
 
     @wire(getStatus)
     wiredStatus(result) {
@@ -36,6 +39,24 @@ export default class VisitSetup extends LightningElement {
         } else if (error) {
             this.territoryOptions = [];
         }
+    }
+
+    @wire(getChannelOptions)
+    wiredChannels({ data, error }) {
+        if (data) {
+            this.channelOptions = data;
+            if (!this.selectedChannel) {
+                const faceMatch = data.find(o =>
+                    o.value.toLowerCase().includes('person') || o.value.toLowerCase().includes('face'));
+                this.selectedChannel = faceMatch ? faceMatch.value : (data.length > 0 ? data[0].value : null);
+            }
+        } else if (error) {
+            this.channelOptions = [];
+        }
+    }
+
+    handleChannelChange(event) {
+        this.selectedChannel = event.detail.value;
     }
 
     get hasTerritorySelected() {
@@ -91,7 +112,7 @@ export default class VisitSetup extends LightningElement {
         this.resultMessage = undefined;
         this.activityLog = [];
         try {
-            const raw = await createVisits({ territoryId: this.selectedTerritoryId });
+            const raw = await createVisits({ territoryId: this.selectedTerritoryId, primaryChannel: this.selectedChannel });
             let result;
             try {
                 result = typeof raw === 'string' ? JSON.parse(raw) : raw;

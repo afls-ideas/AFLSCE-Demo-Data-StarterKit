@@ -40,6 +40,21 @@ public without sharing class DemoVisitController {
     }
 
     @AuraEnabled(cacheable=true)
+    public static List<Map<String, String>> getChannelOptions() {
+        List<Map<String, String>> options = new List<Map<String, String>>();
+        Schema.DescribeFieldResult dfr = Visit.Channel.getDescribe();
+        for (Schema.PicklistEntry pe : dfr.getPicklistValues()) {
+            if (pe.isActive()) {
+                options.add(new Map<String, String>{
+                    'value' => pe.getValue(),
+                    'label' => pe.getLabel()
+                });
+            }
+        }
+        return options;
+    }
+
+    @AuraEnabled(cacheable=true)
     public static List<Map<String, String>> getTerritories() {
         try {
             Set<Id> leafIds = getLeafTerritoryIds();
@@ -83,7 +98,7 @@ public without sharing class DemoVisitController {
     }
 
     @AuraEnabled
-    public static String createVisits(String territoryId) {
+    public static String createVisits(String territoryId, String primaryChannel) {
         List<String> details = new List<String>();
         List<String> errors = new List<String>();
 
@@ -145,8 +160,9 @@ public without sharing class DemoVisitController {
                 throw new AuraHandledException('No HCPs with active ContactPointAddress in territory');
             }
 
-            details.add('HEADER:Step 3 — Loading channel targets from activity plan goals');
-            List<ChannelTarget> channelTargets = loadChannelTargets(territoryId, details);
+            details.add('HEADER:Step 3 — Building channel targets');
+            if (String.isBlank(primaryChannel)) primaryChannel = 'In-Person';
+            List<ChannelTarget> channelTargets = buildChannelTargets(primaryChannel, details);
 
             details.add('HEADER:Step 4 — Loading brand products for ' + countryCode);
             Map<String, List<Id>> countryToBrandIds = loadBrandsByCountry();
@@ -308,7 +324,7 @@ public without sharing class DemoVisitController {
         }
     }
 
-    private static List<ChannelTarget> loadChannelTargets(String territoryId, List<String> details) {
+    private static List<ChannelTarget> buildChannelTargets(String primaryChannel, List<String> details) {
         List<ChannelTarget> targets = new List<ChannelTarget>();
 
         Date jan1 = Date.newInstance(Date.today().year(), 1, 1);
@@ -317,59 +333,28 @@ public without sharing class DemoVisitController {
         Integer daysElapsed = jan1.daysBetween(Date.today());
         Decimal fraction = (Decimal) daysElapsed / daysInYear;
 
-        Map<Id, String> typeToChannel = new Map<Id, String>();
-        try {
-            List<SObject> types = Database.query(
-                'SELECT Id, ActivityTypeFieldValue FROM ProviderActivityMeasureType ' +
-                'WHERE IsActive = true AND ActivityObject = \'Visit\' ' +
-                'AND ActivityProductField = null ORDER BY DisplayOrder');
-            for (SObject t : types) {
-                typeToChannel.put(t.Id, (String) t.get('ActivityTypeFieldValue'));
+        Integer yearlyTotal = 600;
+        Integer primaryYearly = (Integer) Math.round(yearlyTotal * 0.90);
+        Integer primaryProrated = (Integer) Math.round(primaryYearly * fraction);
+        targets.add(new ChannelTarget(primaryChannel, primaryYearly, primaryProrated));
+        details.add('SUCCESS:Primary channel: ' + primaryChannel + ' — ' + primaryYearly + ' yearly (' + primaryProrated + ' prorated)');
+
+        List<String> secondaryChannels = new List<String>();
+        for (Schema.PicklistEntry pe : Visit.Channel.getDescribe().getPicklistValues()) {
+            if (pe.isActive() && pe.getValue() != primaryChannel) {
+                secondaryChannels.add(pe.getValue());
             }
-            details.add('SUCCESS:Found ' + types.size() + ' channel types: ' + String.join(typeToChannel.values(), ', '));
-        } catch (Exception e) {
-            details.add('WARNING:Could not query ProviderActivityMeasureType: ' + e.getMessage());
         }
-
-        if (typeToChannel.isEmpty()) {
-            details.add('WARNING:No measure types found — using default In-Person');
-            targets.add(new ChannelTarget('In-Person', 200, (Integer) Math.round(200 * fraction)));
-            return targets;
-        }
-
-        Set<Id> typeIds = typeToChannel.keySet();
-        Map<Id, Integer> typeToGoal = new Map<Id, Integer>();
-        try {
-            List<AggregateResult> aggs = Database.query(
-                'SELECT ProviderActivityMeasureTypeId, SUM(OverallGoal) totalGoal ' +
-                'FROM ProviderActivityGoalMeasure ' +
-                'WHERE ProviderActivityGoal.ActivityPlan.SourceSystemName = \'AFLSCE-Demo-Data\' ' +
-                'AND ProviderActivityGoal.ActivityPlan.TerritoryList = \'' + String.escapeSingleQuotes(territoryId) + '\' ' +
-                'AND ProviderActivityMeasureTypeId IN :typeIds ' +
-                'GROUP BY ProviderActivityMeasureTypeId');
-            for (AggregateResult ar : aggs) {
-                Id typeId = (Id) ar.get('ProviderActivityMeasureTypeId');
-                Decimal total = (Decimal) ar.get('totalGoal');
-                if (total != null) {
-                    typeToGoal.put(typeId, total.intValue());
+        if (!secondaryChannels.isEmpty()) {
+            Integer remainingYearly = yearlyTotal - primaryYearly;
+            Integer perChannel = (Integer) Math.round((Decimal) remainingYearly / secondaryChannels.size());
+            for (String ch : secondaryChannels) {
+                Integer prorated = (Integer) Math.round(perChannel * fraction);
+                if (prorated > 0) {
+                    targets.add(new ChannelTarget(ch, perChannel, prorated));
                 }
             }
-        } catch (Exception e) {
-            details.add('WARNING:Could not query ProviderActivityGoalMeasure: ' + e.getMessage());
-        }
-
-        for (Id typeId : typeToChannel.keySet()) {
-            String channel = typeToChannel.get(typeId);
-            Integer yearly = typeToGoal.containsKey(typeId) ? typeToGoal.get(typeId) : 0;
-            Integer prorated = (Integer) Math.round(yearly * fraction);
-            if (prorated > 0) {
-                targets.add(new ChannelTarget(channel, yearly, prorated));
-            }
-        }
-
-        if (targets.isEmpty()) {
-            details.add('WARNING:All channel goals are 0 — using default In-Person');
-            targets.add(new ChannelTarget('In-Person', 200, (Integer) Math.round(200 * fraction)));
+            details.add('SUCCESS:Secondary channels (' + secondaryChannels.size() + '): ' + perChannel + ' yearly each');
         }
 
         return targets;
