@@ -1,23 +1,28 @@
 <template>
-    <lightning-card title="Provider Activity Plans" icon-name="standard:goals">
+    <lightning-card title="Visits" icon-name="standard:visit">
         <div class="slds-p-horizontal_medium slds-p-bottom_medium">
             <p class="slds-text-body_regular slds-m-bottom_small">
-                Creates Provider Activity Plans for each territory with HCP visit goals.
-                Each HCP account gets a ProviderActivityGoal with visit count targets,
-                broken down by measure type (In Person, Remote, Phone).
-                Time period is January 1 to December 31 of the current year.
+                Creates completed Visits with ProviderVisit and ProviderVisitProdDetailing records
+                for a selected territory. 3&ndash;6 visits per weekday for the last 30 days at varied times,
+                cycling through the territory's HCP accounts. Each visit includes Immunexis and Immunonco product detailing.
             </p>
 
-            <!-- Objects created by this tab -->
             <div class="slds-box slds-theme_shade slds-m-bottom_medium slds-p-around_small">
                 <p class="slds-text-title_caps slds-m-bottom_x-small">Objects created by this tab</p>
                 <ul class="slds-list_dotted slds-text-body_small">
-                    <li><strong>TimePeriod</strong> &mdash; Jan 1 to Dec 31 of current year</li>
-                    <li><strong>ActivityPlan</strong> &mdash; One per territory, Type=AccountGoal, linked to TimePeriod and territory owner</li>
-                    <li><strong>ActivityPlanTerritory</strong> &mdash; Links each ActivityPlan to its Territory2</li>
-                    <li><strong>ProviderActivityGoal</strong> &mdash; One per HCP account per territory, with overall visit goal targets</li>
-                    <li><strong>ProviderActivityGoalMeasure</strong> &mdash; One per goal per measure type (In Person Visit, Remote Visit, Phone Visit)</li>
+                    <li><strong>Visit</strong> &mdash; 3&ndash;6 per weekday at scattered times, Status=Completed, with PlaceId pointing to HCP's ContactPointAddress</li>
+                    <li><strong>ProviderVisit</strong> &mdash; One per Visit, with VisitSubmitDateTime set to visit end time</li>
+                    <li><strong>ProviderVisitProdDetailing</strong> &mdash; One per brand per visit (Immunexis + Immunonco for territory's country)</li>
                 </ul>
+            </div>
+
+            <!-- Delete Warning -->
+            <div class="slds-box slds-theme_warning slds-m-bottom_medium slds-p-around_small">
+                <p class="slds-text-body_small">
+                    <strong>Before deleting:</strong> Completed visits are locked by the managed package.
+                    You must disable the <strong>VisitLockHandler</strong> trigger handler in
+                    Admin Console &gt; Trigger Settings before clicking Delete. Remember to re-enable it after.
+                </p>
             </div>
 
             <!-- Status Section -->
@@ -53,32 +58,35 @@
                 </template>
             </div>
 
+            <!-- Territory Picker -->
+            <div class="slds-m-bottom_medium">
+                <lightning-combobox
+                    name="territory"
+                    label="Select Territory"
+                    placeholder="Choose a territory..."
+                    options={territoryOptions}
+                    value={selectedTerritoryId}
+                    onchange={handleTerritoryChange}>
+                </lightning-combobox>
+            </div>
+
             <!-- Action Buttons -->
             <div class="slds-m-bottom_medium">
                 <lightning-button
                     variant="brand"
-                    label="Create Provider Activity Plans"
+                    label="Create Visits"
                     icon-name="utility:add"
                     onclick={handleCreate}
                     disabled={isLoading}
-                    class="slds-m-right_small"
-                    aria-label="Create provider activity plans with goals and measures">
+                    class="slds-m-right_small">
                 </lightning-button>
                 <lightning-button
                     variant="destructive"
-                    label="Delete Provider Activity Plans"
+                    label="Delete All Visits"
                     icon-name="utility:delete"
                     onclick={handleDelete}
                     disabled={isLoading}
-                    class="slds-m-right_small"
-                    aria-label="Delete all demo provider activity plan records">
-                </lightning-button>
-                <lightning-button
-                    variant="neutral"
-                    label="Clear Stuck Job Status"
-                    icon-name="utility:refresh"
-                    onclick={handleClearJobStatus}
-                    disabled={isLoading}>
+                    class="slds-m-right_small">
                 </lightning-button>
             </div>
 

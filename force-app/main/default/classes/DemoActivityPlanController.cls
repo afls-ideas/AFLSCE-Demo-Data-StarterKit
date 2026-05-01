@@ -170,6 +170,36 @@ public without sharing class DemoActivityPlanController {
         }
     }
 
+    @AuraEnabled
+    public static String clearActivityPlanJobStatus() {
+        try {
+            List<SObject> records = Database.query(
+                'SELECT Id, Name, TextValue FROM LifeSciMetadataFieldValue WHERE Name IN (\'JobStatus\', \'JobId\')');
+            if (records.isEmpty()) {
+                return 'No JobStatus/JobId records found.';
+            }
+            Integer updated = 0;
+            for (SObject rec : records) {
+                String name = (String) rec.get('Name');
+                String val = (String) rec.get('TextValue');
+                if (name == 'JobStatus' && val != null) {
+                    rec.put('TextValue', null);
+                    updated++;
+                } else if (name == 'JobId' && val != null) {
+                    rec.put('TextValue', null);
+                    updated++;
+                }
+            }
+            if (updated > 0) {
+                Database.update(records, false);
+                return 'Cleared ' + updated + ' record(s) (JobStatus + JobId reset to null).';
+            }
+            return 'No stuck jobs found — JobStatus and JobId are already clear.';
+        } catch (Exception e) {
+            throw new AuraHandledException('Error: ' + e.getMessage());
+        }
+    }
+
     // ── Data gathering ──
 
     private class TerritoryInfo {

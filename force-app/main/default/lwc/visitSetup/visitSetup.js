@@ -1,12 +1,12 @@
 import { LightningElement, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
-import getStatus from '@salesforce/apex/DemoActivityPlanController.getStatus';
-import createProviderActivityPlans from '@salesforce/apex/DemoActivityPlanController.createProviderActivityPlans';
-import deleteProviderActivityPlans from '@salesforce/apex/DemoActivityPlanController.deleteProviderActivityPlans';
-import clearActivityPlanJobStatus from '@salesforce/apex/DemoActivityPlanController.clearActivityPlanJobStatus';
+import getStatus from '@salesforce/apex/DemoVisitController.getStatus';
+import getTerritories from '@salesforce/apex/DemoVisitController.getTerritories';
+import createVisits from '@salesforce/apex/DemoVisitController.createVisits';
+import deleteVisits from '@salesforce/apex/DemoVisitController.deleteVisits';
 
-export default class ProviderActivityPlanSetup extends LightningElement {
+export default class VisitSetup extends LightningElement {
     statusData;
     statusError;
     isLoading = false;
@@ -14,6 +14,8 @@ export default class ProviderActivityPlanSetup extends LightningElement {
     isSuccess = false;
     wiredStatusResult;
     activityLog = [];
+    territoryOptions = [];
+    selectedTerritoryId;
 
     @wire(getStatus)
     wiredStatus(result) {
@@ -27,6 +29,19 @@ export default class ProviderActivityPlanSetup extends LightningElement {
         }
     }
 
+    @wire(getTerritories)
+    wiredTerritories({ data, error }) {
+        if (data) {
+            this.territoryOptions = data;
+        } else if (error) {
+            this.territoryOptions = [];
+        }
+    }
+
+    get hasTerritorySelected() {
+        return !!this.selectedTerritoryId;
+    }
+
     get resultClass() {
         return this.isSuccess
             ? 'slds-box slds-theme_success slds-p-around_small slds-m-bottom_small'
@@ -35,6 +50,10 @@ export default class ProviderActivityPlanSetup extends LightningElement {
 
     get hasActivityLog() {
         return this.activityLog.length > 0;
+    }
+
+    handleTerritoryChange(event) {
+        this.selectedTerritoryId = event.detail.value;
     }
 
     parseDetails(detailsList) {
@@ -62,11 +81,17 @@ export default class ProviderActivityPlanSetup extends LightningElement {
     }
 
     async handleCreate() {
+        if (!this.selectedTerritoryId) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error', message: 'Please select a territory first.', variant: 'error'
+            }));
+            return;
+        }
         this.isLoading = true;
         this.resultMessage = undefined;
         this.activityLog = [];
         try {
-            const raw = await createProviderActivityPlans();
+            const raw = await createVisits({ territoryId: this.selectedTerritoryId });
             let result;
             try {
                 result = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -90,28 +115,29 @@ export default class ProviderActivityPlanSetup extends LightningElement {
         } catch (error) {
             this.isSuccess = false;
             this.resultMessage = error.body ? error.body.message : 'An error occurred.';
-            this.dispatchEvent(
-                new ShowToastEvent({
-                    title: 'Error',
-                    message: this.resultMessage,
-                    variant: 'error'
-                })
-            );
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error', message: this.resultMessage, variant: 'error'
+            }));
         } finally {
             this.isLoading = false;
             await refreshApex(this.wiredStatusResult);
         }
     }
 
-    async handleClearJobStatus() {
+    async handleDelete() {
         this.isLoading = true;
         this.resultMessage = undefined;
+        this.activityLog = [];
         try {
-            const result = await clearActivityPlanJobStatus();
+            const result = await deleteVisits();
             this.isSuccess = true;
             this.resultMessage = result;
+            this.activityLog = [
+                { id: 0, message: 'Delete Complete', isHeader: true },
+                { id: 1, message: result, isSuccess: true }
+            ];
             this.dispatchEvent(new ShowToastEvent({
-                title: 'Success', message: result, variant: 'success'
+                title: 'Success', message: 'Visit records deleted.', variant: 'success'
             }));
         } catch (error) {
             this.isSuccess = false;
@@ -121,41 +147,8 @@ export default class ProviderActivityPlanSetup extends LightningElement {
             }));
         } finally {
             this.isLoading = false;
-        }
-    }
-
-    async handleDelete() {
-        this.isLoading = true;
-        this.resultMessage = undefined;
-        this.activityLog = [];
-        try {
-            const result = await deleteProviderActivityPlans();
-            this.isSuccess = true;
-            this.resultMessage = result;
-            this.activityLog = [
-                { id: 0, message: 'Delete Complete', isHeader: true },
-                { id: 1, message: result, isSuccess: true }
-            ];
-            this.dispatchEvent(
-                new ShowToastEvent({
-                    title: 'Success',
-                    message: 'Provider activity plan records deleted.',
-                    variant: 'success'
-                })
-            );
-        } catch (error) {
-            this.isSuccess = false;
-            this.resultMessage = error.body ? error.body.message : 'An error occurred.';
-            this.dispatchEvent(
-                new ShowToastEvent({
-                    title: 'Error',
-                    message: this.resultMessage,
-                    variant: 'error'
-                })
-            );
-        } finally {
-            this.isLoading = false;
             await refreshApex(this.wiredStatusResult);
         }
     }
+
 }
