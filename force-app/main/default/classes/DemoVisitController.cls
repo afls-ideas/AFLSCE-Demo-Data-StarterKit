@@ -88,8 +88,6 @@ public without sharing class DemoVisitController {
         List<String> errors = new List<String>();
 
         try {
-            String escaped = String.escapeSingleQuotes(DEMO_TAG);
-
             Territory2 terr = [SELECT Id, Name FROM Territory2 WHERE Id = :territoryId LIMIT 1];
             String countryCode = extractCountryCode(terr.Name);
             details.add('HEADER:Step 1 — Territory: ' + terr.Name + ' (country: ' + countryCode + ')');
@@ -147,7 +145,10 @@ public without sharing class DemoVisitController {
                 throw new AuraHandledException('No HCPs with active ContactPointAddress in territory');
             }
 
-            details.add('HEADER:Step 3 — Loading brand products for ' + countryCode);
+            details.add('HEADER:Step 3 — Loading channel targets from activity plan goals');
+            List<ChannelTarget> channelTargets = loadChannelTargets(territoryId, details);
+
+            details.add('HEADER:Step 4 — Loading brand products for ' + countryCode);
             Map<String, List<Id>> countryToBrandIds = loadBrandsByCountry();
             List<Id> brandIds = countryToBrandIds.get(countryCode);
             if (brandIds == null || brandIds.isEmpty()) {
@@ -156,10 +157,9 @@ public without sharing class DemoVisitController {
                 details.add('SUCCESS:Found ' + brandIds.size() + ' brand products');
             }
 
-            details.add('HEADER:Step 4 — Building visit records');
+            details.add('HEADER:Step 5 — Building visit records');
             Date today = Date.today();
-            Date startDate = today.addDays(-30);
-
+            Date startDate = Date.newInstance(today.year(), 1, 1);
             List<Date> weekdays = new List<Date>();
             Date d = startDate;
             while (d < today) {
@@ -170,7 +170,7 @@ public without sharing class DemoVisitController {
                 }
                 d = d.addDays(1);
             }
-            details.add('Found ' + weekdays.size() + ' weekdays in last 30 days');
+            details.add('Found ' + weekdays.size() + ' weekdays from Jan 1 to today');
 
             Schema.SObjectType visitType = Schema.getGlobalDescribe().get('Visit');
             Schema.SObjectType pvType = Schema.getGlobalDescribe().get('ProviderVisit');
@@ -183,23 +183,26 @@ public without sharing class DemoVisitController {
 
             List<SObject> allVisits = new List<SObject>();
             List<Datetime> allVisitStartTimes = new List<Datetime>();
-            Integer hcpIndex = 0;
-            Integer seed = Date.today().dayOfYear();
+            Integer seed = today.dayOfYear() * 7 + territoryId.hashCode();
+            Integer visitIndex = 0;
 
-            for (Date weekday : weekdays) {
-                Integer visitsToday = 3 + Math.mod(seed + weekday.dayOfYear(), 4);
-                List<Integer> slotMinutes = generateSlotMinutes(visitsToday, seed + weekday.dayOfYear());
+            for (ChannelTarget ct : channelTargets) {
+                List<Date> visitDates = pickVisitDates(weekdays, ct.proratedCount, seed + ct.channel.hashCode());
+                details.add('Channel ' + ct.channel + ': ' + ct.proratedCount + ' visits (yearly goal: ' + ct.yearlyGoal + ')');
 
-                for (Integer slot = 0; slot < visitsToday; slot++) {
-                    Id hcpId = usableHcpIds[Math.mod(hcpIndex, usableHcpIds.size())];
-                    hcpIndex++;
+                for (Integer i = 0; i < visitDates.size(); i++) {
+                    Date visitDate = visitDates[i];
+                    Id hcpId = usableHcpIds[Math.mod(visitIndex, usableHcpIds.size())];
+                    visitIndex++;
                     Id placeId = accountToCpa.get(hcpId);
-                    Integer localHour = 8 + (slotMinutes[slot] / 60);
-                    Integer localMin = Math.mod(slotMinutes[slot], 60);
-                    Datetime localDt = Datetime.newInstance(weekday, Time.newInstance(localHour, localMin, 0, 0));
+
+                    Integer slotMin = pseudoRandom(seed + visitIndex * 13 + 5, 480);
+                    Integer localHour = 8 + (slotMin / 60);
+                    Integer localMin = Math.mod(slotMin, 60);
+                    Datetime localDt = Datetime.newInstance(visitDate, Time.newInstance(localHour, localMin, 0, 0));
                     Integer offsetMs = localTz.getOffset(localDt);
                     Datetime startDt = localDt.addSeconds(-offsetMs / 1000);
-                    Integer duration = 20 + Math.mod(seed + slot, 16);
+                    Integer duration = 15 + pseudoRandom(seed + visitIndex * 17, 31);
                     Datetime endDt = startDt.addMinutes(duration);
 
                     SObject v = visitType.newSObject();
@@ -207,7 +210,7 @@ public without sharing class DemoVisitController {
                     v.put('OwnerId', ownerId);
                     v.put('PlaceId', placeId);
                     v.put('TerritoryId', territoryId);
-                    v.put('Channel', 'In-Person');
+                    v.put('Channel', ct.channel);
                     v.put('PlannedVisitStartTime', startDt);
                     v.put('PlannedVisitEndTime', endDt);
                     v.put('ActualVisitStartTime', startDt);
@@ -219,7 +222,7 @@ public without sharing class DemoVisitController {
                 }
             }
 
-            details.add('HEADER:Step 5 — Inserting ' + allVisits.size() + ' visits (single DML)');
+            details.add('HEADER:Step 7 — Inserting ' + allVisits.size() + ' visits (single DML)');
             Database.SaveResult[] vResults = Database.insert(allVisits, false);
             Integer totalVisits = 0;
             List<SObject> allPvs = new List<SObject>();
@@ -238,7 +241,7 @@ public without sharing class DemoVisitController {
             }
             details.add('SUCCESS:Created ' + totalVisits + ' visits');
 
-            details.add('HEADER:Step 6 — Inserting ' + allPvs.size() + ' provider visits');
+            details.add('HEADER:Step 8 — Inserting ' + allPvs.size() + ' provider visits');
             Integer totalPv = 0;
             Integer totalPvpd = 0;
             Database.SaveResult[] pvResults = Database.insert(allPvs, false);
@@ -266,7 +269,7 @@ public without sharing class DemoVisitController {
             details.add('SUCCESS:Created ' + totalPv + ' provider visits');
 
             if (!allPvpds.isEmpty()) {
-                details.add('HEADER:Step 7 — Inserting ' + allPvpds.size() + ' product detailing records');
+                details.add('HEADER:Step 9 — Inserting ' + allPvpds.size() + ' product detailing records');
                 Database.SaveResult[] pdResults = Database.insert(allPvpds, false);
                 for (Database.SaveResult sr : pdResults) {
                     if (sr.isSuccess()) totalPvpd++;
@@ -292,6 +295,101 @@ public without sharing class DemoVisitController {
         } catch (Exception e) {
             throw new AuraHandledException('Error: ' + e.getMessage() + '\n' + e.getStackTraceString());
         }
+    }
+
+    private class ChannelTarget {
+        public String channel;
+        public Integer yearlyGoal;
+        public Integer proratedCount;
+        public ChannelTarget(String ch, Integer yearly, Integer prorated) {
+            this.channel = ch;
+            this.yearlyGoal = yearly;
+            this.proratedCount = prorated;
+        }
+    }
+
+    private static List<ChannelTarget> loadChannelTargets(String territoryId, List<String> details) {
+        List<ChannelTarget> targets = new List<ChannelTarget>();
+
+        Date jan1 = Date.newInstance(Date.today().year(), 1, 1);
+        Date dec31 = Date.newInstance(Date.today().year(), 12, 31);
+        Integer daysInYear = jan1.daysBetween(dec31) + 1;
+        Integer daysElapsed = jan1.daysBetween(Date.today());
+        Decimal fraction = (Decimal) daysElapsed / daysInYear;
+
+        Map<Id, String> typeToChannel = new Map<Id, String>();
+        try {
+            List<SObject> types = Database.query(
+                'SELECT Id, ActivityTypeFieldValue FROM ProviderActivityMeasureType ' +
+                'WHERE IsActive = true AND ActivityObject = \'Visit\' ' +
+                'AND ActivityProductField = null ORDER BY DisplayOrder');
+            for (SObject t : types) {
+                typeToChannel.put(t.Id, (String) t.get('ActivityTypeFieldValue'));
+            }
+            details.add('SUCCESS:Found ' + types.size() + ' channel types: ' + String.join(typeToChannel.values(), ', '));
+        } catch (Exception e) {
+            details.add('WARNING:Could not query ProviderActivityMeasureType: ' + e.getMessage());
+        }
+
+        if (typeToChannel.isEmpty()) {
+            details.add('WARNING:No measure types found — using default In-Person');
+            targets.add(new ChannelTarget('In-Person', 200, (Integer) Math.round(200 * fraction)));
+            return targets;
+        }
+
+        Set<Id> typeIds = typeToChannel.keySet();
+        Map<Id, Integer> typeToGoal = new Map<Id, Integer>();
+        try {
+            List<AggregateResult> aggs = Database.query(
+                'SELECT ProviderActivityMeasureTypeId, SUM(OverallGoal) totalGoal ' +
+                'FROM ProviderActivityGoalMeasure ' +
+                'WHERE ProviderActivityGoal.ActivityPlan.SourceSystemName = \'AFLSCE-Demo-Data\' ' +
+                'AND ProviderActivityGoal.ActivityPlan.TerritoryList = \'' + String.escapeSingleQuotes(territoryId) + '\' ' +
+                'AND ProviderActivityMeasureTypeId IN :typeIds ' +
+                'GROUP BY ProviderActivityMeasureTypeId');
+            for (AggregateResult ar : aggs) {
+                Id typeId = (Id) ar.get('ProviderActivityMeasureTypeId');
+                Decimal total = (Decimal) ar.get('totalGoal');
+                if (total != null) {
+                    typeToGoal.put(typeId, total.intValue());
+                }
+            }
+        } catch (Exception e) {
+            details.add('WARNING:Could not query ProviderActivityGoalMeasure: ' + e.getMessage());
+        }
+
+        for (Id typeId : typeToChannel.keySet()) {
+            String channel = typeToChannel.get(typeId);
+            Integer yearly = typeToGoal.containsKey(typeId) ? typeToGoal.get(typeId) : 0;
+            Integer prorated = (Integer) Math.round(yearly * fraction);
+            if (prorated > 0) {
+                targets.add(new ChannelTarget(channel, yearly, prorated));
+            }
+        }
+
+        if (targets.isEmpty()) {
+            details.add('WARNING:All channel goals are 0 — using default In-Person');
+            targets.add(new ChannelTarget('In-Person', 200, (Integer) Math.round(200 * fraction)));
+        }
+
+        return targets;
+    }
+
+    private static List<Date> pickVisitDates(List<Date> weekdays, Integer count, Integer seed) {
+        List<Date> picked = new List<Date>();
+        if (weekdays.isEmpty() || count <= 0) return picked;
+        for (Integer i = 0; i < count; i++) {
+            Integer idx = pseudoRandom(seed + i * 37 + i * i * 3, weekdays.size());
+            picked.add(weekdays[idx]);
+        }
+        picked.sort();
+        return picked;
+    }
+
+    private static Integer pseudoRandom(Integer seed, Integer maxVal) {
+        if (maxVal <= 0) return 0;
+        Long hash = Math.abs(((Long) seed * 6364136223846793005L + 1442695040888963407L));
+        return (Integer) Math.mod(hash, maxVal);
     }
 
     @AuraEnabled
@@ -379,17 +477,4 @@ public without sharing class DemoVisitController {
         return countryToBrandIds;
     }
 
-    private static List<Integer> generateSlotMinutes(Integer count, Integer seed) {
-        // 8:00=0min to 16:00=480min window, each visit needs ~45min gap
-        List<Integer> slots = new List<Integer>();
-        Integer window = 480;
-        Integer gap = window / (count + 1);
-        for (Integer i = 0; i < count; i++) {
-            Integer base = gap * (i + 1);
-            Integer jitter = Math.mod(seed * (i + 3) * 7, 21) - 10;
-            Integer mins = Math.max(0, Math.min(window - 40, base + jitter));
-            slots.add(mins);
-        }
-        return slots;
-    }
 }

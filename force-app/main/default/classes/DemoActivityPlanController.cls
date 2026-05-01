@@ -431,7 +431,7 @@ public without sharing class DemoActivityPlanController {
         List<SObject> goals = new List<SObject>();
         List<Id> goalTerrIds = new List<Id>();
 
-        List<Integer> goalValues = new List<Integer>{ 60, 40, 30, 20, 15, 10, 10, 8 };
+        List<Integer> goalValues = new List<Integer>{ 600, 500, 400, 350, 300, 250, 200, 150 };
 
         for (Id terrId : terrToActivityPlan.keySet()) {
             TerritoryInfo ti = terrInfoMap.get(terrId);
@@ -500,18 +500,6 @@ public without sharing class DemoActivityPlanController {
             goalMap.put(pag.Id, (Decimal) pag.get(goalField));
         }
 
-        List<Decimal> splits;
-        if (measureTypes.size() == 3) {
-            splits = new List<Decimal>{ 0.45, 0.35, 0.20 };
-        } else if (measureTypes.size() == 2) {
-            splits = new List<Decimal>{ 0.60, 0.40 };
-        } else {
-            splits = new List<Decimal>();
-            for (Integer i = 0; i < measureTypes.size(); i++) {
-                splits.add(1.0 / measureTypes.size());
-            }
-        }
-
         List<SObject> measures = new List<SObject>();
         for (List<Id> goalIds : terrToGoalIds.values()) {
             for (Id goalId : goalIds) {
@@ -519,7 +507,8 @@ public without sharing class DemoActivityPlanController {
                 if (goalVal == null) goalVal = 0;
 
                 for (Integer m = 0; m < measureTypes.size(); m++) {
-                    Integer measureGoal = (Integer) Math.round(goalVal * splits[m]);
+                    Decimal share = (m == 0) ? 0.90 : (0.10 / (measureTypes.size() - 1));
+                    Integer measureGoal = (Integer) Math.round(goalVal * share);
 
                     SObject pagm = pagmType.newSObject();
                     pagm.put('ProviderActivityGoalId', goalId);

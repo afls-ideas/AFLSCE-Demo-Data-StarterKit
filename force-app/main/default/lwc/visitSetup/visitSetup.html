@@ -3,14 +3,16 @@
         <div class="slds-p-horizontal_medium slds-p-bottom_medium">
             <p class="slds-text-body_regular slds-m-bottom_small">
                 Creates completed Visits with ProviderVisit and ProviderVisitProdDetailing records
-                for a selected territory. 3&ndash;6 visits per weekday for the last 30 days at varied times,
-                cycling through the territory's HCP accounts. Each visit includes Immunexis and Immunonco product detailing.
+                for a selected territory. Visits are spread from Jan 1 to today, targeting the prorated
+                activity plan goal per channel so the progress chart tracks close to the target pace line.
+                Channel types and goals are read dynamically from ProviderActivityMeasureType and ProviderActivityGoalMeasure.
+                Each visit includes product detailing for the territory's country brands.
             </p>
 
             <div class="slds-box slds-theme_shade slds-m-bottom_medium slds-p-around_small">
                 <p class="slds-text-title_caps slds-m-bottom_x-small">Objects created by this tab</p>
                 <ul class="slds-list_dotted slds-text-body_small">
-                    <li><strong>Visit</strong> &mdash; 3&ndash;6 per weekday at scattered times, Status=Completed, with PlaceId pointing to HCP's ContactPointAddress</li>
+                    <li><strong>Visit</strong> &mdash; Spread across weekdays Jan 1 to today, Status=Completed, per-channel count from activity plan goals</li>
                     <li><strong>ProviderVisit</strong> &mdash; One per Visit, with VisitSubmitDateTime set to visit end time</li>
                     <li><strong>ProviderVisitProdDetailing</strong> &mdash; One per brand per visit (Immunexis + Immunonco for territory's country)</li>
                 </ul>
