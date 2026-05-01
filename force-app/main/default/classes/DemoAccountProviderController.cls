@@ -62,10 +62,14 @@ public with sharing class DemoAccountProviderController {
 
             // PersonAccount Name = "FirstName LastName", key by full name
             Map<String, Id> doctorNameToId = new Map<String, Id>();
+            Set<String> usDoctorNames = new Set<String>();
             for (Integer i = 0; i < doctorAccounts.size(); i++) {
                 if (docResults[i].isSuccess()) {
                     String fullName = doctorAccounts[i].FirstName + ' ' + doctorAccounts[i].LastName;
                     doctorNameToId.put(fullName, docResults[i].getId());
+                    if (doctorAccounts[i].BillingCountryCode == 'US') {
+                        usDoctorNames.add(fullName);
+                    }
                 } else if (errors.size() < 5) {
                     errors.add(doctorAccounts[i].LastName + ': ' + docResults[i].getErrors()[0].getMessage());
                 }
@@ -92,9 +96,15 @@ public with sharing class DemoAccountProviderController {
                     }
                 }
 
-                // 4. NPIs
+                // 4. NPIs (US only — NPI is a US identifier)
                 if (gd.containsKey('healthcareprovidernpi')) {
-                    List<SObject> npiRecords = buildNpiRecords(hcpNameToId);
+                    Map<String, Id> usHcpNameToId = new Map<String, Id>();
+                    for (String name : hcpNameToId.keySet()) {
+                        if (usDoctorNames.contains(name)) {
+                            usHcpNameToId.put(name, hcpNameToId.get(name));
+                        }
+                    }
+                    List<SObject> npiRecords = buildNpiRecords(usHcpNameToId, 0);
                     Database.SaveResult[] npiResults = Database.insert(npiRecords, false);
                     for (Integer i = 0; i < npiRecords.size(); i++) {
                         if (npiResults[i].isSuccess()) {
@@ -145,6 +155,189 @@ public with sharing class DemoAccountProviderController {
                 'Error creating demo data: ' + e.getMessage()
                 + ' [' + e.getStackTraceString() + ']'
             );
+        }
+    }
+
+    @AuraEnabled
+    public static List<String> getCountryCodes() {
+        Set<String> codes = new Set<String>();
+        for (Account a : buildOrganizationAccounts(null)) {
+            if (String.isNotBlank(a.BillingCountryCode)) codes.add(a.BillingCountryCode);
+        }
+        for (Account a : buildDoctorAccounts(null)) {
+            if (String.isNotBlank(a.BillingCountryCode)) codes.add(a.BillingCountryCode);
+        }
+        List<String> sorted = new List<String>(codes);
+        sorted.sort();
+        return sorted;
+    }
+
+    @AuraEnabled
+    public static Integer getDoctorCount(String countryCode) {
+        return [SELECT COUNT() FROM Account WHERE Site = :DEMO_TAG AND IsPersonAccount = true AND BillingCountryCode = :countryCode];
+    }
+
+    @AuraEnabled
+    public static String createOrgsForCountry(String hcoRecordTypeId, String countryCode) {
+        try {
+            Id hcoRtId = (Id) hcoRecordTypeId;
+            Database.DMLOptions dmlOpts = new Database.DMLOptions();
+            dmlOpts.DuplicateRuleHeader.AllowSave = true;
+            List<String> errors = new List<String>();
+
+            List<Account> orgAccounts = new List<Account>();
+            for (Account a : buildOrganizationAccounts(hcoRtId)) {
+                if (a.BillingCountryCode == countryCode) orgAccounts.add(a);
+            }
+            if (orgAccounts.isEmpty()) return countryCode + ': No orgs to create';
+
+            Integer orgSuccess = 0;
+            Database.SaveResult[] orgResults = Database.insert(orgAccounts, dmlOpts);
+            for (Integer i = 0; i < orgResults.size(); i++) {
+                if (orgResults[i].isSuccess()) {
+                    orgSuccess++;
+                } else if (errors.size() < 5) {
+                    errors.add(orgAccounts[i].Name + ': ' + orgResults[i].getErrors()[0].getMessage());
+                }
+            }
+
+            String result = countryCode + ' orgs: ' + orgSuccess + ' created';
+            if (!errors.isEmpty()) result += ' | Errors: ' + String.join(errors, '; ');
+            return result;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error creating orgs for ' + countryCode + ': ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static String createDoctorsForCountry(String hcpRecordTypeId, String countryCode) {
+        try {
+            Id hcpRtId = (Id) hcpRecordTypeId;
+            Database.DMLOptions dmlOpts = new Database.DMLOptions();
+            dmlOpts.DuplicateRuleHeader.AllowSave = true;
+            List<String> errors = new List<String>();
+
+            List<Account> doctorAccounts = new List<Account>();
+            for (Account a : buildDoctorAccounts(hcpRtId)) {
+                if (a.BillingCountryCode == countryCode) doctorAccounts.add(a);
+            }
+            if (doctorAccounts.isEmpty()) return countryCode + ': No doctors to create';
+
+            Integer docSuccess = 0;
+            Database.SaveResult[] docResults = Database.insert(doctorAccounts, dmlOpts);
+            for (Integer i = 0; i < docResults.size(); i++) {
+                if (docResults[i].isSuccess()) {
+                    docSuccess++;
+                } else if (errors.size() < 5) {
+                    errors.add(doctorAccounts[i].LastName + ': ' + docResults[i].getErrors()[0].getMessage());
+                }
+            }
+
+            String result = countryCode + ' doctors: ' + docSuccess + ' created';
+            if (!errors.isEmpty()) result += ' | Errors: ' + String.join(errors, '; ');
+            return result;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error creating doctors for ' + countryCode + ': ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static String createProvidersForCountry(String countryCode, Integer batchIndex) {
+        try {
+            Integer batchSize = 30;
+            Integer idx = (batchIndex != null ? batchIndex : 1);
+            Integer offsetVal = (idx - 1) * batchSize;
+            List<String> errors = new List<String>();
+            Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+            if (!gd.containsKey('healthcareprovider')) return countryCode + ': HealthcareProvider object not available';
+
+            List<Account> demoAccts = [
+                SELECT Id, Name, FirstName, LastName, IsPersonAccount, BillingCountryCode
+                FROM Account
+                WHERE Site = :DEMO_TAG AND IsPersonAccount = true AND BillingCountryCode = :countryCode
+                ORDER BY LastName
+                LIMIT :batchSize OFFSET :offsetVal
+            ];
+            if (demoAccts.isEmpty()) return countryCode + ' [' + idx + ']: No more doctors';
+
+            Map<String, Id> doctorNameToId = new Map<String, Id>();
+            for (Account a : demoAccts) {
+                doctorNameToId.put(a.FirstName + ' ' + a.LastName, a.Id);
+            }
+
+            Map<String, Id> hcpNameToId = new Map<String, Id>();
+            List<SObject> hcpRecords = buildHealthcareProviders(doctorNameToId);
+            Database.SaveResult[] hcpResults = Database.insert(hcpRecords, false);
+            Integer hcpSuccess = 0;
+            for (Integer i = 0; i < hcpRecords.size(); i++) {
+                if (hcpResults[i].isSuccess()) {
+                    hcpSuccess++;
+                    hcpNameToId.put((String) hcpRecords[i].get('Name'), hcpResults[i].getId());
+                }
+            }
+
+            Integer npiSuccess = 0;
+            if (countryCode == 'US' && gd.containsKey('healthcareprovidernpi')) {
+                List<SObject> npiRecords = buildNpiRecords(hcpNameToId, offsetVal);
+                Database.SaveResult[] npiResults = Database.insert(npiRecords, false);
+                for (Integer i = 0; i < npiResults.size(); i++) {
+                    if (npiResults[i].isSuccess()) {
+                        npiSuccess++;
+                    } else if (errors.size() < 10) {
+                        errors.add('NPI: ' + npiResults[i].getErrors()[0].getMessage());
+                    }
+                }
+            }
+
+            Integer specSuccess = 0;
+            if (gd.containsKey('healthcareproviderspecialty') && gd.containsKey('carespecialty')) {
+                Map<String, Id> specNameToId = createCareSpecialties();
+                List<SObject> specRecords = buildSpecialtyRecords(hcpNameToId, doctorNameToId, specNameToId);
+                Database.SaveResult[] specResults = Database.insert(specRecords, false);
+                for (Database.SaveResult sr : specResults) {
+                    if (sr.isSuccess()) specSuccess++;
+                }
+            }
+
+            String result = countryCode + ' [' + idx + ']: HCPs=' + hcpSuccess + ', NPIs=' + npiSuccess
+                + ', Specialties=' + specSuccess + ' (doctors ' + (offsetVal + 1) + '-' + (offsetVal + demoAccts.size()) + ')';
+            if (!errors.isEmpty()) result += ' | Errors: ' + String.join(errors, '; ');
+            return result;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error creating providers for ' + countryCode + ' [' + batchIndex + ']: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static String createAffiliationsForCountry(String countryCode, Integer batchIndex) {
+        try {
+            Integer batchSize = 20;
+            Integer idx = (batchIndex != null ? batchIndex : 1);
+            Integer offsetVal = (idx - 1) * batchSize;
+
+            List<Account> doctors = [
+                SELECT Id, Name, FirstName, LastName
+                FROM Account
+                WHERE Site = :DEMO_TAG AND IsPersonAccount = true AND BillingCountryCode = :countryCode
+                ORDER BY LastName
+                LIMIT :batchSize OFFSET :offsetVal
+            ];
+            if (doctors.isEmpty()) return countryCode + ' [' + idx + ']: No more doctors';
+
+            Map<String, Id> doctorNameToId = new Map<String, Id>();
+            for (Account a : doctors) {
+                doctorNameToId.put(a.FirstName + ' ' + a.LastName, a.Id);
+            }
+
+            Map<String, Id> orgNameToId = new Map<String, Id>();
+            for (Account a : [SELECT Id, Name FROM Account WHERE Site = :DEMO_TAG AND IsPersonAccount = false AND BillingCountryCode = :countryCode]) {
+                orgNameToId.put(a.Name, a.Id);
+            }
+
+            Integer afflSuccess = DemoAffiliationHelper.createAffiliations(doctorNameToId, orgNameToId, buildCityTerritoryMap());
+            return countryCode + ' [' + idx + ']: Affiliations=' + afflSuccess + ' (doctors ' + (offsetVal + 1) + '-' + (offsetVal + doctors.size()) + ')';
+        } catch (Exception e) {
+            throw new AuraHandledException('Error creating affiliations for ' + countryCode + ' [' + batchIndex + ']: ' + e.getMessage());
         }
     }
 
@@ -881,7 +1074,7 @@ public with sharing class DemoAccountProviderController {
     // NPI builders
     // ---------------------------------------------------------------------------
 
-    private static List<SObject> buildNpiRecords(Map<String, Id> hcpNameToId) {
+    private static List<SObject> buildNpiRecords(Map<String, Id> hcpNameToId, Integer offset) {
         List<SObject> npis = new List<SObject>();
         Schema.SObjectType npiType = Schema.getGlobalDescribe().get('healthcareprovidernpi');
         Map<String, Schema.SObjectField> npiFields = npiType.getDescribe().fields.getMap();
@@ -891,7 +1084,7 @@ public with sharing class DemoAccountProviderController {
         if (hcpFieldName == null) return npis;
 
         Map<String, String> npiMap = new Map<String, String>();
-        Integer npiBase = 1000000000;
+        Integer npiBase = 1000000000 + offset;
         for (String provName : hcpNameToId.keySet()) {
             npiMap.put(provName, String.valueOf(npiBase));
             npiBase++;

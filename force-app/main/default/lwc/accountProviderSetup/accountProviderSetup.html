@@ -12,7 +12,7 @@
                 <ul class="slds-list_dotted slds-text-body_small">
                     <li><strong>Account</strong> &mdash; Organization accounts (hospitals, clinics, payers, pharmacies) and HCP person accounts</li>
                     <li><strong>HealthcareProvider</strong> &mdash; Professional provider record linked to each HCP person account</li>
-                    <li><strong>HealthcareProviderNpi</strong> &mdash; NPI (National Provider Identifier) for each provider</li>
+                    <li><strong>HealthcareProviderNpi</strong> &mdash; NPI (National Provider Identifier) for US providers only</li>
                     <li><strong>CareSpecialty</strong> &mdash; Medical specialties (Oncology, Cardiology, Neurology, etc.)</li>
                     <li><strong>HealthcareProviderSpecialty</strong> &mdash; Links each provider to their primary specialty</li>
                     <li><strong>ProviderAffiliation</strong> &mdash; Links HCP doctors to their affiliated organization accounts</li>
@@ -127,6 +127,17 @@
             <template if:true={isLoading}>
                 <div class="slds-is-relative slds-m-bottom_medium" style="height: 60px;">
                     <lightning-spinner alternative-text="Processing..." size="medium"></lightning-spinner>
+                </div>
+            </template>
+
+            <!-- Activity Log -->
+            <template if:true={hasActivityLog}>
+                <div class="slds-box slds-theme_shade slds-p-around_small slds-m-bottom_small" style="max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px;">
+                    <template for:each={activityLog} for:item="entry">
+                        <p key={entry.id} class={entry.cssClass}>
+                            {entry.message}
+                        </p>
+                    </template>
                 </div>
             </template>
 

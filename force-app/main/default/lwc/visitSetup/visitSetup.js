@@ -4,7 +4,7 @@ import { refreshApex } from '@salesforce/apex';
 import getStatus from '@salesforce/apex/DemoVisitController.getStatus';
 import getTerritories from '@salesforce/apex/DemoVisitController.getTerritories';
 import createVisits from '@salesforce/apex/DemoVisitController.createVisits';
-import deleteVisits from '@salesforce/apex/DemoVisitController.deleteVisits';
+import deleteVisitBatch from '@salesforce/apex/DemoVisitController.deleteVisitBatch';
 
 export default class VisitSetup extends LightningElement {
     statusData;
@@ -128,16 +128,35 @@ export default class VisitSetup extends LightningElement {
         this.isLoading = true;
         this.resultMessage = undefined;
         this.activityLog = [];
+        let batchNum = 0;
         try {
-            const result = await deleteVisits();
-            this.isSuccess = true;
-            this.resultMessage = result;
-            this.activityLog = [
-                { id: 0, message: 'Delete Complete', isHeader: true },
-                { id: 1, message: result, isSuccess: true }
-            ];
+            let remaining = 1;
+            let prevRemaining = -1;
+            while (remaining > 0) {
+                batchNum++;
+                this.activityLog = [...this.activityLog,
+                    { id: this.activityLog.length, message: 'Deleting batch ' + batchNum + '...', isHeader: true }
+                ];
+                const result = await deleteVisitBatch();
+                remaining = result.remaining;
+                const hasError = result.message && result.message.includes('|');
+                this.activityLog = [...this.activityLog,
+                    { id: this.activityLog.length, message: result.message, isSuccess: !hasError, isError: hasError }
+                ];
+                if (remaining === prevRemaining) {
+                    this.activityLog = [...this.activityLog,
+                        { id: this.activityLog.length, message: 'Stopping — ' + remaining + ' visits could not be deleted. Check errors above.', isError: true }
+                    ];
+                    break;
+                }
+                prevRemaining = remaining;
+            }
+            this.isSuccess = remaining === 0;
+            this.resultMessage = remaining === 0
+                ? 'All demo visits deleted in ' + batchNum + ' batch(es).'
+                : 'Deleted what we could. ' + remaining + ' visits remain (see errors above).';
             this.dispatchEvent(new ShowToastEvent({
-                title: 'Success', message: 'Visit records deleted.', variant: 'success'
+                title: 'Success', message: this.resultMessage, variant: 'success'
             }));
         } catch (error) {
             this.isSuccess = false;

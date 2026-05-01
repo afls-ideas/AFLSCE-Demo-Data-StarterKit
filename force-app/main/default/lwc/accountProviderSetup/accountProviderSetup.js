@@ -3,10 +3,20 @@ import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
 import getStatus from '@salesforce/apex/DemoAccountProviderController.getStatus';
 import getAccountRecordTypes from '@salesforce/apex/DemoAccountProviderController.getAccountRecordTypes';
-import createAccountsAndProviders from '@salesforce/apex/DemoAccountProviderController.createAccountsAndProviders';
+import getCountryCodes from '@salesforce/apex/DemoAccountProviderController.getCountryCodes';
+import getDoctorCount from '@salesforce/apex/DemoAccountProviderController.getDoctorCount';
+import createOrgsForCountry from '@salesforce/apex/DemoAccountProviderController.createOrgsForCountry';
+import createDoctorsForCountry from '@salesforce/apex/DemoAccountProviderController.createDoctorsForCountry';
+import createProvidersForCountry from '@salesforce/apex/DemoAccountProviderController.createProvidersForCountry';
+import createAffiliationsForCountry from '@salesforce/apex/DemoAccountProviderController.createAffiliationsForCountry';
 import deleteAccountsAndProviders from '@salesforce/apex/DemoAccountProviderController.deleteAccountsAndProviders';
 import assignTerritories from '@salesforce/apex/DemoAccountProviderController.assignTerritories';
 import getTerritorySummary from '@salesforce/apex/DemoTerritoryController.getTerritorySummary';
+
+const PROVIDER_BATCH_SIZE = 30;
+const AFFILIATION_BATCH_SIZE = 20;
+
+let logCounter = 0;
 
 export default class AccountProviderSetup extends LightningElement {
     statusData;
@@ -21,6 +31,7 @@ export default class AccountProviderSetup extends LightningElement {
     hcpRecordTypeId;
     wiredSummaryResult;
     summaryRows;
+    activityLog = [];
 
     @wire(getStatus)
     wiredStatus(result) {
@@ -76,6 +87,10 @@ export default class AccountProviderSetup extends LightningElement {
         return t;
     }
 
+    get hasActivityLog() {
+        return this.activityLog.length > 0;
+    }
+
     autoSelectDefaults() {
         const hcoNames = ['Health_Care_Organization', 'LSDO_Healthcare_Organization', 'HLS_Account_HealthCareFacility'];
         const hcpNames = ['Health_Care_Provider', 'LSDO_Healthcare_Provider'];
@@ -120,16 +135,79 @@ export default class AccountProviderSetup extends LightningElement {
         this.hcpRecordTypeId = event.detail.value;
     }
 
+    addLog(message, type) {
+        logCounter++;
+        const cssClass = type === 'header' ? 'slds-text-title_bold slds-m-top_xx-small'
+            : type === 'success' ? 'slds-text-color_success slds-m-left_medium'
+            : type === 'error' ? 'slds-text-color_error slds-m-left_medium'
+            : 'slds-m-left_medium';
+        this.activityLog = [...this.activityLog, {
+            id: logCounter,
+            message,
+            cssClass
+        }];
+    }
+
+    async callApex(fn, params, label) {
+        try {
+            const result = await fn(params);
+            this.addLog(result, 'success');
+            return true;
+        } catch (err) {
+            const msg = err.body ? err.body.message : err.message;
+            this.addLog(label + ' failed: ' + msg, 'error');
+            return false;
+        }
+    }
+
     async handleCreate() {
         this.isLoading = true;
         this.resultMessage = undefined;
+        this.activityLog = [];
         try {
-            const result = await createAccountsAndProviders({
-                hcoRecordTypeId: this.hcoRecordTypeId,
-                hcpRecordTypeId: this.hcpRecordTypeId
-            });
+            this.addLog('Loading country list...', 'detail');
+            const countries = await getCountryCodes();
+            this.addLog('Found ' + countries.length + ' countries: ' + countries.join(', '), 'success');
+
+            for (const cc of countries) {
+                this.addLog(cc + ' — Creating organization accounts...', 'header');
+                await this.callApex(createOrgsForCountry,
+                    { hcoRecordTypeId: this.hcoRecordTypeId, countryCode: cc },
+                    cc + ' orgs');
+
+                this.addLog(cc + ' — Creating doctor accounts...', 'header');
+                await this.callApex(createDoctorsForCountry,
+                    { hcpRecordTypeId: this.hcpRecordTypeId, countryCode: cc },
+                    cc + ' doctors');
+
+                // Get doctor count to determine batching
+                let docCount = 0;
+                try {
+                    docCount = await getDoctorCount({ countryCode: cc });
+                } catch (err) {
+                    this.addLog(cc + ' getDoctorCount failed: ' + (err.body ? err.body.message : err.message), 'error');
+                }
+                const provBatches = Math.max(1, Math.ceil(docCount / PROVIDER_BATCH_SIZE));
+                const afflBatches = Math.max(1, Math.ceil(docCount / AFFILIATION_BATCH_SIZE));
+
+                this.addLog(cc + ' — Creating providers, NPIs & specialties (' + docCount + ' doctors, ' + provBatches + ' batch' + (provBatches > 1 ? 'es' : '') + ')...', 'header');
+                for (let b = 0; b < provBatches; b++) {
+                    await this.callApex(createProvidersForCountry,
+                        { countryCode: cc, batchIndex: b + 1 },
+                        cc + ' providers batch ' + (b + 1));
+                }
+
+                this.addLog(cc + ' — Creating affiliations (' + afflBatches + ' batch' + (afflBatches > 1 ? 'es' : '') + ')...', 'header');
+                for (let b = 0; b < afflBatches; b++) {
+                    await this.callApex(createAffiliationsForCountry,
+                        { countryCode: cc, batchIndex: b + 1 },
+                        cc + ' affiliations batch ' + (b + 1));
+                }
+            }
+
+            this.addLog('All countries complete!', 'header');
             this.isSuccess = true;
-            this.resultMessage = result;
+            this.resultMessage = 'Accounts and providers created for ' + countries.length + ' countries.';
             this.dispatchEvent(
                 new ShowToastEvent({
                     title: 'Success',

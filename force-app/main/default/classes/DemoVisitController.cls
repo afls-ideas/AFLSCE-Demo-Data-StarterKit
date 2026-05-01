@@ -393,41 +393,82 @@ public without sharing class DemoVisitController {
     }
 
     @AuraEnabled
-    public static String deleteVisits() {
+    public static Map<String, Object> deleteVisitBatch() {
         try {
             Integer deleted = 0;
-            String escaped = String.escapeSingleQuotes(DEMO_TAG);
+            Integer batchSize = 1500;
+            List<String> errors = new List<String>();
 
-            List<Visit> visits = [SELECT Id FROM Visit
-                WHERE InstructionDescription = :DEMO_TAG LIMIT 9500];
+            List<Visit> visits = [SELECT Id, Status FROM Visit
+                WHERE InstructionDescription = :DEMO_TAG LIMIT :batchSize];
+
+            if (visits.isEmpty()) {
+                return new Map<String, Object>{
+                    'message' => 'No demo visits to delete.',
+                    'remaining' => 0
+                };
+            }
+
+            // Unlock submitted visits so they can be deleted
+            List<Visit> toUnlock = new List<Visit>();
+            for (Visit v : visits) {
+                if (v.Status != 'Planned') {
+                    v.Status = 'Planned';
+                    toUnlock.add(v);
+                }
+            }
+            if (!toUnlock.isEmpty()) {
+                Database.SaveResult[] ur = Database.update(toUnlock, false);
+                Integer unlockFail = 0;
+                for (Database.SaveResult sr : ur) {
+                    if (!sr.isSuccess()) unlockFail++;
+                }
+                if (unlockFail > 0 && errors.size() < 3) {
+                    errors.add('Failed to unlock ' + unlockFail + '/' + toUnlock.size() + ' visits');
+                }
+            }
+
             Set<Id> visitIds = new Set<Id>();
             for (Visit v : visits) visitIds.add(v.Id);
 
-            if (!visitIds.isEmpty()) {
+            // Delete child records first
+            Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+            if (gd.containsKey('providervisitproddetailing')) {
                 List<SObject> pvpds = Database.query(
-                    'SELECT Id FROM ProviderVisitProdDetailing WHERE VisitId IN :visitIds LIMIT 9500');
+                    'SELECT Id FROM ProviderVisitProdDetailing WHERE VisitId IN :visitIds');
                 if (!pvpds.isEmpty()) {
                     Database.delete(pvpds, false);
                     deleted += pvpds.size();
                 }
+            }
 
+            if (gd.containsKey('providervisit')) {
                 List<SObject> pvs = Database.query(
-                    'SELECT Id FROM ProviderVisit WHERE VisitId IN :visitIds LIMIT 9500');
+                    'SELECT Id FROM ProviderVisit WHERE VisitId IN :visitIds');
                 if (!pvs.isEmpty()) {
                     Database.delete(pvs, false);
                     deleted += pvs.size();
                 }
-
-                Database.delete(visits, false);
-                deleted += visits.size();
             }
+
+            Database.DeleteResult[] vr = Database.delete(visits, false);
+            Integer visitDeleted = 0;
+            for (Database.DeleteResult sr : vr) {
+                if (sr.isSuccess()) {
+                    visitDeleted++;
+                } else if (errors.size() < 3) {
+                    errors.add(sr.getErrors()[0].getMessage());
+                }
+            }
+            deleted += visitDeleted;
 
             Integer remaining = [SELECT COUNT() FROM Visit WHERE InstructionDescription = :DEMO_TAG];
-            String msg = 'Deleted ' + deleted + ' records.';
-            if (remaining > 0) {
-                msg += ' More records remain — click delete again.';
-            }
-            return msg;
+            String msg = 'Deleted ' + visitDeleted + '/' + visits.size() + ' visits + ' + (deleted - visitDeleted) + ' child records. ' + remaining + ' remaining.';
+            if (!errors.isEmpty()) msg += ' | ' + String.join(errors, '; ');
+            return new Map<String, Object>{
+                'message' => msg,
+                'remaining' => remaining
+            };
         } catch (Exception e) {
             throw new AuraHandledException('Error deleting: ' + e.getMessage());
         }

@@ -21,9 +21,10 @@
             <!-- Delete Warning -->
             <div class="slds-box slds-theme_warning slds-m-bottom_medium slds-p-around_small">
                 <p class="slds-text-body_small">
-                    <strong>Before deleting:</strong> Completed visits are locked by the managed package.
-                    You must disable the <strong>VisitLockHandler</strong> trigger handler in
-                    Admin Console &gt; Trigger Settings before clicking Delete. Remember to re-enable it after.
+                    <strong>Before deleting:</strong> Disable these trigger handlers in
+                    Admin Console &gt; Trigger Settings, then re-enable after:
+                    <br/>&bull; <strong>VisitLockHandler</strong> &mdash; prevents deleting completed/submitted visits
+                    <br/>&bull; <strong>RemoteSessionInvitationVisitHandler</strong> &mdash; blocks delete if email templates are missing
                 </p>
             </div>
 

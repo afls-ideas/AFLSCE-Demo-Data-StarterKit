@@ -22,7 +22,7 @@ sf project deploy start --source-dir force-app --target-org YOUR_ORG_ALIAS
 
 1. Assign the **AFLSCE Demo Data Admin** permission set to your user
 2. Open the **AFLSCE Demo Data** app from the App Launcher
-3. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Inventory Replenishment → Scenario Builder → Account & Action Plans
+3. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Inventory Replenishment → Scenario Builder → Account & Action Plans → Provider Activity Plans → Visits
 
 ## What Gets Created
 
@@ -42,7 +42,7 @@ sf project deploy start --source-dir force-app --target-org YOUR_ORG_ALIAS
 
 **Healthcare Providers (110+ HCPs)**
 - 10 HCPs per country with culturally appropriate names
-- HealthcareProviderNpi records with unique 10-digit NPIs
+- HealthcareProviderNpi records with unique 10-digit NPIs (US providers only)
 - HealthcareProviderSpecialty records (Oncology, Cardiology, Neurology, etc.)
 - CareSpecialty reference records
 - ProviderAffiliation linking doctors to their hospitals/clinics
@@ -176,7 +176,7 @@ force-app/main/default/
 ├── applications/         AFLSCE Demo Data app
 ├── classes/              Apex controllers
 │   ├── DemoTerritoryController        Territory hierarchy CRUD
-│   ├── DemoAccountProviderController  Accounts, HCPs, NPIs, specialties, affiliations, territories, PATI
+│   ├── DemoAccountProviderController  Accounts, HCPs, NPIs, specialties, affiliations, territories, PATI (per-country batched)
 │   ├── DemoAffiliationHelper          ProviderAffiliation CRUD (separate class for Schema visibility)
 │   ├── DemoContactPointController     Contact points & business licenses (batched)
 │   ├── DemoProductAlignmentController Product hierarchy & territory alignment (PTA/PTDA)
@@ -195,8 +195,10 @@ force-app/main/default/
 │   ├── productAlignmentSetup   Product hierarchy & territory alignment
 │   ├── sampleSetup             Sample products, batches & inventory for mobile visits
 │   ├── replenishmentSetup      Warehouse-to-rep inventory replenishment
-│   └── scenarioBuilder         Therapy-area scenario layering
-│   └── activityPlanSetup       Account & Action Plans creation UI
+│   ├── scenarioBuilder         Therapy-area scenario layering
+│   ├── activityPlanSetup       Account & Action Plans creation UI
+│   ├── providerActivityPlanSetup  Provider Activity Plans & Goals
+│   └── visitSetup              Visit creation with territory picker & batched delete
 ├── flexipages/           Lightning Record Pages
 │   ├── Action_Plan_Record_Page              ActionPlan record page
 │   └── Action_Plan_Template_Record_Page     ActionPlanTemplate record page
