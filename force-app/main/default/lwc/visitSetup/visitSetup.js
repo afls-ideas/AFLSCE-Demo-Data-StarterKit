@@ -125,6 +125,7 @@ export default class VisitSetup extends LightningElement {
     }
 
     async handleDelete() {
+        if (!window.confirm('Are you sure you want to delete? This cannot be undone.')) return;
         this.isLoading = true;
         this.resultMessage = undefined;
         this.activityLog = [];

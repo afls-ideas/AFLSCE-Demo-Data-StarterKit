@@ -378,8 +378,11 @@ public without sharing class DemoVisitController {
     private static List<Date> pickVisitDates(List<Date> weekdays, Integer count, Integer seed) {
         List<Date> picked = new List<Date>();
         if (weekdays.isEmpty() || count <= 0) return picked;
+        Integer total = weekdays.size();
         for (Integer i = 0; i < count; i++) {
-            Integer idx = pseudoRandom(seed + i * 37 + i * i * 3, weekdays.size());
+            Integer base = (Integer) Math.floor((Decimal) i * total / count);
+            Integer jitter = pseudoRandom(seed + i * 37, Math.max(1, total / count));
+            Integer idx = Math.mod(base + jitter, total);
             picked.add(weekdays[idx]);
         }
         picked.sort();

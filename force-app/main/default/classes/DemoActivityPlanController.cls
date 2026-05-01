@@ -431,7 +431,7 @@ public without sharing class DemoActivityPlanController {
         List<SObject> goals = new List<SObject>();
         List<Id> goalTerrIds = new List<Id>();
 
-        List<Integer> goalValues = new List<Integer>{ 600, 500, 400, 350, 300, 250, 200, 150 };
+        List<Integer> goalValues = new List<Integer>{ 50, 48, 45, 42, 40, 38, 35, 32, 30, 28, 25, 22, 20, 18, 16, 15, 14, 13, 12, 10 };
 
         for (Id terrId : terrToActivityPlan.keySet()) {
             TerritoryInfo ti = terrInfoMap.get(terrId);
@@ -439,7 +439,7 @@ public without sharing class DemoActivityPlanController {
             if (ti == null || activityPlanId == null) continue;
 
             for (Integer i = 0; i < ti.hcpAccountIds.size(); i++) {
-                Integer goalVal = i < goalValues.size() ? goalValues[i] : 8;
+                Integer goalVal = i < goalValues.size() ? goalValues[i] : 10;
                 Integer nonProdGoal = hasProducts ? (Integer) Math.round(goalVal * 0.6) : goalVal;
                 Integer prodGoal = hasProducts ? goalVal - nonProdGoal : 0;
 
