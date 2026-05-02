@@ -296,8 +296,154 @@ public without sharing class DemoVisitController {
                 details.add('SUCCESS:Created ' + totalPvpd + ' product detailing records');
             }
 
+            details.add('HEADER:Step 10 — Building planned visits (today + 1 month)');
+            Date futureEnd = today.addDays(30);
+            List<Date> futureWeekdays = new List<Date>();
+            Date fd = today;
+            while (fd <= futureEnd) {
+                Datetime fdt = Datetime.newInstance(fd, Time.newInstance(0, 0, 0, 0));
+                String fDayName = fdt.format('EEEE');
+                if (fDayName != 'Saturday' && fDayName != 'Sunday') {
+                    futureWeekdays.add(fd);
+                }
+                fd = fd.addDays(1);
+            }
+            details.add('Found ' + futureWeekdays.size() + ' weekdays in next 30 days');
+
+            Date jan1Future = Date.newInstance(today.year(), 1, 1);
+            Date dec31Future = Date.newInstance(today.year(), 12, 31);
+            Integer daysInYearFuture = jan1Future.daysBetween(dec31Future) + 1;
+            Decimal futureFraction = 30.0 / daysInYearFuture;
+
+            List<SObject> plannedVisits = new List<SObject>();
+            List<Datetime> plannedStartTimes = new List<Datetime>();
+            Integer plannedIndex = 0;
+            Integer plannedSeed = seed + 9999;
+            for (ChannelTarget ct : channelTargets) {
+                Integer plannedCount = (Integer) Math.round(ct.yearlyGoal * futureFraction);
+                if (plannedCount <= 0) continue;
+
+                List<Date> plannedDates = new List<Date>();
+                for (Integer pi = 0; pi < plannedCount; pi++) {
+                    Integer dayIdx = pseudoRandom(plannedSeed + ct.channel.hashCode() + pi * 31, futureWeekdays.size());
+                    plannedDates.add(futureWeekdays[dayIdx]);
+                }
+                plannedDates.sort();
+                details.add('Planned ' + ct.channel + ': ' + plannedCount + ' visits');
+
+                for (Integer i = 0; i < plannedDates.size(); i++) {
+                    Date visitDate = plannedDates[i];
+                    Id hcpId = usableHcpIds[Math.mod(plannedIndex, usableHcpIds.size())];
+                    plannedIndex++;
+                    Id placeId = accountToCpa.get(hcpId);
+
+                    Integer slotMin = pseudoRandom(plannedSeed + plannedIndex * 13 + 5, 480);
+                    Integer localHour = 8 + (slotMin / 60);
+                    Integer localMin = Math.mod(slotMin, 60);
+                    Datetime localDt = Datetime.newInstance(visitDate, Time.newInstance(localHour, localMin, 0, 0));
+                    Integer offsetMs = localTz.getOffset(localDt);
+                    Datetime pStartDt = localDt.addSeconds(-offsetMs / 1000);
+                    Integer duration = 15 + pseudoRandom(plannedSeed + plannedIndex * 17, 31);
+                    Datetime pEndDt = pStartDt.addMinutes(duration);
+
+                    SObject v = visitType.newSObject();
+                    v.put('AccountId', hcpId);
+                    v.put('OwnerId', ownerId);
+                    v.put('PlaceId', placeId);
+                    v.put('TerritoryId', territoryId);
+                    v.put('Channel', ct.channel);
+                    v.put('PlannedVisitStartTime', pStartDt);
+                    v.put('PlannedVisitEndTime', pEndDt);
+                    v.put('ActualVisitStartTime', pStartDt);
+                    v.put('ActualVisitEndTime', pEndDt);
+                    v.put('Status', 'Completed');
+                    v.put('InstructionDescription', DEMO_TAG);
+                    plannedVisits.add(v);
+                    plannedStartTimes.add(pStartDt);
+                }
+            }
+
+            details.add('HEADER:Step 11 — Inserting ' + plannedVisits.size() + ' planned visits (as Completed to avoid email triggers)');
+            Integer totalPlanned = 0;
+            Database.SaveResult[] plannedResults = Database.insert(plannedVisits, false);
+            List<Id> plannedVisitIds = new List<Id>();
+            List<SObject> plannedPvs = new List<SObject>();
+            for (Integer i = 0; i < plannedResults.size(); i++) {
+                if (plannedResults[i].isSuccess()) {
+                    totalPlanned++;
+                    plannedVisitIds.add(plannedResults[i].getId());
+                    SObject pv = pvType.newSObject();
+                    pv.put('VisitId', plannedResults[i].getId());
+                    pv.put('OwnerId', ownerId);
+                    pv.put('VisitSubmitDateTime', plannedStartTimes[i].addMinutes(25));
+                    pv.put('SourceSystemName', DEMO_TAG);
+                    plannedPvs.add(pv);
+                } else if (errors.size() < 20) {
+                    errors.add('Planned Visit: ' + plannedResults[i].getErrors()[0].getMessage());
+                }
+            }
+            details.add('SUCCESS:Created ' + totalPlanned + ' visits');
+
+            Integer totalPlannedPv = 0;
+            Integer totalPlannedPvpd = 0;
+            if (!plannedPvs.isEmpty()) {
+                details.add('HEADER:Step 12 — Inserting ' + plannedPvs.size() + ' planned provider visits + product detailing');
+                Database.SaveResult[] ppvResults = Database.insert(plannedPvs, false);
+                List<SObject> plannedPvpds = new List<SObject>();
+                for (Integer i = 0; i < ppvResults.size(); i++) {
+                    if (ppvResults[i].isSuccess()) {
+                        totalPlannedPv++;
+                        if (brandIds != null && !brandIds.isEmpty()) {
+                            Id pvId = ppvResults[i].getId();
+                            Integer priority = 1;
+                            for (Id brandId : brandIds) {
+                                SObject pvpd = pvpdType.newSObject();
+                                pvpd.put('ProviderVisitId', pvId);
+                                pvpd.put('ProductId', brandId);
+                                pvpd.put('Priority', priority);
+                                pvpd.put('SourceSystemName', DEMO_TAG);
+                                plannedPvpds.add(pvpd);
+                                priority++;
+                            }
+                        }
+                    } else if (errors.size() < 20) {
+                        errors.add('Planned PV: ' + ppvResults[i].getErrors()[0].getMessage());
+                    }
+                }
+                details.add('SUCCESS:Created ' + totalPlannedPv + ' planned provider visits');
+
+                if (!plannedPvpds.isEmpty()) {
+                    Database.SaveResult[] ppdResults = Database.insert(plannedPvpds, false);
+                    for (Database.SaveResult sr : ppdResults) {
+                        if (sr.isSuccess()) totalPlannedPvpd++;
+                        else if (errors.size() < 20) {
+                            errors.add('Planned ProdDetailing: ' + sr.getErrors()[0].getMessage());
+                        }
+                    }
+                    details.add('SUCCESS:Created ' + totalPlannedPvpd + ' planned product detailing records');
+                }
+            }
+
+            details.add('HEADER:Step 13 — Flipping ' + plannedVisitIds.size() + ' visits to Planned status');
+            List<SObject> toFlip = new List<SObject>();
+            for (Id vid : plannedVisitIds) {
+                SObject v = visitType.newSObject(vid);
+                v.put('Status', 'Planned');
+                toFlip.add(v);
+            }
+            Integer flipped = 0;
+            Database.SaveResult[] flipResults = Database.update(toFlip, false);
+            for (Database.SaveResult sr : flipResults) {
+                if (sr.isSuccess()) flipped++;
+                else if (errors.size() < 20) {
+                    errors.add('Flip to Planned: ' + sr.getErrors()[0].getMessage());
+                }
+            }
+            details.add('SUCCESS:Flipped ' + flipped + ' visits to Planned');
+
             String summary = errors.isEmpty()
-                ? 'Created ' + totalVisits + ' visits, ' + totalPv + ' provider visits, '
+                ? 'Created ' + totalVisits + ' completed + ' + totalPlanned + ' planned visits, '
+                    + totalPv + ' provider visits, '
                     + totalPvpd + ' product detailing for ' + terr.Name + '.'
                 : 'Completed with ' + errors.size() + ' error(s).';
             Map<String, Object> result = new Map<String, Object>{
@@ -364,11 +510,80 @@ public without sharing class DemoVisitController {
         List<Date> picked = new List<Date>();
         if (weekdays.isEmpty() || count <= 0) return picked;
         Integer total = weekdays.size();
-        for (Integer i = 0; i < count; i++) {
-            Integer base = (Integer) Math.floor((Decimal) i * total / count);
-            Integer jitter = pseudoRandom(seed + i * 37, Math.max(1, total / count));
-            Integer idx = Math.mod(base + jitter, total);
-            picked.add(weekdays[idx]);
+        Integer numWeeks = (total + 4) / 5;
+
+        // Build 3-6 phases of "hot" (1.6-2.5x) and "cold" (0-0.4x) activity
+        Integer numPhases = 3 + pseudoRandom(seed + 11, 4);
+        List<Decimal> phaseMultiplier = new List<Decimal>();
+        Boolean hotFirst = pseudoRandom(seed + 3, 2) == 1;
+        for (Integer p = 0; p < numPhases; p++) {
+            Boolean isHot = (Math.mod(p, 2) == 0) == hotFirst;
+            Integer r = pseudoRandom(seed + p * 71 + 19, 100);
+            if (isHot) {
+                phaseMultiplier.add(1.6 + (r / 100.0) * 0.9);
+            } else {
+                Decimal cold = (r < 20) ? 0.0 : 0.05 + (r / 100.0) * 0.35;
+                phaseMultiplier.add(cold);
+            }
+        }
+
+        // Divide weeks into phases of varying length
+        List<Integer> phaseLengths = new List<Integer>();
+        Integer lengthBudget = numWeeks;
+        for (Integer p = 0; p < numPhases; p++) {
+            Integer minLen = 2;
+            Integer maxLen = Math.max(minLen, lengthBudget - (numPhases - p - 1) * minLen);
+            Integer len = minLen + pseudoRandom(seed + p * 37, maxLen - minLen + 1);
+            if (p == numPhases - 1) len = lengthBudget;
+            phaseLengths.add(len);
+            lengthBudget -= len;
+        }
+
+        // Map each week to its phase multiplier
+        List<Decimal> weekWeights = new List<Decimal>();
+        Decimal weightSum = 0;
+        Integer phaseIdx = 0;
+        Integer weeksInPhase = 0;
+        for (Integer w = 0; w < numWeeks; w++) {
+            if (phaseIdx < numPhases - 1 && weeksInPhase >= phaseLengths[phaseIdx]) {
+                phaseIdx++;
+                weeksInPhase = 0;
+            }
+            Decimal base = phaseMultiplier[phaseIdx];
+            // Add per-week jitter within the phase (+-30%)
+            Integer jr = pseudoRandom(seed + w * 53 + 7, 60);
+            Decimal jitter = 0.7 + (jr / 100.0);
+            Decimal weight = base * jitter;
+            // Slow ramp first 2 weeks
+            if (w < 2) weight *= 0.3;
+            weekWeights.add(weight);
+            weightSum += weight;
+            weeksInPhase++;
+        }
+        if (weightSum == 0) weightSum = 1;
+
+        List<Integer> weekCounts = new List<Integer>();
+        Integer assigned = 0;
+        for (Integer w = 0; w < numWeeks; w++) {
+            Integer wc = (Integer) Math.round(count * weekWeights[w] / weightSum);
+            weekCounts.add(wc);
+            assigned += wc;
+        }
+        Integer diff = count - assigned;
+        for (Integer w = numWeeks - 1; diff != 0 && w >= 0; w--) {
+            if (diff > 0) { weekCounts.set(w, weekCounts[w] + 1); diff--; }
+            else if (weekCounts[w] > 0) { weekCounts.set(w, weekCounts[w] - 1); diff++; }
+        }
+
+        for (Integer w = 0; w < numWeeks; w++) {
+            Integer weekStart = w * 5;
+            Integer weekEnd = Math.min(weekStart + 5, total);
+            Integer daysInWeek = weekEnd - weekStart;
+            if (daysInWeek <= 0) continue;
+            for (Integer v = 0; v < weekCounts[w]; v++) {
+                Integer dayIdx = weekStart + pseudoRandom(seed + w * 97 + v * 13, daysInWeek);
+                picked.add(weekdays[dayIdx]);
+            }
         }
         picked.sort();
         return picked;

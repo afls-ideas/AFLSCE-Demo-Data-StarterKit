@@ -2,6 +2,7 @@ import { LightningElement, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
 import getStatus from '@salesforce/apex/DemoActivityPlanController.getStatus';
+import getMeasureTypeOptions from '@salesforce/apex/DemoActivityPlanController.getMeasureTypeOptions';
 import createProviderActivityPlans from '@salesforce/apex/DemoActivityPlanController.createProviderActivityPlans';
 import deleteProviderActivityPlans from '@salesforce/apex/DemoActivityPlanController.deleteProviderActivityPlans';
 import clearActivityPlanJobStatus from '@salesforce/apex/DemoActivityPlanController.clearActivityPlanJobStatus';
@@ -14,6 +15,8 @@ export default class ProviderActivityPlanSetup extends LightningElement {
     isSuccess = false;
     wiredStatusResult;
     activityLog = [];
+    measureTypeOptions = [];
+    selectedMeasureTypeId;
 
     @wire(getStatus)
     wiredStatus(result) {
@@ -25,6 +28,26 @@ export default class ProviderActivityPlanSetup extends LightningElement {
             this.statusError = result.error.body ? result.error.body.message : 'Unable to retrieve status.';
             this.statusData = undefined;
         }
+    }
+
+    @wire(getMeasureTypeOptions)
+    wiredMeasureTypes({ data, error }) {
+        if (data) {
+            this.measureTypeOptions = data;
+            if (!this.selectedMeasureTypeId) {
+                const faceMatch = data.find(o => {
+                    const lower = o.label.toLowerCase();
+                    return lower.includes('person') || lower.includes('face');
+                });
+                this.selectedMeasureTypeId = faceMatch ? faceMatch.value : (data.length > 0 ? data[0].value : null);
+            }
+        } else if (error) {
+            this.measureTypeOptions = [];
+        }
+    }
+
+    handleMeasureTypeChange(event) {
+        this.selectedMeasureTypeId = event.detail.value;
     }
 
     get resultClass() {
@@ -66,7 +89,7 @@ export default class ProviderActivityPlanSetup extends LightningElement {
         this.resultMessage = undefined;
         this.activityLog = [];
         try {
-            const raw = await createProviderActivityPlans();
+            const raw = await createProviderActivityPlans({ primaryMeasureTypeId: this.selectedMeasureTypeId });
             let result;
             try {
                 result = typeof raw === 'string' ? JSON.parse(raw) : raw;

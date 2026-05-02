@@ -3,19 +3,12 @@ public without sharing class DemoActionPlanBatch implements Database.Batchable<S
     private static final String DEMO_TAG = 'AFLSCE-Demo-Data';
     private static final Schema.SObjectType AP_TYPE = Schema.getGlobalDescribe().get('ActionPlan');
 
-    private Map<String, Id> engTemplateMap;
-    private List<String> engTemplateNames;
-    private Map<String, String> engToLocalName;
-    private Map<String, List<String>> engToLocalTasks;
     private Date startDate;
+    private Id defaultTemplateVersionId;
 
-    public DemoActionPlanBatch(Map<String, Id> engTemplateMap, Date startDate,
-            Map<String, String> engToLocalName, Map<String, List<String>> engToLocalTasks) {
-        this.engTemplateMap = engTemplateMap;
-        this.engTemplateNames = new List<String>(engTemplateMap.keySet());
+    public DemoActionPlanBatch(Date startDate, Id defaultTemplateVersionId) {
         this.startDate = startDate;
-        this.engToLocalName = engToLocalName;
-        this.engToLocalTasks = engToLocalTasks;
+        this.defaultTemplateVersionId = defaultTemplateVersionId;
     }
 
     public Database.QueryLocator start(Database.BatchableContext bc) {
@@ -26,21 +19,20 @@ public without sharing class DemoActionPlanBatch implements Database.Batchable<S
     }
 
     public void execute(Database.BatchableContext bc, List<SObject> scope) {
+        List<String> kamTemplates = DemoAccountPlanController.KAM_TEMPLATES;
+
         List<SObject> actionPlans = new List<SObject>();
-        Map<Integer, Id> indexToOwner = new Map<Integer, Id>();
-        Map<Integer, String> indexToEngName = new Map<Integer, String>();
-        Map<Integer, String> indexToCountry = new Map<Integer, String>();
+        List<Id> apOwners = new List<Id>();
+        List<String> apEngNames = new List<String>();
 
         for (SObject obj : scope) {
             Id ownerId = (Id) obj.getSObject('AccountPlan').get('OwnerId');
             String countryCode = (String) obj.getSObject('AccountPlan').getSObject('Account').get('BillingCountryCode');
 
-            for (String engName : engTemplateNames) {
-                Id tvId = engTemplateMap.get(engName);
-                if (tvId == null) continue;
+            List<String> localNames = DemoAccountPlanLocale.getTemplateNames(countryCode);
 
-                String localKey = countryCode + '|' + engName;
-                String displayName = engToLocalName.containsKey(localKey) ? engToLocalName.get(localKey) : engName;
+            for (Integer t = 0; t < kamTemplates.size(); t++) {
+                String displayName = (localNames != null && t < localNames.size()) ? localNames[t] : kamTemplates[t];
 
                 SObject ap = AP_TYPE.newSObject();
                 ap.put('Name', displayName);
@@ -49,12 +41,11 @@ public without sharing class DemoActionPlanBatch implements Database.Batchable<S
                 ap.put('TargetId', obj.Id);
                 ap.put('OwnerId', ownerId);
                 ap.put('StartDate', this.startDate);
-                ap.put('ActionPlanTemplateVersionId', tvId);
+                ap.put('ActionPlanTemplateVersionId', this.defaultTemplateVersionId);
                 ap.put('SourceSystemName', DEMO_TAG);
-                indexToOwner.put(actionPlans.size(), ownerId);
-                indexToEngName.put(actionPlans.size(), engName);
-                indexToCountry.put(actionPlans.size(), countryCode);
                 actionPlans.add(ap);
+                apOwners.add(ownerId);
+                apEngNames.add(kamTemplates[t]);
             }
         }
 
@@ -62,46 +53,50 @@ public without sharing class DemoActionPlanBatch implements Database.Batchable<S
 
         Database.SaveResult[] results = Database.insert(actionPlans, false);
 
+        // The template auto-creates AssessmentTasks — replace them with our custom ones
         Set<Id> insertedApIds = new Set<Id>();
         Map<Id, Id> apToOwner = new Map<Id, Id>();
-        Map<Id, String> apToLocalKey = new Map<Id, String>();
+        Map<Id, String> apToEngName = new Map<Id, String>();
         for (Integer i = 0; i < results.size(); i++) {
             if (results[i].isSuccess()) {
                 Id apId = results[i].getId();
                 insertedApIds.add(apId);
-                apToOwner.put(apId, indexToOwner.get(i));
-                apToLocalKey.put(apId, indexToCountry.get(i) + '|' + indexToEngName.get(i));
+                apToOwner.put(apId, apOwners[i]);
+                apToEngName.put(apId, apEngNames[i]);
             }
         }
 
         if (insertedApIds.isEmpty()) return;
 
-        List<AssessmentTask> tasks = [
-            SELECT Id, Name, ReferenceRecordId FROM AssessmentTask
+        List<AssessmentTask> autoTasks = [
+            SELECT Id, ReferenceRecordId FROM AssessmentTask
             WHERE ReferenceRecordId IN :insertedApIds
         ];
-        if (!tasks.isEmpty()) {
-            Map<Id, List<AssessmentTask>> tasksByAp = new Map<Id, List<AssessmentTask>>();
-            for (AssessmentTask t : tasks) {
-                if (!tasksByAp.containsKey(t.ReferenceRecordId)) {
-                    tasksByAp.put(t.ReferenceRecordId, new List<AssessmentTask>());
-                }
-                tasksByAp.get(t.ReferenceRecordId).add(t);
-            }
+        if (!autoTasks.isEmpty()) {
+            Database.delete(autoTasks, false);
+        }
 
-            for (AssessmentTask t : tasks) {
-                t.OwnerId = apToOwner.get(t.ReferenceRecordId);
-                String localKey = apToLocalKey.get(t.ReferenceRecordId);
-                if (localKey != null && engToLocalTasks.containsKey(localKey)) {
-                    List<String> localNames = engToLocalTasks.get(localKey);
-                    List<AssessmentTask> apTasks = tasksByAp.get(t.ReferenceRecordId);
-                    Integer idx = apTasks.indexOf(t);
-                    if (idx >= 0 && idx < localNames.size()) {
-                        t.Name = localNames[idx];
-                    }
-                }
+        List<AssessmentTask> tasks = new List<AssessmentTask>();
+        for (Id apId : insertedApIds) {
+            Id ownerId = apToOwner.get(apId);
+            String engName = apToEngName.get(apId);
+
+            List<String> taskNames = DemoAccountPlanData.KAM_TASKS.get(engName);
+            if (taskNames == null || taskNames.isEmpty()) continue;
+
+            for (String taskName : taskNames) {
+                AssessmentTask task = new AssessmentTask();
+                task.Name = taskName;
+                task.ReferenceRecordId = apId;
+                task.OwnerId = ownerId;
+                task.TaskType = 'Other';
+                task.Status = 'NotStarted';
+                tasks.add(task);
             }
-            Database.update(tasks, false);
+        }
+
+        if (!tasks.isEmpty()) {
+            Database.insert(tasks, false);
         }
     }
 

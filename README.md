@@ -22,7 +22,9 @@ sf project deploy start --source-dir force-app --target-org YOUR_ORG_ALIAS
 
 1. Assign the **AFLSCE Demo Data Admin** permission set to your user
 2. Open the **AFLSCE Demo Data** app from the App Launcher
-3. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Inventory Replenishment → Scenario Builder → Account & Action Plans → Provider Activity Plans → Visits
+3. Assign the **AFLSCE Demo Account Plan** permission set (for Account & Action Plans tab)
+4. Open the **AFLSCE Demo Data** app from the App Launcher
+5. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Inventory Replenishment → Scenario Builder → Account & Action Plans → Activity Plans → Visits
 
 ## What Gets Created
 
@@ -120,19 +122,20 @@ Scenarios are additive — apply multiple to build a multi-therapeutic-area demo
 
 Creates the full Account Plan → Objective → Action Plan hierarchy for demo accounts (1 HCP + 2 HCOs per territory) across all 11 countries:
 
-- **Account Plans** (~144) — one per selected account, with localized names per country and account type (Hospital, Clinic, Insurance, Pharmacy, HCP). Names use a hyphen separator (e.g., `Immunexis Formulary Inclusion - Baptist Health`). Owned by the territory rep
-- **Account Plan Objectives** (~432) — 3 per plan, localized to each country's healthcare system (P&T Committee in US, NICE pathway in GB, AIFA in Italy, COFEPRIS in Mexico, etc.)
-- **Action Plans** (~2,592) — 6 per objective, one per localized KAM template, created asynchronously via batch. French territories get French templates, German get German, etc.
-- **Assessment Tasks** (~7,776) — auto-created by the platform from `ActionPlanTemplateItem` records when Action Plans are inserted with `ActionPlanTemplateVersionId`
+- **Account Plans** (~24) — one per selected account, with localized names per country and account type (Hospital, Clinic, Insurance, Pharmacy, HCP). Names use a hyphen separator (e.g., `Immunexis Formulary Inclusion - Baptist Health`). Owned by the territory rep
+- **Account Plan Objectives** (~72) — 3 per plan, localized to each country's healthcare system (P&T Committee in US, NICE pathway in GB, AIFA in Italy, COFEPRIS in Mexico, etc.)
+- **Action Plans** (~432) — 6 per objective, created asynchronously via batch using any existing Final `ActionPlanTemplateVersion` as the required template reference. Custom KAM names are applied (localized by country)
+- **Assessment Tasks** (~1,296) — 3 per action plan, created directly by the batch with task names from `DemoAccountPlanData.KAM_TASKS`. No dependency on specific template content
 
-Requires 48 KAM Action Plan Templates (6 English + 6 per language for FR, DE, IT, ES, JP, KR, BR) to be published in the org. Includes two custom Lightning Record Pages and live batch progress monitoring.
+Requires at least one `ActionPlanTemplateVersion` in Final status in the org (any template works). Requires the **AFLSCE Demo Account Plan** permission set assigned to the running user. Includes live batch progress monitoring.
 
-See [README-AccountActionPlans.md](README-AccountActionPlans.md) for full details on templates, permissions, mobile sync (DB Schema), and troubleshooting.
+See [README-AccountActionPlans.md](README-AccountActionPlans.md) for full details on permissions, mobile sync (DB Schema), and troubleshooting.
 
-### Tab 9: Provider Activity Plans
+### Tab 9: Activity Plans
 
 Creates the activity plan structure for tracking visit goals per territory:
 
+- **Measure type picker** — radio button group showing `ProviderActivityMeasureType` options. Primary measure type gets 90% of visit goals; remaining 10% split across others
 - **TimePeriod** — current calendar year
 - **ActivityPlan** — one per leaf territory, tagged with `SourceSystemName = 'AFLSCE-Demo-Data'`
 - **ActivityPlanTerritory** — links activity plan to territory
@@ -144,8 +147,9 @@ Creates the activity plan structure for tracking visit goals per territory:
 Creates completed Visit records for a selected territory with a UI-selectable primary channel:
 
 - **Channel picker** — radio button group showing all active `Visit.Channel` picklist values, auto-defaults to "In-Person". 90% of visits use the primary channel; remaining 10% split evenly across other channels
-- **Visit** — spread across weekdays from Jan 1 to today, 600 yearly total prorated to current date. Status=Completed, with timezone-aware scheduling (8am–4pm local)
-- **ProviderVisit** — one per visit, with `VisitSubmitDateTime` set for activity plan progress tracking
+- **Completed visits** — spread across weekdays from Jan 1 to today, 600 yearly total prorated. Phase-based distribution creates organic cumulative progress curves (multi-week hot/cold streaks instead of linear tracking). Status=Completed, timezone-aware scheduling (8am–4pm local)
+- **Planned visits** — ~50 visits for the next 30 days (today + 1 month), Status=Planned. Inserted as Completed first to avoid ProviderVisitTrigger email templates, then flipped to Planned
+- **ProviderVisit** — one per visit (both completed and planned), with `VisitSubmitDateTime` set for activity plan progress tracking
 - **ProviderVisitProdDetailing** — one per brand per visit (Immunexis + Immunonco for territory's country)
 - **Batched delete** — unlocks completed/submitted visits, deletes children first, loops in batches with error reporting
 
@@ -205,10 +209,12 @@ force-app/main/default/
 │   ├── DemoSampleController           Sample products, batches, inventory, sharing
 │   ├── DemoReplenishmentController    Warehouse-to-rep inventory replenishment
 │   ├── DemoScenarioController         Therapy-area scenario layering
-│   ├── DemoActivityPlanController     Account Plans, Objectives, Action Plan orchestration
-│   ├── DemoActionPlanBatch            Batchable for Action Plan creation from templates
-│   ├── DemoAccountPlanData            English plan archetypes & objectives
-│   └── DemoAccountPlanLocale          Localized plan names, objectives & templates (7 languages)
+│   ├── DemoActivityPlanController     Activity Plans, Goals & Measures
+│   ├── DemoAccountPlanController      Account Plans, Objectives, Action Plan orchestration
+│   ├── DemoActionPlanBatch            Batchable for Action Plan + AssessmentTask creation
+│   ├── DemoAccountPlanData            English plan archetypes, objectives & KAM task definitions
+│   ├── DemoAccountPlanLocale          Localized plan names, objectives & templates (7 languages)
+│   └── DemoVisitController            Visit creation with channel picker & planned visits
 ├── lwc/                  Lightning Web Components
 │   ├── demoDataAdmin           Main tabbed UI
 │   ├── territorySetup          Territory hierarchy creator
@@ -219,7 +225,7 @@ force-app/main/default/
 │   ├── replenishmentSetup      Warehouse-to-rep inventory replenishment
 │   ├── scenarioBuilder         Therapy-area scenario layering
 │   ├── activityPlanSetup       Account & Action Plans creation UI
-│   ├── providerActivityPlanSetup  Provider Activity Plans & Goals
+│   ├── providerActivityPlanSetup  Activity Plans & Goals with measure type picker
 │   └── visitSetup              Visit creation with channel picker, territory selector & batched delete
 ├── flexipages/           Lightning Record Pages
 │   ├── Action_Plan_Record_Page              ActionPlan record page

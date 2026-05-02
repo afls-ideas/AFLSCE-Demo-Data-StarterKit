@@ -98,22 +98,24 @@ public without sharing class DemoAccountPlanController {
                 throw new AuraHandledException('No territories with demo accounts found. Run Accounts & Providers setup first.');
             }
 
-            details.add('HEADER:Step 2 — Loading KAM action plan templates');
-            Map<String, Id> templateVersionMap = loadTemplateVersions(details, errors);
-
-            details.add('HEADER:Step 3 — Creating Account Plans');
+            details.add('HEADER:Step 2 — Creating Account Plans');
             Date startDate = Date.newInstance(Date.today().year(), 1, 1);
             Date endDate = Date.newInstance(Date.today().year(), 12, 31);
             Map<Id, Id> acctToAccountPlan = createAccountPlans(terrInfoMap, accountInfoMap, startDate, endDate, details, errors);
 
-            details.add('HEADER:Step 4 — Creating Account Plan Objectives');
+            details.add('HEADER:Step 3 — Creating Account Plan Objectives');
             Integer objCount = createObjectives(acctToAccountPlan, accountInfoMap, startDate, endDate, details, errors);
 
-            details.add('HEADER:Step 5 — Queuing Action Plan creation (batch)');
-            Map<String, String> localNameMap = buildLocalNameMap();
-            Map<String, List<String>> localTaskMap = buildLocalTaskMap();
-            Database.executeBatch(new DemoActionPlanBatch(templateVersionMap, startDate, localNameMap, localTaskMap), 10);
-            Integer expectedAPs = objCount * templateVersionMap.size();
+            details.add('HEADER:Step 4 — Queuing Action Plan creation (batch)');
+            List<ActionPlanTemplateVersion> tvs = [
+                SELECT Id FROM ActionPlanTemplateVersion WHERE Status = 'Final' LIMIT 1
+            ];
+            if (tvs.isEmpty()) {
+                errors.add('No Final ActionPlanTemplateVersion found — cannot create Action Plans');
+            } else {
+                Database.executeBatch(new DemoActionPlanBatch(startDate, tvs[0].Id), 10);
+            }
+            Integer expectedAPs = objCount * KAM_TEMPLATES.size();
             details.add('SUCCESS:Batch queued — will create ~' + expectedAPs + ' action plans asynchronously');
             details.add('Refresh the page in a minute to see the final Action Plans count');
 
@@ -322,79 +324,6 @@ public without sharing class DemoAccountPlanController {
         }
         details.add('SUCCESS:' + terrInfoMap.size() + ' territories with ' + totalAccounts + ' accounts');
         return terrInfoMap;
-    }
-
-    private static Map<String, Id> loadTemplateVersions(List<String> details, List<String> errors) {
-        Map<String, Id> engMap = new Map<String, Id>();
-        Set<String> engNames = new Set<String>(KAM_TEMPLATES);
-        for (ActionPlanTemplateVersion tv : [
-            SELECT Id, Name FROM ActionPlanTemplateVersion
-            WHERE Name IN :engNames AND Status = 'Final'
-        ]) {
-            engMap.put(tv.Name.trim(), tv.Id);
-        }
-
-        for (String name : KAM_TEMPLATES) {
-            if (!engMap.containsKey(name)) {
-                errors.add('Template not found (or not Final): ' + name);
-            }
-        }
-
-        details.add('SUCCESS:Loaded ' + engMap.size() + '/' + KAM_TEMPLATES.size() + ' English Final templates');
-        return engMap;
-    }
-
-    private static Map<String, String> buildLocalNameMap() {
-        Map<String, String> result = new Map<String, String>();
-        for (String langKey : DemoAccountPlanLocale.KAM_TEMPLATES_BY_LANG.keySet()) {
-            List<String> localNames = DemoAccountPlanLocale.KAM_TEMPLATES_BY_LANG.get(langKey);
-            List<String> countryCodes = DemoAccountPlanLocale.getCountriesForLang(langKey);
-            for (String cc : countryCodes) {
-                for (Integer i = 0; i < KAM_TEMPLATES.size(); i++) {
-                    result.put(cc + '|' + KAM_TEMPLATES[i], localNames[i]);
-                }
-            }
-        }
-        return result;
-    }
-
-    private static Map<String, List<String>> buildLocalTaskMap() {
-        Map<String, List<String>> result = new Map<String, List<String>>();
-        Set<String> localNames = new Set<String>();
-        for (List<String> langNames : DemoAccountPlanLocale.KAM_TEMPLATES_BY_LANG.values()) {
-            localNames.addAll(langNames);
-        }
-
-        Map<String, List<String>> tasksByTplName = new Map<String, List<String>>();
-        Map<Id, String> versionToName = new Map<Id, String>();
-        for (ActionPlanTemplateVersion tv : [
-            SELECT Id, Name FROM ActionPlanTemplateVersion WHERE Name IN :localNames
-        ]) {
-            versionToName.put(tv.Id, tv.Name.trim());
-        }
-        for (ActionPlanTemplateItem item : [
-            SELECT Name, ActionPlanTemplateVersionId FROM ActionPlanTemplateItem
-            WHERE ActionPlanTemplateVersionId IN :versionToName.keySet() ORDER BY Name
-        ]) {
-            String tplName = versionToName.get(item.ActionPlanTemplateVersionId);
-            if (!tasksByTplName.containsKey(tplName)) tasksByTplName.put(tplName, new List<String>());
-            tasksByTplName.get(tplName).add(item.Name);
-        }
-
-        for (String langKey : DemoAccountPlanLocale.KAM_TEMPLATES_BY_LANG.keySet()) {
-            List<String> langTplNames = DemoAccountPlanLocale.KAM_TEMPLATES_BY_LANG.get(langKey);
-            List<String> countryCodes = DemoAccountPlanLocale.getCountriesForLang(langKey);
-            for (String cc : countryCodes) {
-                for (Integer i = 0; i < KAM_TEMPLATES.size(); i++) {
-                    String key = cc + '|' + KAM_TEMPLATES[i];
-                    List<String> tasks = tasksByTplName.get(langTplNames[i]);
-                    if (tasks != null) {
-                        result.put(key, tasks);
-                    }
-                }
-            }
-        }
-        return result;
     }
 
     private static Map<Id, Id> createAccountPlans(Map<Id, TerritoryInfo> terrInfoMap,

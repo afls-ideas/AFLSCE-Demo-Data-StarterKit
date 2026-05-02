@@ -2,6 +2,10 @@
 
 | Date | Change | Details |
 |------|--------|---------|
+| 2026-05-01 | Remove template dependency from Action Plans | `DemoActionPlanBatch` no longer requires specific named templates in Final status. Uses any existing Final `ActionPlanTemplateVersion` to satisfy the required field, then replaces auto-created tasks with custom `KAM_TASKS` from `DemoAccountPlanData`. Added `Demo_Account_Plan` permission set with `ActionPlansUserAccess` and CRUD on AccountPlan, ActionPlan, etc. |
+| 2026-05-01 | Planned visits for next 30 days | Visit creation now adds ~50 planned visits (Status=Planned) for today through today+30 days. Inserted as Completed first to bypass `ProviderVisitTrigger` email templates, ProviderVisit and product detailing created, then flipped to Planned. |
+| 2026-05-01 | Organic visit distribution with phase-based weighting | Replaced per-week random weights with multi-week phases (3-6 alternating hot 1.6-2.5x and cold 0-0.4x streaks). Cumulative progress chart now shows realistic deviations from the target line instead of tracking it linearly. |
+| 2026-05-01 | Measure type picker for Activity Plans | Added `getMeasureTypeOptions()` querying `ProviderActivityMeasureType` and `lightning-radio-group` on the Activity Plans tab. Primary measure type gets 90% of visit goals. Renamed tab from "Provider Activity Plans" to "Activity Plans". |
 | 2026-05-01 | Channel picker for visit creation | Replaced activity-plan-goal-based channel distribution with a UI radio button group. `getChannelOptions` returns active `Visit.Channel` picklist values; `createVisits` accepts `primaryChannel` (90% of 600 yearly visits). Auto-defaults to "In-Person". Remaining 10% split evenly across other channels. |
 | 2026-05-01 | Fix visit date clustering on Tue/Thu | Replaced pure LCG-based `pickVisitDates` with evenly-spaced base indices plus small random jitter, distributing visits across all 5 weekdays. |
 | 2026-05-01 | Delete confirmation on all tabs | Added `window.confirm` dialog to all 10 `handleDelete` methods across all LWC tabs to prevent accidental data deletion. |

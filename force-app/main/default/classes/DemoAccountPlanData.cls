@@ -150,6 +150,39 @@ public class DemoAccountPlanData {
         }
     };
 
+    public static final Map<String, List<String>> KAM_TASKS = new Map<String, List<String>>{
+        'Market Access & Contracting' => new List<String>{
+            'Conduct Payer Landscape Analysis',
+            'Develop Contracting Strategy Proposal',
+            'Negotiate Formulary Access Agreement'
+        },
+        'Supply Chain & Distribution Readiness' => new List<String>{
+            'Map Current Distribution Channels',
+            'Establish Cold Chain Compliance Protocol',
+            'Validate Inventory and Fulfillment Workflow'
+        },
+        'P&T Committee Prep: Proactive Partnership for Formulary' => new List<String>{
+            'Assemble Clinical Evidence Dossier',
+            'Schedule P&T Committee Presentation',
+            'Secure Formulary Inclusion Recommendation'
+        },
+        'Field Readiness & Pull-Through' => new List<String>{
+            'Train Field Team on Messaging and Positioning',
+            'Deploy Sales Support Materials',
+            'Monitor Early Adoption Metrics'
+        },
+        'Analyse Diagnostic Gaps for Rheumatoid Arthritis' => new List<String>{
+            'Review Current Diagnostic Protocols',
+            'Identify Underdiagnosed Patient Segments',
+            'Propose Updated Screening Guidelines'
+        },
+        'Implement & Monitor new Diagnostic Protocols' => new List<String>{
+            'Roll Out New Diagnostic Workflow',
+            'Train Clinical Staff on Protocol Changes',
+            'Track Diagnostic Yield and Patient Outcomes'
+        }
+    };
+
     public static String getAccountTypeKey(String countryCode, String accountType, Boolean isPersonAccount) {
         if (isPersonAccount) {
             return countryCode + '_HCP';

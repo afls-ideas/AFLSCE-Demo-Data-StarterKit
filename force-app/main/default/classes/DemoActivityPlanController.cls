@@ -38,8 +38,33 @@ public without sharing class DemoActivityPlanController {
         }
     }
 
+    @AuraEnabled(cacheable=true)
+    public static List<Map<String, String>> getMeasureTypeOptions() {
+        List<Map<String, String>> options = new List<Map<String, String>>();
+        try {
+            List<SObject> types = Database.query(
+                'SELECT Id, MasterLabel, ActivityTypeFieldValue FROM ProviderActivityMeasureType ' +
+                'WHERE IsActive = true AND ActivityObject = \'Visit\' ' +
+                'AND ActivityProductField = null ORDER BY DisplayOrder');
+            for (SObject t : types) {
+                String label = (String) t.get('MasterLabel');
+                String channel = (String) t.get('ActivityTypeFieldValue');
+                if (String.isNotBlank(channel)) {
+                    label += ' (' + channel + ')';
+                }
+                options.add(new Map<String, String>{
+                    'value' => t.Id,
+                    'label' => label
+                });
+            }
+        } catch (Exception e) {
+            // Object may not exist in some orgs
+        }
+        return options;
+    }
+
     @AuraEnabled
-    public static String createProviderActivityPlans() {
+    public static String createProviderActivityPlans(String primaryMeasureTypeId) {
         List<String> details = new List<String>();
         List<String> errors = new List<String>();
 
@@ -69,6 +94,22 @@ public without sharing class DemoActivityPlanController {
                 'WHERE IsActive = true AND ActivityObject = \'Visit\' ORDER BY DisplayOrder');
             if (visitMeasureTypes.isEmpty()) {
                 throw new AuraHandledException('No active Visit-level ProviderActivityMeasureType records found.');
+            }
+            if (String.isNotBlank(primaryMeasureTypeId)) {
+                List<SObject> reordered = new List<SObject>();
+                SObject primary = null;
+                for (SObject mt : visitMeasureTypes) {
+                    if (mt.Id == primaryMeasureTypeId) {
+                        primary = mt;
+                    } else {
+                        reordered.add(mt);
+                    }
+                }
+                if (primary != null) {
+                    reordered.add(0, primary);
+                    visitMeasureTypes = reordered;
+                    details.add('SUCCESS:Primary measure type: ' + (String) primary.get('MasterLabel') + ' (90% of visit goals)');
+                }
             }
             details.add('SUCCESS:Found ' + visitMeasureTypes.size() + ' visit measure types: ' +
                 buildMeasureTypeLabels(visitMeasureTypes));
