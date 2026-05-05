@@ -193,7 +193,7 @@ All created records are tagged for safe cleanup:
 | AccountPlan | `SourceSystemName` | `AFLSCE-Demo-Data` |
 | AccountPlanObjective | `SourceSystemName` | `AFLSCE-Demo-Data` |
 | ActionPlan | `SourceSystemName` | `AFLSCE-Demo-Data` |
-| Campaign | `External_ID__c` | `AFLSCE-Demo-Data-CAMP-*` |
+| Campaign | `Name` | `[AFLSCE-Demo] *` (prefix) |
 
 Every tab has a **Delete** button that removes only the records created by this tool. Your existing org data is never touched.
 
