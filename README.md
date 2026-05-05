@@ -24,7 +24,7 @@ sf project deploy start --source-dir force-app --target-org YOUR_ORG_ALIAS
 2. Open the **AFLSCE Demo Data** app from the App Launcher
 3. Assign the **AFLSCE Demo Account Plan** permission set (for Account & Action Plans tab)
 4. Open the **AFLSCE Demo Data** app from the App Launcher
-5. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Inventory Replenishment → Scenario Builder → Account & Action Plans → Activity Plans → Visits
+5. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Inventory Replenishment → Scenario Builder → Account & Action Plans → Activity Plans → Campaigns → Visits
 
 ## What Gets Created
 
@@ -142,7 +142,15 @@ Creates the activity plan structure for tracking visit goals per territory:
 - **ProviderActivityGoal** — one per HCP in the territory, with realistic goals (50 down to 10 visits/year)
 - **ProviderActivityGoalMeasure** — visit-level measures (90/5/5 channel split) and product-level measures per country brand
 
-### Tab 10: Visits
+### Tab 10: Campaigns
+
+Creates marketing campaigns and HCP journey data for the HCP Journey app:
+
+- **Journey Campaigns** (~11, one per country) — "Immunexis HCP Adoption Journey — {Country}" with journey-stage statuses: Unaware, Aware, Interested, Trial, Adopter, Advocate. All demo HCPs in each country are added as members with weighted stage distribution (25% Unaware → 5% Advocate)
+- **Marketing Campaigns** (7) — Email nurtures, webinars, congress follow-ups, product launches, speaker invites. Each gets 40-80% of HCPs as members with email-engagement statuses (Sent, Opened, Clicked, Registered, Attended, No Show)
+- **CampaignMemberStatus** — Custom statuses per campaign type (journey stages or email engagement)
+
+### Tab 11: Visits
 
 Creates completed Visit records for a selected territory with a UI-selectable primary channel:
 
@@ -185,6 +193,7 @@ All created records are tagged for safe cleanup:
 | AccountPlan | `SourceSystemName` | `AFLSCE-Demo-Data` |
 | AccountPlanObjective | `SourceSystemName` | `AFLSCE-Demo-Data` |
 | ActionPlan | `SourceSystemName` | `AFLSCE-Demo-Data` |
+| Campaign | `External_ID__c` | `AFLSCE-Demo-Data-CAMP-*` |
 
 Every tab has a **Delete** button that removes only the records created by this tool. Your existing org data is never touched.
 
@@ -214,6 +223,7 @@ force-app/main/default/
 │   ├── DemoActionPlanBatch            Batchable for Action Plan + AssessmentTask creation
 │   ├── DemoAccountPlanData            English plan archetypes, objectives & KAM task definitions
 │   ├── DemoAccountPlanLocale          Localized plan names, objectives & templates (7 languages)
+│   ├── DemoCampaignController          Campaign + CampaignMember creation (journey + marketing)
 │   └── DemoVisitController            Visit creation with channel picker & planned visits
 ├── lwc/                  Lightning Web Components
 │   ├── demoDataAdmin           Main tabbed UI
@@ -226,6 +236,7 @@ force-app/main/default/
 │   ├── scenarioBuilder         Therapy-area scenario layering
 │   ├── activityPlanSetup       Account & Action Plans creation UI
 │   ├── providerActivityPlanSetup  Activity Plans & Goals with measure type picker
+│   ├── campaignSetup             Campaign + journey member creation
 │   └── visitSetup              Visit creation with channel picker, territory selector & batched delete
 ├── flexipages/           Lightning Record Pages
 │   ├── Action_Plan_Record_Page              ActionPlan record page
