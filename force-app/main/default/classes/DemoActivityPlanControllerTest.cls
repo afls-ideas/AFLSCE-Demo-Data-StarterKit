@@ -15,7 +15,7 @@ private class DemoActivityPlanControllerTest {
     static void testCreateActivityPlans() {
         Test.startTest();
         try {
-            DemoActivityPlanController.createProviderActivityPlans();
+            DemoActivityPlanController.createProviderActivityPlans(null);
         } catch (Exception e) {
             // Expected — no demo data in test context
         }

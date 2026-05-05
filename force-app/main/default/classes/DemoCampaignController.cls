@@ -55,11 +55,13 @@ public without sharing class DemoCampaignController {
         'MX' => 'Mexico', 'AR' => 'Argentina'
     };
 
+    private static final String TAG_PREFIX = '[AFLSCE-Demo]';
+
     @AuraEnabled(cacheable=true)
     public static String getStatus() {
         try {
-            String extPattern = DEMO_TAG + '-CAMP-%';
-            List<Campaign> demoCamps = [SELECT Id FROM Campaign WHERE External_ID__c LIKE :extPattern];
+            String namePattern = TAG_PREFIX + '%';
+            List<Campaign> demoCamps = [SELECT Id FROM Campaign WHERE Name LIKE :namePattern];
             Integer campCount = demoCamps.size();
             Integer memberCount = 0;
             if (!demoCamps.isEmpty()) {
@@ -78,8 +80,8 @@ public without sharing class DemoCampaignController {
         List<String> errors = new List<String>();
 
         try {
-            String extPattern = DEMO_TAG + '-CAMP-%';
-            Integer existing = [SELECT COUNT() FROM Campaign WHERE External_ID__c LIKE :extPattern];
+            String namePattern = TAG_PREFIX + '%';
+            Integer existing = [SELECT COUNT() FROM Campaign WHERE Name LIKE :namePattern];
             if (existing > 0) {
                 throw new AuraHandledException('Demo campaigns already exist (' + existing + '). Delete first.');
             }
@@ -111,10 +113,9 @@ public without sharing class DemoCampaignController {
             for (String cc : hcpsByCountry.keySet()) {
                 String countryName = COUNTRY_NAMES.containsKey(cc) ? COUNTRY_NAMES.get(cc) : cc;
                 Campaign c = new Campaign();
-                c.Name = 'Immunexis HCP Adoption Journey — ' + countryName;
+                c.Name = TAG_PREFIX + ' Immunexis HCP Adoption Journey — ' + countryName;
                 c.Type = 'Other';
                 c.Description = 'HCP journey moving providers from Unaware to Advocate for Immunexis in ' + countryName;
-                c.External_ID__c = DEMO_TAG + '-CAMP-J-' + cc;
                 c.IsActive = true;
                 c.Status = 'In Progress';
                 c.StartDate = Date.newInstance(today.year(), 1, 1);
@@ -142,10 +143,9 @@ public without sharing class DemoCampaignController {
             for (Integer i = 0; i < CAMPAIGNS.size(); i++) {
                 Map<String, String> cd = CAMPAIGNS[i];
                 Campaign c = new Campaign();
-                c.Name = cd.get('Name');
+                c.Name = TAG_PREFIX + ' ' + cd.get('Name');
                 c.Type = cd.get('Type');
                 c.Description = cd.get('Description');
-                c.External_ID__c = DEMO_TAG + '-CAMP-M-' + i;
                 c.IsActive = true;
                 c.Status = (Math.mod(i, 3) == 0) ? 'Completed' : 'In Progress';
                 c.StartDate = today.addDays(-90 + (i * 10));
@@ -253,8 +253,8 @@ public without sharing class DemoCampaignController {
     @AuraEnabled
     public static String deleteCampaigns() {
         try {
-            String extPattern = DEMO_TAG + '-CAMP-%';
-            List<Campaign> camps = [SELECT Id FROM Campaign WHERE External_ID__c LIKE :extPattern LIMIT 2000];
+            String namePattern = TAG_PREFIX + '%';
+            List<Campaign> camps = [SELECT Id FROM Campaign WHERE Name LIKE :namePattern LIMIT 2000];
             if (camps.isEmpty()) return 'No demo campaigns to delete.';
 
             Set<Id> campIds = new Set<Id>();

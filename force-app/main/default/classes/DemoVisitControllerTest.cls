@@ -31,7 +31,7 @@ private class DemoVisitControllerTest {
     static void testCreateVisitsInvalidTerritory() {
         Test.startTest();
         try {
-            DemoVisitController.createVisits(null);
+            DemoVisitController.createVisits(null, null);
             System.assert(false, 'Expected exception');
         } catch (Exception e) {
             System.assertNotEquals(null, e.getMessage());

@@ -30,10 +30,7 @@ private class DemoAccountPlanControllerTest {
     static void testActionPlanBatch() {
         Test.startTest();
         try {
-            Map<String, Id> emptyMap = new Map<String, Id>();
-            Map<String, String> emptyNameMap = new Map<String, String>();
-            Map<String, List<String>> emptyTaskMap = new Map<String, List<String>>();
-            DemoActionPlanBatch batch = new DemoActionPlanBatch(emptyMap, Date.today(), emptyNameMap, emptyTaskMap);
+            DemoActionPlanBatch batch = new DemoActionPlanBatch(Date.today(), null);
             Database.executeBatch(batch, 10);
         } catch (Exception e) { }
         Test.stopTest();
