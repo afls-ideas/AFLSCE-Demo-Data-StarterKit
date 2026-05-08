@@ -10,7 +10,11 @@ import createDoctorsForCountry from '@salesforce/apex/DemoAccountProviderControl
 import createProvidersForCountry from '@salesforce/apex/DemoAccountProviderController.createProvidersForCountry';
 import createAffiliationsForCountry from '@salesforce/apex/DemoAccountProviderController.createAffiliationsForCountry';
 import deleteAccountsAndProviders from '@salesforce/apex/DemoAccountProviderController.deleteAccountsAndProviders';
-import assignTerritories from '@salesforce/apex/DemoAccountProviderController.assignTerritories';
+import cleanupTerritoryData from '@salesforce/apex/DemoAccountProviderController.cleanupTerritoryData';
+import assignAccountTerritories from '@salesforce/apex/DemoAccountProviderController.assignAccountTerritories';
+import shareHcpWithTerritories from '@salesforce/apex/DemoAccountProviderController.shareHcpWithTerritories';
+import createTerritoryPati from '@salesforce/apex/DemoAccountProviderController.createTerritoryPati';
+import createTerritorySummaries from '@salesforce/apex/DemoAccountProviderController.createTerritorySummaries';
 import getTerritorySummary from '@salesforce/apex/DemoTerritoryController.getTerritorySummary';
 
 const PROVIDER_BATCH_SIZE = 30;
@@ -235,10 +239,26 @@ export default class AccountProviderSetup extends LightningElement {
     async handleAssignTerritories() {
         this.isLoading = true;
         this.resultMessage = undefined;
+        this.activityLog = [];
         try {
-            const result = await assignTerritories();
+            this.addLog('Cleaning up existing territory data...', 'header');
+            await this.callApex(cleanupTerritoryData, {}, 'Cleanup');
+
+            this.addLog('Assigning accounts to territories...', 'header');
+            await this.callApex(assignAccountTerritories, {}, 'Account territories');
+
+            this.addLog('Sharing HealthcareProvider records with territory groups...', 'header');
+            await this.callApex(shareHcpWithTerritories, {}, 'HCP sharing');
+
+            this.addLog('Creating Provider Account Territory Info (PATI) records...', 'header');
+            await this.callApex(createTerritoryPati, {}, 'PATI creation');
+
+            this.addLog('Creating Provider Account Territory Summaries...', 'header');
+            await this.callApex(createTerritorySummaries, {}, 'Summary creation');
+
+            this.addLog('Territory assignment complete!', 'header');
             this.isSuccess = true;
-            this.resultMessage = result;
+            this.resultMessage = 'Territory assignments completed successfully.';
             this.dispatchEvent(
                 new ShowToastEvent({
                     title: 'Success',

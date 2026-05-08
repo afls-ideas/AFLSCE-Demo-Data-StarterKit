@@ -2,6 +2,7 @@
 
 | Date | Change | Details |
 |------|--------|---------|
+| 2026-05-08 | Share HealthcareProvider with territory groups + progress UI | "Assign Territories" now shares HCP records with territory groups (via `HealthcareProviderShare`) so field reps can see them. Split into 5 sequential steps with activity log progress (cleanup → account OTA → HCP sharing → PATI → summaries). Also sets `IsPrimaryProvider = true` on all new HealthcareProvider records. |
 | 2026-05-04 | Add Campaigns tab for HCP Journey app | New `DemoCampaignController` creates journey campaigns (1 per country with Unaware→Advocate stages, all HCPs as members) and 7 marketing campaigns (email nurtures, webinars, congress follow-ups with Sent/Opened/Clicked/etc. statuses). Tagged via `External_ID__c = AFLSCE-Demo-Data-CAMP-*`. |
 | 2026-05-01 | Remove template dependency from Action Plans | `DemoActionPlanBatch` no longer requires specific named templates in Final status. Uses any existing Final `ActionPlanTemplateVersion` to satisfy the required field, then replaces auto-created tasks with custom `KAM_TASKS` from `DemoAccountPlanData`. Added `Demo_Account_Plan` permission set with `ActionPlansUserAccess` and CRUD on AccountPlan, ActionPlan, etc. |
 | 2026-05-01 | Planned visits for next 30 days | Visit creation now adds ~50 planned visits (Status=Planned) for today through today+30 days. Inserted as Completed first to bypass `ProviderVisitTrigger` email templates, ProviderVisit and product detailing created, then flipped to Planned. |

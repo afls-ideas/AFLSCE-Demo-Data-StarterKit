@@ -1260,6 +1260,7 @@ public with sharing class DemoAccountProviderController {
             SObject hcp = hcpType.newSObject();
             hcp.put('Name', 'Dr. ' + fullName);
             if (hcpFields.containsKey('accountid')) hcp.put('AccountId', doctorNameToId.get(fullName));
+            if (hcpFields.containsKey('isprimaryprovider')) hcp.put('IsPrimaryProvider', true);
             if (hcpFields.containsKey('sourcesystem')) hcp.put('SourceSystem', DEMO_TAG);
             providers.add(hcp);
         }
@@ -1409,7 +1410,73 @@ public with sharing class DemoAccountProviderController {
     // ---------------------------------------------------------------------------
 
     @AuraEnabled
-    public static String assignTerritories() {
+    public static String cleanupTerritoryData() {
+        try {
+            List<Account> demoAccounts = [
+                SELECT Id FROM Account WHERE Site = :DEMO_TAG
+            ];
+            if (demoAccounts.isEmpty()) return 'No demo accounts found — nothing to clean.';
+
+            Set<Id> acctIds = new Set<Id>();
+            for (Account a : demoAccounts) acctIds.add(a.Id);
+            Integer deleted = 0;
+
+            List<ObjectTerritory2Association> existingOta = [
+                SELECT Id FROM ObjectTerritory2Association WHERE ObjectId IN :acctIds
+            ];
+            if (!existingOta.isEmpty()) {
+                Database.delete(existingOta, false);
+                deleted += existingOta.size();
+            }
+
+            Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+            String escapedTag = String.escapeSingleQuotes(DEMO_TAG);
+
+            if (gd.containsKey('healthcareprovider') && gd.containsKey('healthcareprovidershare')) {
+                List<SObject> demoHcps = Database.query(
+                    'SELECT Id FROM HealthcareProvider WHERE SourceSystem = \'' + escapedTag + '\''
+                );
+                if (!demoHcps.isEmpty()) {
+                    Set<Id> hcpIdsForCleanup = new Set<Id>();
+                    for (SObject h : demoHcps) hcpIdsForCleanup.add(h.Id);
+                    List<SObject> existingShares = Database.query(
+                        'SELECT Id FROM HealthcareProviderShare WHERE ParentId IN :hcpIdsForCleanup AND RowCause = \'Manual\''
+                    );
+                    if (!existingShares.isEmpty()) {
+                        Database.delete(existingShares, false);
+                        deleted += existingShares.size();
+                    }
+                }
+            }
+
+            if (gd.containsKey('provideracctterritoryinfo')) {
+                List<SObject> existingPati = Database.query(
+                    'SELECT Id FROM ProviderAcctTerritoryInfo WHERE SourceSystemName = \'' + escapedTag + '\''
+                );
+                if (!existingPati.isEmpty()) {
+                    Database.delete(existingPati, false);
+                    deleted += existingPati.size();
+                }
+            }
+
+            if (gd.containsKey('prvdaccountterritorysummary')) {
+                List<SObject> existingSummary = Database.query(
+                    'SELECT Id FROM PrvdAccountTerritorySummary WHERE SourceSystemName = \'' + escapedTag + '\''
+                );
+                if (!existingSummary.isEmpty()) {
+                    Database.delete(existingSummary, false);
+                    deleted += existingSummary.size();
+                }
+            }
+
+            return 'Cleaned up ' + deleted + ' existing territory records.';
+        } catch (Exception e) {
+            throw new AuraHandledException('Error cleaning territory data: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static String assignAccountTerritories() {
         try {
             List<Account> demoAccounts = [
                 SELECT Id, Name, BillingCity, BillingCountryCode, IsPersonAccount
@@ -1421,34 +1488,6 @@ public with sharing class DemoAccountProviderController {
             Map<String, Id> terrByDev = new Map<String, Id>();
             for (Territory2 t : [SELECT Id, DeveloperName FROM Territory2]) {
                 terrByDev.put(t.DeveloperName, t.Id);
-            }
-
-            Set<Id> acctIds = new Set<Id>();
-            for (Account a : demoAccounts) acctIds.add(a.Id);
-
-            // Remove existing demo-account territory associations
-            List<ObjectTerritory2Association> existingOta = [
-                SELECT Id FROM ObjectTerritory2Association
-                WHERE ObjectId IN :acctIds
-            ];
-            if (!existingOta.isEmpty()) Database.delete(existingOta, false);
-
-            // Remove existing demo PATI and Summary records
-            Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
-            String escapedTag = String.escapeSingleQuotes(DEMO_TAG);
-            Boolean hasPati = gd.containsKey('provideracctterritoryinfo');
-            if (hasPati) {
-                List<SObject> existingPati = Database.query(
-                    'SELECT Id FROM ProviderAcctTerritoryInfo WHERE SourceSystemName = \'' + escapedTag + '\''
-                );
-                if (!existingPati.isEmpty()) Database.delete(existingPati, false);
-            }
-            Boolean hasSummary = gd.containsKey('prvdaccountterritorysummary');
-            if (hasSummary) {
-                List<SObject> existingSummary = Database.query(
-                    'SELECT Id FROM PrvdAccountTerritorySummary WHERE SourceSystemName = \'' + escapedTag + '\''
-                );
-                if (!existingSummary.isEmpty()) Database.delete(existingSummary, false);
             }
 
             Map<String, String> cityTerrMap = buildCityTerritoryMap();
@@ -1467,9 +1506,6 @@ public with sharing class DemoAccountProviderController {
             };
 
             List<ObjectTerritory2Association> associations = new List<ObjectTerritory2Association>();
-            // Track Account->Territory pairs for PATI creation
-            List<Account> matchedAccounts = new List<Account>();
-            List<Id> matchedTerritoryIds = new List<Id>();
             Integer matched = 0;
             Integer fallback = 0;
 
@@ -1497,8 +1533,6 @@ public with sharing class DemoAccountProviderController {
                     ota.Territory2Id = terrId;
                     ota.AssociationCause = 'Territory2Manual';
                     associations.add(ota);
-                    matchedAccounts.add(acct);
-                    matchedTerritoryIds.add(terrId);
                 }
             }
 
@@ -1511,30 +1545,297 @@ public with sharing class DemoAccountProviderController {
                 if (results[i].isSuccess()) {
                     success++;
                 } else if (errors.size() < 5) {
-                    errors.add(matchedAccounts[i].Name + ': ' + results[i].getErrors()[0].getMessage());
+                    errors.add(results[i].getErrors()[0].getMessage());
                 }
             }
 
-            String result = 'Territory assignments: ' + success + '/' + associations.size()
-                + ' (city match: ' + matched + ', country fallback: ' + fallback + ')';
+            String result = success + '/' + associations.size()
+                + ' accounts assigned (city match: ' + matched + ', country fallback: ' + fallback + ')';
             if (!errors.isEmpty()) result += ' | Errors: ' + String.join(errors, '; ');
-
-            // Create ProviderAcctTerritoryInfo records for each successful assignment
-            if (hasPati) {
-                String patiResult = createPatiRecords(matchedAccounts, matchedTerritoryIds, results);
-                result += ' | ' + patiResult;
-            }
-
-            // Create PrvdAccountTerritorySummary records with realistic summaries
-            if (hasSummary) {
-                String summaryResult = createSummaryRecords(matchedAccounts, matchedTerritoryIds, results);
-                result += ' | ' + summaryResult;
-            }
-
             return result;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error assigning account territories: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static String shareHcpWithTerritories() {
+        try {
+            Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+            if (!gd.containsKey('healthcareprovider') || !gd.containsKey('healthcareprovidershare')) {
+                return 'HealthcareProvider sharing not available in this org.';
+            }
+
+            String escapedTag = String.escapeSingleQuotes(DEMO_TAG);
+
+            // Get accounts and their territory assignments
+            List<Account> demoAccounts = [
+                SELECT Id FROM Account WHERE Site = :DEMO_TAG AND IsPersonAccount = true
+            ];
+            if (demoAccounts.isEmpty()) return 'No HCP accounts found.';
+
+            Set<Id> acctIds = new Set<Id>();
+            for (Account a : demoAccounts) acctIds.add(a.Id);
+
+            Map<Id, Id> acctToTerritory = new Map<Id, Id>();
+            for (ObjectTerritory2Association ota : [
+                SELECT ObjectId, Territory2Id FROM ObjectTerritory2Association WHERE ObjectId IN :acctIds
+            ]) {
+                acctToTerritory.put(ota.ObjectId, ota.Territory2Id);
+            }
+
+            List<SObject> hcpRecords = Database.query(
+                'SELECT Id, AccountId FROM HealthcareProvider WHERE SourceSystem = \'' + escapedTag + '\' AND AccountId IN :acctIds'
+            );
+            if (hcpRecords.isEmpty()) return 'No HCP records found.';
+
+            Set<Id> uniqueTerrIds = new Set<Id>(acctToTerritory.values());
+            Map<Id, Id> terrToGroupId = new Map<Id, Id>();
+            for (Group g : [SELECT Id, RelatedId FROM Group WHERE Type = 'Territory' AND RelatedId IN :uniqueTerrIds]) {
+                terrToGroupId.put(g.RelatedId, g.Id);
+            }
+
+            Schema.SObjectType shareType = gd.get('healthcareprovidershare');
+            List<SObject> hcpShares = new List<SObject>();
+            for (SObject hcp : hcpRecords) {
+                Id acctId = (Id) hcp.get('AccountId');
+                Id terrId = acctToTerritory.get(acctId);
+                Id groupId = terrId != null ? terrToGroupId.get(terrId) : null;
+                if (groupId != null) {
+                    SObject share = shareType.newSObject();
+                    share.put('ParentId', hcp.Id);
+                    share.put('UserOrGroupId', groupId);
+                    share.put('AccessLevel', 'Edit');
+                    share.put('RowCause', 'Manual');
+                    hcpShares.add(share);
+                }
+            }
+
+            if (hcpShares.isEmpty()) return 'No HCP-territory matches to share.';
+
+            Database.SaveResult[] hcpResults = Database.insert(hcpShares, false);
+            Integer hcpSuccess = 0;
+            for (Database.SaveResult sr : hcpResults) {
+                if (sr.isSuccess()) hcpSuccess++;
+            }
+            return hcpSuccess + '/' + hcpShares.size() + ' HCP records shared with territory groups.';
+        } catch (Exception e) {
+            throw new AuraHandledException('Error sharing HCP records: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static String createTerritoryPati() {
+        try {
+            Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+            if (!gd.containsKey('provideracctterritoryinfo')) {
+                return 'ProviderAcctTerritoryInfo not available in this org.';
+            }
+
+            List<Account> demoAccounts = [
+                SELECT Id, Name, BillingCity, BillingCountryCode, IsPersonAccount
+                FROM Account
+                WHERE Site = :DEMO_TAG
+            ];
+            if (demoAccounts.isEmpty()) return 'No demo accounts found.';
+
+            Set<Id> acctIds = new Set<Id>();
+            for (Account a : demoAccounts) acctIds.add(a.Id);
+
+            // Build matched lists from existing OTA records
+            List<Account> matchedAccounts = new List<Account>();
+            List<Id> matchedTerritoryIds = new List<Id>();
+            Map<Id, Account> acctMap = new Map<Id, Account>(demoAccounts);
+
+            for (ObjectTerritory2Association ota : [
+                SELECT ObjectId, Territory2Id FROM ObjectTerritory2Association WHERE ObjectId IN :acctIds
+            ]) {
+                Account a = acctMap.get(ota.ObjectId);
+                if (a != null) {
+                    matchedAccounts.add(a);
+                    matchedTerritoryIds.add(ota.Territory2Id);
+                }
+            }
+
+            if (matchedAccounts.isEmpty()) return 'No territory-assigned accounts found.';
+
+            // Build fake SaveResult array (all success) since OTAs already exist
+            Database.SaveResult[] fakeResults = Database.insert(
+                new List<Account>(), false
+            );
+            // Use the actual PATI creation with direct insert
+            String patiResult = createPatiRecords(matchedAccounts, matchedTerritoryIds);
+            return patiResult;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error creating PATI records: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static String createTerritorySummaries() {
+        try {
+            Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+            if (!gd.containsKey('prvdaccountterritorysummary')) {
+                return 'PrvdAccountTerritorySummary not available in this org.';
+            }
+
+            List<Account> demoAccounts = [
+                SELECT Id, Name, BillingCity, BillingCountryCode, IsPersonAccount
+                FROM Account
+                WHERE Site = :DEMO_TAG
+            ];
+            if (demoAccounts.isEmpty()) return 'No demo accounts found.';
+
+            Set<Id> acctIds = new Set<Id>();
+            for (Account a : demoAccounts) acctIds.add(a.Id);
+
+            List<Account> matchedAccounts = new List<Account>();
+            List<Id> matchedTerritoryIds = new List<Id>();
+            Map<Id, Account> acctMap = new Map<Id, Account>(demoAccounts);
+
+            for (ObjectTerritory2Association ota : [
+                SELECT ObjectId, Territory2Id FROM ObjectTerritory2Association WHERE ObjectId IN :acctIds
+            ]) {
+                Account a = acctMap.get(ota.ObjectId);
+                if (a != null) {
+                    matchedAccounts.add(a);
+                    matchedTerritoryIds.add(ota.Territory2Id);
+                }
+            }
+
+            if (matchedAccounts.isEmpty()) return 'No territory-assigned accounts found.';
+
+            String summaryResult = createSummaryRecordsFromList(matchedAccounts, matchedTerritoryIds);
+            return summaryResult;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error creating summary records: ' + e.getMessage());
+        }
+    }
+
+    public static String assignTerritories() {
+        try {
+            String cleanup = cleanupTerritoryData();
+            String accounts = assignAccountTerritories();
+            String hcp = shareHcpWithTerritories();
+            String pati = createTerritoryPati();
+            String summaries = createTerritorySummaries();
+            return accounts + ' | ' + hcp + ' | ' + pati + ' | ' + summaries;
         } catch (Exception e) {
             throw new AuraHandledException('Error assigning territories: ' + e.getMessage());
         }
+    }
+
+    private static String createPatiRecords(List<Account> accounts, List<Id> territoryIds) {
+        Schema.SObjectType patiType = Schema.getGlobalDescribe().get('provideracctterritoryinfo');
+        List<SObject> patiRecords = new List<SObject>();
+        List<Id> patiTerritoryIds = new List<Id>();
+
+        for (Integer i = 0; i < accounts.size(); i++) {
+            SObject pati = patiType.newSObject();
+            pati.put('AccountId', accounts[i].Id);
+            pati.put('Territory2Id', territoryIds[i]);
+            pati.put('IsTargetedAccount', true);
+            pati.put('IsAvailableOffline', true);
+            pati.put('IsActive', true);
+            pati.put('SourceSystemName', DEMO_TAG);
+            pati.put('SourceType', 'Manual');
+            patiRecords.add(pati);
+            patiTerritoryIds.add(territoryIds[i]);
+        }
+
+        if (patiRecords.isEmpty()) return 'PATI: 0 created';
+
+        Database.SaveResult[] patiResults = Database.insert(patiRecords, false);
+        Integer patiSuccess = 0;
+        List<String> patiErrors = new List<String>();
+        for (Integer i = 0; i < patiResults.size(); i++) {
+            if (patiResults[i].isSuccess()) {
+                patiSuccess++;
+            } else if (patiErrors.size() < 5) {
+                patiErrors.add(patiResults[i].getErrors()[0].getMessage());
+            }
+        }
+
+        String patiResult = 'PATI: ' + patiSuccess + '/' + patiRecords.size();
+        if (!patiErrors.isEmpty()) patiResult += ' (' + String.join(patiErrors, '; ') + ')';
+
+        Integer shareSuccess = sharePatiWithTerritories(patiResults, patiTerritoryIds);
+        patiResult += ', Shares: ' + shareSuccess;
+
+        return patiResult;
+    }
+
+    private static String createSummaryRecordsFromList(List<Account> accounts, List<Id> territoryIds) {
+        Schema.SObjectType summaryType = Schema.getGlobalDescribe().get('prvdaccountterritorysummary');
+        List<SObject> summaryRecords = new List<SObject>();
+        List<Id> summaryTerritoryIds = new List<Id>();
+
+        Set<Id> uniqueTerrIds = new Set<Id>(territoryIds);
+        Map<Id, List<Id>> terrToUserIds = new Map<Id, List<Id>>();
+        for (UserTerritory2Association uta : [SELECT UserId, Territory2Id FROM UserTerritory2Association WHERE Territory2Id IN :uniqueTerrIds]) {
+            if (!terrToUserIds.containsKey(uta.Territory2Id)) {
+                terrToUserIds.put(uta.Territory2Id, new List<Id>());
+            }
+            terrToUserIds.get(uta.Territory2Id).add(uta.UserId);
+        }
+
+        Map<String, List<String[]>> localizedTemplates = buildLocalizedSummaryTemplates();
+
+        for (Integer i = 0; i < accounts.size(); i++) {
+            Account acct = accounts[i];
+            String country = acct.BillingCountryCode;
+            List<String[]> templates = localizedTemplates.containsKey(country) ? localizedTemplates.get(country) : localizedTemplates.get('EN');
+            Integer templateIdx = Math.mod(i, templates.size());
+            String[] tmpl = templates[templateIdx];
+
+            String summaryJson = '{"keyInfo":[{"sectionName":"Key Activities & Engagement","sectionData":[{"data":"'
+                + tmpl[1] + '"},{"data":"' + tmpl[2] + '"},{"data":"' + tmpl[3] + '"}]},'
+                + '{"sectionName":"Discussion Points","sectionData":[{"data":"'
+                + tmpl[4] + '"},{"data":"' + tmpl[5] + '"}]}],'
+                + '"changeInfo":[{"sectionName":"Affiliation Updates","sectionData":[{"data":"'
+                + tmpl[6] + '"}]},'
+                + '{"sectionName":"Recent Publications & Accreditations","sectionData":[{"data":"'
+                + tmpl[7] + '"}]}]}';
+
+            List<Id> userIds = terrToUserIds.get(territoryIds[i]);
+            if (userIds == null || userIds.isEmpty()) {
+                continue;
+            } else {
+                for (Id userId : userIds) {
+                    SObject summary = summaryType.newSObject();
+                    summary.put('AccountId', acct.Id);
+                    summary.put('Territory2Id', territoryIds[i]);
+                    summary.put('UserId', userId);
+                    summary.put('OwnerId', userId);
+                    summary.put('KeyInformationSummary', summaryJson);
+                    summary.put('KeyInfoSummaryDateTime', Datetime.now());
+                    summary.put('SourceSystemName', DEMO_TAG);
+                    summaryRecords.add(summary);
+                    summaryTerritoryIds.add(territoryIds[i]);
+                }
+            }
+        }
+
+        if (summaryRecords.isEmpty()) return 'Summaries: 0 created';
+
+        Database.SaveResult[] summaryResults = Database.insert(summaryRecords, false);
+        Integer summarySuccess = 0;
+        List<String> summaryErrors = new List<String>();
+        for (Integer i = 0; i < summaryResults.size(); i++) {
+            if (summaryResults[i].isSuccess()) {
+                summarySuccess++;
+            } else if (summaryErrors.size() < 5) {
+                summaryErrors.add(summaryResults[i].getErrors()[0].getMessage());
+            }
+        }
+
+        String summaryResult = 'Summaries: ' + summarySuccess + '/' + summaryRecords.size();
+        if (!summaryErrors.isEmpty()) summaryResult += ' (' + String.join(summaryErrors, '; ') + ')';
+
+        Integer shareSuccess = shareSummariesWithTerritories(summaryResults, summaryTerritoryIds);
+        summaryResult += ', SummaryShares: ' + shareSuccess;
+
+        return summaryResult;
     }
 
     private static String createPatiRecords(List<Account> accounts, List<Id> territoryIds, Database.SaveResult[] otaResults) {
