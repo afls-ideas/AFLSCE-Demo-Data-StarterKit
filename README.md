@@ -75,7 +75,7 @@ Creates LifeSciMarketableProduct hierarchy, territory alignments, and product gu
 - **ProductTerritoryAvailability** (PTA) records aligned to country territories
 - PTA sharing with leaf territory groups (walks hierarchy 3 levels deep)
 - Triggers alignment job to generate PTDAs for leaf territories
-- **ProductGuidance** — 7 per country brand (5 Messages + 2 Objectives), 154 total. Messages cover Efficacy, Safety, Differentiation, Patient Experience, and Convenience; Objectives cover Positioning and Patient Identification. All localized in native language per country (FR, DE, IT, ES, JP, KR, PT). See [docs/ProductGuidance-Guide.md](docs/ProductGuidance-Guide.md)
+- **ProductGuidance** — 7 per country brand (5 Messages + 2 Objectives), 154 total. Messages cover Efficacy, Safety, Differentiation, Patient Experience, and Convenience; Objectives cover Positioning and Patient Identification. All localized in native language per country (FR, DE, IT, ES, JP, KR, PT). Shared with leaf territory groups via `ProductGuidanceShare` (Private OWD). See [docs/ProductGuidance-Guide.md](docs/ProductGuidance-Guide.md)
 
 ### Tab 5: Samples
 

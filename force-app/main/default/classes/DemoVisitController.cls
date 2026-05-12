@@ -37,6 +37,10 @@ public without sharing class DemoVisitController {
                 'SELECT COUNT() FROM ProductGuidance WHERE SourceSystemName = \'' + escaped + '\'');
             parts.add('Product Guidance: ' + pgCount);
 
+            Integer msgCount = Database.countQuery(
+                'SELECT COUNT() FROM ProviderVisitDtlProductMsg WHERE SourceSystemName = \'' + escaped + '\'');
+            parts.add('Product Messages: ' + msgCount);
+
             return String.join(parts, ', ');
         } catch (Exception e) {
             throw new AuraHandledException('Error: ' + e.getMessage());
@@ -292,13 +296,31 @@ public without sharing class DemoVisitController {
             if (!allPvpds.isEmpty()) {
                 details.add('HEADER:Step 9 — Inserting ' + allPvpds.size() + ' product detailing records');
                 Database.SaveResult[] pdResults = Database.insert(allPvpds, false);
+                List<Id> successPvpdIds = new List<Id>();
                 for (Database.SaveResult sr : pdResults) {
-                    if (sr.isSuccess()) totalPvpd++;
-                    else if (errors.size() < 20) {
+                    if (sr.isSuccess()) {
+                        totalPvpd++;
+                        successPvpdIds.add(sr.getId());
+                    } else if (errors.size() < 20) {
                         errors.add('ProdDetailing: ' + sr.getErrors()[0].getMessage());
                     }
                 }
                 details.add('SUCCESS:Created ' + totalPvpd + ' product detailing records');
+
+                // Step 9b: Create ProviderVisitDtlProductMsg for completed visits
+                List<SObject> allMsgs = buildProductMessages(successPvpdIds, countryCode, ownerId, seed);
+                if (!allMsgs.isEmpty()) {
+                    details.add('HEADER:Step 9b — Inserting ' + allMsgs.size() + ' product messages');
+                    Integer totalMsgs = 0;
+                    Database.SaveResult[] msgResults = Database.insert(allMsgs, false);
+                    for (Database.SaveResult sr : msgResults) {
+                        if (sr.isSuccess()) totalMsgs++;
+                        else if (errors.size() < 20) {
+                            errors.add('ProductMsg: ' + sr.getErrors()[0].getMessage());
+                        }
+                    }
+                    details.add('SUCCESS:Created ' + totalMsgs + ' product messages');
+                }
             }
 
             details.add('HEADER:Step 10 — Building planned visits (today + 1 month)');
@@ -420,13 +442,29 @@ public without sharing class DemoVisitController {
 
                 if (!plannedPvpds.isEmpty()) {
                     Database.SaveResult[] ppdResults = Database.insert(plannedPvpds, false);
+                    List<Id> plannedPvpdIds = new List<Id>();
                     for (Database.SaveResult sr : ppdResults) {
-                        if (sr.isSuccess()) totalPlannedPvpd++;
-                        else if (errors.size() < 20) {
+                        if (sr.isSuccess()) {
+                            totalPlannedPvpd++;
+                            plannedPvpdIds.add(sr.getId());
+                        } else if (errors.size() < 20) {
                             errors.add('Planned ProdDetailing: ' + sr.getErrors()[0].getMessage());
                         }
                     }
                     details.add('SUCCESS:Created ' + totalPlannedPvpd + ' planned product detailing records');
+
+                    List<SObject> plannedMsgs = buildProductMessages(plannedPvpdIds, countryCode, ownerId, seed + 7777);
+                    if (!plannedMsgs.isEmpty()) {
+                        Integer totalPlannedMsgs = 0;
+                        Database.SaveResult[] pmResults = Database.insert(plannedMsgs, false);
+                        for (Database.SaveResult sr : pmResults) {
+                            if (sr.isSuccess()) totalPlannedMsgs++;
+                            else if (errors.size() < 20) {
+                                errors.add('Planned ProductMsg: ' + sr.getErrors()[0].getMessage());
+                            }
+                        }
+                        details.add('SUCCESS:Created ' + totalPlannedMsgs + ' planned product messages');
+                    }
                 }
             }
 
@@ -601,6 +639,76 @@ public without sharing class DemoVisitController {
         return (Integer) Math.mod(hash, maxVal);
     }
 
+    private static List<SObject> buildProductMessages(List<Id> pvpdIds, String countryCode, Id ownerId, Integer seed) {
+        List<SObject> msgs = new List<SObject>();
+        if (pvpdIds.isEmpty()) return msgs;
+
+        String escaped = String.escapeSingleQuotes(DEMO_TAG);
+        // Load ProductGuidance records for this country's brands
+        List<SObject> guidanceRecords = Database.query(
+            'SELECT Id, ProductReferenceRecordId, Type FROM ProductGuidance ' +
+            'WHERE SourceSystemName = \'' + escaped + '\' ORDER BY Id');
+        if (guidanceRecords.isEmpty()) return msgs;
+
+        // Group guidance by product Id
+        Map<Id, List<SObject>> guidanceByProduct = new Map<Id, List<SObject>>();
+        for (SObject pg : guidanceRecords) {
+            Id prodId = (Id) pg.get('ProductReferenceRecordId');
+            if (!guidanceByProduct.containsKey(prodId)) {
+                guidanceByProduct.put(prodId, new List<SObject>());
+            }
+            guidanceByProduct.get(prodId).add(pg);
+        }
+
+        // Query PVPDs to get their ProductId and ProviderVisitId
+        Map<Id, SObject> pvpdMap = new Map<Id, SObject>(Database.query(
+            'SELECT Id, ProductId, ProviderVisitId, VisitId FROM ProviderVisitProdDetailing WHERE Id IN :pvpdIds'));
+
+        Schema.SObjectType msgType = Schema.getGlobalDescribe().get('ProviderVisitDtlProductMsg');
+        if (msgType == null) return msgs;
+
+        String[] reactions = new String[]{'Positive', 'Positive', 'Positive', 'Neutral', 'Neutral', null, null};
+
+        Integer idx = 0;
+        for (Id pvpdId : pvpdIds) {
+            SObject pvpd = pvpdMap.get(pvpdId);
+            if (pvpd == null) continue;
+
+            Id productId = (Id) pvpd.get('ProductId');
+            List<SObject> pgList = guidanceByProduct.get(productId);
+            if (pgList == null || pgList.isEmpty()) continue;
+
+            // Pick 2-4 random guidance records per PVPD
+            Integer count = 2 + pseudoRandom(seed + idx * 37, 3);
+            Set<Integer> pickedIndices = new Set<Integer>();
+            for (Integer i = 0; i < count && pickedIndices.size() < pgList.size(); i++) {
+                Integer pick = pseudoRandom(seed + idx * 53 + i * 17, pgList.size());
+                Integer attempts = 0;
+                while (pickedIndices.contains(pick) && attempts < 10) {
+                    pick = pseudoRandom(seed + idx * 53 + i * 17 + attempts * 7, pgList.size());
+                    attempts++;
+                }
+                pickedIndices.add(pick);
+            }
+
+            for (Integer pick : pickedIndices) {
+                SObject pg = pgList[pick];
+                SObject msg = msgType.newSObject();
+                msg.put('ProviderVisitProductDtlId', pvpdId);
+                msg.put('MessageRecordId', pg.get('Id'));
+                msg.put('OwnerId', ownerId);
+                msg.put('SourceSystemName', DEMO_TAG);
+                Integer reactionIdx = pseudoRandom(seed + idx * 71 + pick, reactions.size());
+                if (reactions[reactionIdx] != null) {
+                    msg.put('ReactionType', reactions[reactionIdx]);
+                }
+                msgs.add(msg);
+                idx++;
+            }
+        }
+        return msgs;
+    }
+
     @AuraEnabled
     public static Map<String, Object> deleteVisitBatch() {
         try {
@@ -640,8 +748,17 @@ public without sharing class DemoVisitController {
             Set<Id> visitIds = new Set<Id>();
             for (Visit v : visits) visitIds.add(v.Id);
 
-            // Delete child records first
+            // Delete child records first (deepest children first)
             Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+            if (gd.containsKey('providervisitdtlproductmsg')) {
+                List<SObject> productMsgs = Database.query(
+                    'SELECT Id FROM ProviderVisitDtlProductMsg WHERE VisitId IN :visitIds');
+                if (!productMsgs.isEmpty()) {
+                    Database.delete(productMsgs, false);
+                    deleted += productMsgs.size();
+                }
+            }
+
             if (gd.containsKey('providervisitproddetailing')) {
                 List<SObject> pvpds = Database.query(
                     'SELECT Id FROM ProviderVisitProdDetailing WHERE VisitId IN :visitIds');
@@ -723,6 +840,15 @@ public without sharing class DemoVisitController {
             for (Visit v : visits) visitIds.add(v.Id);
 
             Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+            if (gd.containsKey('providervisitdtlproductmsg')) {
+                List<SObject> productMsgs = Database.query(
+                    'SELECT Id FROM ProviderVisitDtlProductMsg WHERE VisitId IN :visitIds');
+                if (!productMsgs.isEmpty()) {
+                    Database.delete(productMsgs, false);
+                    deleted += productMsgs.size();
+                }
+            }
+
             if (gd.containsKey('providervisitproddetailing')) {
                 List<SObject> pvpds = Database.query(
                     'SELECT Id FROM ProviderVisitProdDetailing WHERE VisitId IN :visitIds');
@@ -891,6 +1017,9 @@ public without sharing class DemoVisitController {
             }
             details.add('SUCCESS:Inserted ' + successCount + ' of ' + guidanceRecords.size() + ' records');
 
+            details.add('HEADER:Step 4 — Sharing with territory groups');
+            shareGuidanceWithTerritoryGroups(guidanceRecords, results, countryBrands, details, errors);
+
             Map<String, Object> response = new Map<String, Object>{
                 'summary' => 'Created ' + successCount + ' Product Guidance records',
                 'details' => details,
@@ -902,6 +1031,89 @@ public without sharing class DemoVisitController {
             throw e;
         } catch (Exception e) {
             throw new AuraHandledException('Error: ' + e.getMessage() + ' at line ' + e.getLineNumber());
+        }
+    }
+
+    private static void shareGuidanceWithTerritoryGroups(
+        List<SObject> guidanceRecords, Database.SaveResult[] insertResults,
+        Map<String, List<Id>> countryBrands, List<String> details, List<String> errors
+    ) {
+        Map<Id, String> brandIdToCountry = new Map<Id, String>();
+        for (String cc : countryBrands.keySet()) {
+            for (Id brandId : countryBrands.get(cc)) {
+                brandIdToCountry.put(brandId, cc);
+            }
+        }
+
+        List<SObject> successRecords = new List<SObject>();
+        for (Integer i = 0; i < insertResults.size(); i++) {
+            if (insertResults[i].isSuccess()) successRecords.add(guidanceRecords[i]);
+        }
+        if (successRecords.isEmpty()) return;
+
+        List<Territory2> allTerrs = [
+            SELECT Id, Name, ParentTerritory2Id FROM Territory2
+            WHERE Territory2Model.State = 'Active'
+        ];
+        Set<Id> parentIds = new Set<Id>();
+        for (Territory2 t : allTerrs) {
+            if (t.ParentTerritory2Id != null) parentIds.add(t.ParentTerritory2Id);
+        }
+        List<Territory2> leafTerrs = new List<Territory2>();
+        for (Territory2 t : allTerrs) {
+            if (!parentIds.contains(t.Id)) leafTerrs.add(t);
+        }
+
+        Map<String, Set<Id>> countryToLeafIds = new Map<String, Set<Id>>();
+        for (Territory2 t : leafTerrs) {
+            String cc = extractCountryCode(t.Name);
+            if (cc == null) continue;
+            if (!countryToLeafIds.containsKey(cc)) countryToLeafIds.put(cc, new Set<Id>());
+            countryToLeafIds.get(cc).add(t.Id);
+        }
+
+        Set<Id> allLeafIds = new Set<Id>();
+        for (Set<Id> ids : countryToLeafIds.values()) allLeafIds.addAll(ids);
+        Map<Id, Id> terrToGroup = new Map<Id, Id>();
+        for (Group g : [SELECT Id, RelatedId FROM Group WHERE Type = 'Territory' AND RelatedId IN :allLeafIds]) {
+            terrToGroup.put(g.RelatedId, g.Id);
+        }
+
+        List<SObject> shares = new List<SObject>();
+        Schema.SObjectType shareType = Schema.getGlobalDescribe().get('ProductGuidanceShare');
+        if (shareType == null) {
+            errors.add('ProductGuidanceShare object not found');
+            return;
+        }
+
+        for (SObject pg : successRecords) {
+            Id brandId = (Id) pg.get('ProductReferenceRecordId');
+            String cc = brandIdToCountry.get(brandId);
+            if (cc == null) continue;
+            Set<Id> leafIds = countryToLeafIds.get(cc);
+            if (leafIds == null) continue;
+            for (Id leafId : leafIds) {
+                Id groupId = terrToGroup.get(leafId);
+                if (groupId == null) continue;
+                SObject share = shareType.newSObject();
+                share.put('ParentId', pg.Id);
+                share.put('UserOrGroupId', groupId);
+                share.put('AccessLevel', 'Read');
+                share.put('RowCause', 'Manual');
+                shares.add(share);
+            }
+        }
+
+        if (!shares.isEmpty()) {
+            Database.SaveResult[] shareResults = Database.insert(shares, false);
+            Integer shareSuccess = 0;
+            for (Database.SaveResult sr : shareResults) {
+                if (sr.isSuccess()) shareSuccess++;
+                else if (errors.size() < 15) errors.add('Share: ' + sr.getErrors()[0].getMessage());
+            }
+            details.add('SUCCESS:Shared with ' + shareSuccess + ' territory group assignments');
+        } else {
+            details.add('SUCCESS:No territory groups found to share with');
         }
     }
 

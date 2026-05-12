@@ -71,6 +71,13 @@ public without sharing class DemoProductAlignmentController {
                 }
             }
 
+            if (objectExists('ProductGuidance')) {
+                Integer pgCnt = Database.countQuery(
+                    'SELECT COUNT() FROM ProductGuidance WHERE SourceSystemName = \'' + escapedTag + '\''
+                );
+                parts.add('Product Guidance: ' + pgCnt);
+            }
+
             return parts.isEmpty() ? 'LifeSciMarketableProduct not available in this org.' : String.join(parts, ', ');
         } catch (Exception e) {
             throw new AuraHandledException('Error getting status: ' + e.getMessage());
