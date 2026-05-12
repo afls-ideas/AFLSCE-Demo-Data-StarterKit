@@ -68,13 +68,14 @@ Batched in groups of 15 to stay within managed-package SOQL governor limits.
 
 ### Tab 4: Product Alignment
 
-Creates LifeSciMarketableProduct hierarchy and territory alignments:
+Creates LifeSciMarketableProduct hierarchy, territory alignments, and product guidance:
 
 - **Market** nodes: Autoimmune Disorders, Oncology Market
 - **Brand** nodes: Immunexis (per country), Immunonco (per country)
 - **ProductTerritoryAvailability** (PTA) records aligned to country territories
 - PTA sharing with leaf territory groups (walks hierarchy 3 levels deep)
 - Triggers alignment job to generate PTDAs for leaf territories
+- **ProductGuidance** — 7 per country brand (5 Messages + 2 Objectives), 154 total. Messages cover Efficacy, Safety, Differentiation, Patient Experience, and Convenience; Objectives cover Positioning and Patient Identification. All localized in native language per country (FR, DE, IT, ES, JP, KR, PT). See [docs/ProductGuidance-Guide.md](docs/ProductGuidance-Guide.md)
 
 ### Tab 5: Samples
 
@@ -194,6 +195,7 @@ All created records are tagged for safe cleanup:
 | AccountPlanObjective | `SourceSystemName` | `AFLSCE-Demo-Data` |
 | ActionPlan | `SourceSystemName` | `AFLSCE-Demo-Data` |
 | Campaign | `Name` | `[AFLSCE-Demo] *` (prefix) |
+| ProductGuidance | `SourceSystemName` | `AFLSCE-Demo-Data` |
 
 Every tab has a **Delete** button that removes only the records created by this tool. Your existing org data is never touched.
 

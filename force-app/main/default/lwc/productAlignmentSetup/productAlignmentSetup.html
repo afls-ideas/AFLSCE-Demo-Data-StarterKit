@@ -12,6 +12,7 @@
                 <ul class="slds-list_dotted slds-text-body_small">
                     <li><strong>LifeSciMarketableProduct</strong> &mdash; Market, Brand, and country-specific brand products (Immunexis, Immunonco)</li>
                     <li><strong>ProductTerritoryAvailability</strong> &mdash; Aligns each brand product to its country territory</li>
+                    <li><strong>ProductGuidance</strong> &mdash; 7 per country brand (5 Messages + 2 Objectives), localized in native language. 154 total across 11 countries.</li>
                 </ul>
             </div>
 
@@ -69,6 +70,26 @@
                     onclick={handleDelete}
                     disabled={isLoading}
                     aria-label="Delete products and territory alignments">
+                </lightning-button>
+            </div>
+
+            <!-- Product Guidance Buttons -->
+            <div class="slds-m-bottom_medium">
+                <p class="slds-text-title_caps slds-m-bottom_x-small">Product Guidance</p>
+                <lightning-button
+                    variant="brand"
+                    label="Create Product Guidance"
+                    icon-name="utility:add"
+                    onclick={handleCreateGuidance}
+                    disabled={isLoading}
+                    class="slds-m-right_small">
+                </lightning-button>
+                <lightning-button
+                    variant="destructive"
+                    label="Delete Product Guidance"
+                    icon-name="utility:delete"
+                    onclick={handleDeleteGuidance}
+                    disabled={isLoading}>
                 </lightning-button>
             </div>
 

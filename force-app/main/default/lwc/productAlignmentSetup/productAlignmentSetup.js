@@ -4,6 +4,8 @@ import { refreshApex } from '@salesforce/apex';
 import getStatus from '@salesforce/apex/DemoProductAlignmentController.getStatus';
 import createProductsAndAlign from '@salesforce/apex/DemoProductAlignmentController.createProductsAndAlign';
 import deleteProductsAndAlignments from '@salesforce/apex/DemoProductAlignmentController.deleteProductsAndAlignments';
+import createProductGuidance from '@salesforce/apex/DemoVisitController.createProductGuidance';
+import deleteProductGuidance from '@salesforce/apex/DemoVisitController.deleteProductGuidance';
 
 export default class ProductAlignmentSetup extends LightningElement {
     statusData;
@@ -86,6 +88,75 @@ export default class ProductAlignmentSetup extends LightningElement {
                     variant: 'error'
                 })
             );
+        } finally {
+            this.isLoading = false;
+            await refreshApex(this.wiredStatusResult);
+        }
+    }
+
+    async handleCreateGuidance() {
+        this.isLoading = true;
+        this.resultMessage = undefined;
+        try {
+            const raw = await createProductGuidance();
+            let result;
+            try {
+                result = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            } catch (parseErr) {
+                this.isSuccess = true;
+                this.resultMessage = raw;
+                return;
+            }
+            this.isSuccess = !result.errors || result.errors.length === 0;
+            this.resultMessage = result.summary || '';
+            if (result.errors && result.errors.length > 0) {
+                this.resultMessage += ' | Errors: ' + result.errors.join('; ');
+            }
+            this.dispatchEvent(new ShowToastEvent({
+                title: this.isSuccess ? 'Success' : 'Warning',
+                message: this.resultMessage,
+                variant: this.isSuccess ? 'success' : 'warning'
+            }));
+        } catch (error) {
+            this.isSuccess = false;
+            this.resultMessage = error.body ? error.body.message : 'An error occurred.';
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error', message: this.resultMessage, variant: 'error'
+            }));
+        } finally {
+            this.isLoading = false;
+            await refreshApex(this.wiredStatusResult);
+        }
+    }
+
+    async handleDeleteGuidance() {
+        if (!window.confirm('Delete all demo product guidance records?')) return;
+        this.isLoading = true;
+        this.resultMessage = undefined;
+        let batchNum = 0;
+        try {
+            let remaining = 1;
+            let prevRemaining = -1;
+            while (remaining > 0) {
+                batchNum++;
+                const result = await deleteProductGuidance();
+                remaining = result.remaining;
+                if (remaining === prevRemaining) break;
+                prevRemaining = remaining;
+            }
+            this.isSuccess = remaining === 0;
+            this.resultMessage = remaining === 0
+                ? 'All product guidance deleted in ' + batchNum + ' batch(es).'
+                : 'Deleted what we could. ' + remaining + ' records remain.';
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Success', message: this.resultMessage, variant: 'success'
+            }));
+        } catch (error) {
+            this.isSuccess = false;
+            this.resultMessage = error.body ? error.body.message : 'An error occurred.';
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error', message: this.resultMessage, variant: 'error'
+            }));
         } finally {
             this.isLoading = false;
             await refreshApex(this.wiredStatusResult);

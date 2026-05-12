@@ -6,6 +6,7 @@ import getTerritories from '@salesforce/apex/DemoVisitController.getTerritories'
 import getChannelOptions from '@salesforce/apex/DemoVisitController.getChannelOptions';
 import createVisits from '@salesforce/apex/DemoVisitController.createVisits';
 import deleteVisitBatch from '@salesforce/apex/DemoVisitController.deleteVisitBatch';
+import deleteVisitBatchForTerritory from '@salesforce/apex/DemoVisitController.deleteVisitBatchForTerritory';
 
 export default class VisitSetup extends LightningElement {
     statusData;
@@ -191,5 +192,59 @@ export default class VisitSetup extends LightningElement {
             await refreshApex(this.wiredStatusResult);
         }
     }
+
+    async handleDeleteTerritory() {
+        if (!this.selectedTerritoryId) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error', message: 'Please select a territory first.', variant: 'error'
+            }));
+            return;
+        }
+        if (!window.confirm('Delete all demo visits for the selected territory?')) return;
+        this.isLoading = true;
+        this.resultMessage = undefined;
+        this.activityLog = [];
+        let batchNum = 0;
+        try {
+            let remaining = 1;
+            let prevRemaining = -1;
+            while (remaining > 0) {
+                batchNum++;
+                this.activityLog = [...this.activityLog,
+                    { id: this.activityLog.length, message: 'Deleting batch ' + batchNum + '...', isHeader: true }
+                ];
+                const result = await deleteVisitBatchForTerritory({ territoryId: this.selectedTerritoryId });
+                remaining = result.remaining;
+                const hasError = result.message && result.message.includes('|');
+                this.activityLog = [...this.activityLog,
+                    { id: this.activityLog.length, message: result.message, isSuccess: !hasError, isError: hasError }
+                ];
+                if (remaining === prevRemaining) {
+                    this.activityLog = [...this.activityLog,
+                        { id: this.activityLog.length, message: 'Stopping — ' + remaining + ' visits could not be deleted. Check errors above.', isError: true }
+                    ];
+                    break;
+                }
+                prevRemaining = remaining;
+            }
+            this.isSuccess = remaining === 0;
+            this.resultMessage = remaining === 0
+                ? 'Territory visits deleted in ' + batchNum + ' batch(es).'
+                : 'Deleted what we could. ' + remaining + ' visits remain (see errors above).';
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Success', message: this.resultMessage, variant: 'success'
+            }));
+        } catch (error) {
+            this.isSuccess = false;
+            this.resultMessage = error.body ? error.body.message : 'An error occurred.';
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error', message: this.resultMessage, variant: 'error'
+            }));
+        } finally {
+            this.isLoading = false;
+            await refreshApex(this.wiredStatusResult);
+        }
+    }
+
 
 }

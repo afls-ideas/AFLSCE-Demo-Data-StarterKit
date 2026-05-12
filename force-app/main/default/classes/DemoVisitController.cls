@@ -33,6 +33,10 @@ public without sharing class DemoVisitController {
                 'SELECT COUNT() FROM ProviderVisitProdDetailing WHERE SourceSystemName = \'' + escaped + '\'');
             parts.add('Product Detailing: ' + pvpdCount);
 
+            Integer pgCount = Database.countQuery(
+                'SELECT COUNT() FROM ProductGuidance WHERE SourceSystemName = \'' + escaped + '\'');
+            parts.add('Product Guidance: ' + pgCount);
+
             return String.join(parts, ', ');
         } catch (Exception e) {
             throw new AuraHandledException('Error: ' + e.getMessage());
@@ -273,6 +277,7 @@ public without sharing class DemoVisitController {
                             pvpd.put('ProviderVisitId', pvId);
                             pvpd.put('ProductId', brandId);
                             pvpd.put('Priority', priority);
+                            pvpd.put('OwnerId', ownerId);
                             pvpd.put('SourceSystemName', DEMO_TAG);
                             allPvpds.add(pvpd);
                             priority++;
@@ -401,6 +406,7 @@ public without sharing class DemoVisitController {
                                 pvpd.put('ProviderVisitId', pvId);
                                 pvpd.put('ProductId', brandId);
                                 pvpd.put('Priority', priority);
+                                pvpd.put('OwnerId', ownerId);
                                 pvpd.put('SourceSystemName', DEMO_TAG);
                                 plannedPvpds.add(pvpd);
                                 priority++;
@@ -677,6 +683,87 @@ public without sharing class DemoVisitController {
         }
     }
 
+    @AuraEnabled
+    public static Map<String, Object> deleteVisitBatchForTerritory(Id territoryId) {
+        try {
+            Integer deleted = 0;
+            Integer batchSize = 1500;
+            List<String> errors = new List<String>();
+
+            List<Visit> visits = [SELECT Id, Status FROM Visit
+                WHERE InstructionDescription = :DEMO_TAG AND TerritoryId = :territoryId LIMIT :batchSize];
+
+            if (visits.isEmpty()) {
+                Integer remaining = [SELECT COUNT() FROM Visit WHERE InstructionDescription = :DEMO_TAG AND TerritoryId = :territoryId];
+                return new Map<String, Object>{
+                    'message' => 'No demo visits to delete for this territory.',
+                    'remaining' => remaining
+                };
+            }
+
+            List<Visit> toUnlock = new List<Visit>();
+            for (Visit v : visits) {
+                if (v.Status != 'Planned') {
+                    v.Status = 'Planned';
+                    toUnlock.add(v);
+                }
+            }
+            if (!toUnlock.isEmpty()) {
+                Database.SaveResult[] ur = Database.update(toUnlock, false);
+                Integer unlockFail = 0;
+                for (Database.SaveResult sr : ur) {
+                    if (!sr.isSuccess()) unlockFail++;
+                }
+                if (unlockFail > 0 && errors.size() < 3) {
+                    errors.add('Failed to unlock ' + unlockFail + '/' + toUnlock.size() + ' visits');
+                }
+            }
+
+            Set<Id> visitIds = new Set<Id>();
+            for (Visit v : visits) visitIds.add(v.Id);
+
+            Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+            if (gd.containsKey('providervisitproddetailing')) {
+                List<SObject> pvpds = Database.query(
+                    'SELECT Id FROM ProviderVisitProdDetailing WHERE VisitId IN :visitIds');
+                if (!pvpds.isEmpty()) {
+                    Database.delete(pvpds, false);
+                    deleted += pvpds.size();
+                }
+            }
+
+            if (gd.containsKey('providervisit')) {
+                List<SObject> pvs = Database.query(
+                    'SELECT Id FROM ProviderVisit WHERE VisitId IN :visitIds');
+                if (!pvs.isEmpty()) {
+                    Database.delete(pvs, false);
+                    deleted += pvs.size();
+                }
+            }
+
+            Database.DeleteResult[] vr = Database.delete(visits, false);
+            Integer visitDeleted = 0;
+            for (Database.DeleteResult sr : vr) {
+                if (sr.isSuccess()) {
+                    visitDeleted++;
+                } else if (errors.size() < 3) {
+                    errors.add(sr.getErrors()[0].getMessage());
+                }
+            }
+            deleted += visitDeleted;
+
+            Integer remaining = [SELECT COUNT() FROM Visit WHERE InstructionDescription = :DEMO_TAG AND TerritoryId = :territoryId];
+            String msg = 'Deleted ' + visitDeleted + '/' + visits.size() + ' visits + ' + (deleted - visitDeleted) + ' child records. ' + remaining + ' remaining.';
+            if (!errors.isEmpty()) msg += ' | ' + String.join(errors, '; ');
+            return new Map<String, Object>{
+                'message' => msg,
+                'remaining' => remaining
+            };
+        } catch (Exception e) {
+            throw new AuraHandledException('Error deleting territory visits: ' + e.getMessage());
+        }
+    }
+
     private static String extractCountryCode(String territoryName) {
         if (String.isBlank(territoryName)) return null;
         Integer dash = territoryName.indexOf('-');
@@ -719,6 +806,453 @@ public without sharing class DemoVisitController {
             }
         }
         return countryToBrandIds;
+    }
+
+    @AuraEnabled
+    public static String createProductGuidance() {
+        List<String> details = new List<String>();
+        List<String> errors = new List<String>();
+
+        try {
+            details.add('HEADER:Step 1 — Loading country brand products');
+            Map<String, List<Id>> countryBrands = loadBrandsByCountry();
+            if (countryBrands.isEmpty()) {
+                throw new AuraHandledException('No country brand products found');
+            }
+            Integer productCount = 0;
+            for (List<Id> ids : countryBrands.values()) productCount += ids.size();
+            details.add('SUCCESS:Found ' + productCount + ' country brand products across ' + countryBrands.size() + ' countries');
+
+            details.add('HEADER:Step 2 — Building product guidance messages');
+            Map<String, Map<String, List<String>>> messages = getLocalizedMessages();
+
+            List<SObject> guidanceRecords = new List<SObject>();
+            Schema.SObjectType pgType = Schema.getGlobalDescribe().get('ProductGuidance');
+
+            for (String cc : countryBrands.keySet()) {
+                List<Id> brandIds = countryBrands.get(cc);
+                for (Id brandId : brandIds) {
+                    String brandName = getBrandNameForId(brandId, countryBrands, cc);
+                    Map<String, List<String>> brandMessages = messages.get(brandName + '_' + cc);
+                    if (brandMessages == null) {
+                        brandMessages = messages.get(brandName + '_US');
+                    }
+                    if (brandMessages == null) continue;
+
+                    List<String> msgs = brandMessages.get('messages');
+                    List<String> objectives = brandMessages.get('objectives');
+                    String[] themes = new String[]{'Efficacy', 'Safety', 'Differentiation', 'Patient Experience', 'Convenience'};
+
+                    for (Integer i = 0; i < msgs.size() && i < 5; i++) {
+                        SObject pg = pgType.newSObject();
+                        pg.put('Name', brandName + ' ' + cc + ' - ' + themes[i]);
+                        pg.put('ProductReferenceRecordId', brandId);
+                        pg.put('Type', 'Message');
+                        pg.put('ContentText', msgs[i]);
+                        pg.put('Priority', i + 1);
+                        pg.put('GroupName', 'Key Messages');
+                        pg.put('GroupSequence', i + 1);
+                        pg.put('IsActive', true);
+                        pg.put('EffectiveStartDate', Date.newInstance(2025, 1, 1));
+                        pg.put('SourceSystemName', DEMO_TAG);
+                        guidanceRecords.add(pg);
+                    }
+
+                    String[] objThemes = new String[]{'Positioning', 'Patient Identification'};
+                    for (Integer i = 0; i < objectives.size() && i < 2; i++) {
+                        SObject pgObj = pgType.newSObject();
+                        pgObj.put('Name', brandName + ' ' + cc + ' - ' + objThemes[i]);
+                        pgObj.put('ProductReferenceRecordId', brandId);
+                        pgObj.put('Type', 'Objective');
+                        pgObj.put('ContentText', objectives[i]);
+                        pgObj.put('Priority', msgs.size() + i + 1);
+                        pgObj.put('GroupName', 'Call Objectives');
+                        pgObj.put('GroupSequence', i + 1);
+                        pgObj.put('IsActive', true);
+                        pgObj.put('EffectiveStartDate', Date.newInstance(2025, 1, 1));
+                        pgObj.put('SourceSystemName', DEMO_TAG);
+                        guidanceRecords.add(pgObj);
+                    }
+                }
+            }
+            details.add('SUCCESS:Built ' + guidanceRecords.size() + ' product guidance records');
+
+            details.add('HEADER:Step 3 — Inserting records');
+            Database.SaveResult[] results = Database.insert(guidanceRecords, false);
+            Integer successCount = 0;
+            for (Database.SaveResult sr : results) {
+                if (sr.isSuccess()) {
+                    successCount++;
+                } else {
+                    for (Database.Error err : sr.getErrors()) {
+                        errors.add(err.getMessage());
+                    }
+                }
+            }
+            details.add('SUCCESS:Inserted ' + successCount + ' of ' + guidanceRecords.size() + ' records');
+
+            Map<String, Object> response = new Map<String, Object>{
+                'summary' => 'Created ' + successCount + ' Product Guidance records',
+                'details' => details,
+                'errors' => errors
+            };
+            return JSON.serialize(response);
+
+        } catch (AuraHandledException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new AuraHandledException('Error: ' + e.getMessage() + ' at line ' + e.getLineNumber());
+        }
+    }
+
+    @AuraEnabled
+    public static Map<String, Object> deleteProductGuidance() {
+        try {
+            String escaped = String.escapeSingleQuotes(DEMO_TAG);
+            List<SObject> records = Database.query(
+                'SELECT Id FROM ProductGuidance WHERE SourceSystemName = \'' + escaped + '\' LIMIT 2000');
+            Integer remaining = Database.countQuery(
+                'SELECT COUNT() FROM ProductGuidance WHERE SourceSystemName = \'' + escaped + '\'');
+
+            if (records.isEmpty()) {
+                return new Map<String, Object>{
+                    'message' => 'No demo product guidance records to delete',
+                    'remaining' => 0
+                };
+            }
+
+            Database.DeleteResult[] results = Database.delete(records, false);
+            Integer deleted = 0;
+            List<String> errs = new List<String>();
+            for (Database.DeleteResult dr : results) {
+                if (dr.isSuccess()) {
+                    deleted++;
+                } else {
+                    for (Database.Error e : dr.getErrors()) {
+                        errs.add(e.getMessage());
+                    }
+                }
+            }
+
+            String msg = 'Deleted ' + deleted + ' records';
+            if (!errs.isEmpty()) {
+                msg += ' | Errors: ' + String.join(errs, '; ');
+            }
+
+            return new Map<String, Object>{
+                'message' => msg,
+                'remaining' => remaining - deleted
+            };
+        } catch (Exception e) {
+            throw new AuraHandledException('Error: ' + e.getMessage());
+        }
+    }
+
+    private static String getBrandNameForId(Id brandId, Map<String, List<Id>> countryBrands, String cc) {
+        List<SObject> brands = Database.query(
+            'SELECT Id, Name FROM LifeSciMarketableProduct WHERE Id = \'' + brandId + '\'');
+        if (brands.isEmpty()) return '';
+        String fullName = (String) brands[0].get('Name');
+        for (String baseName : BRAND_NAMES) {
+            if (fullName.startsWith(baseName)) return baseName;
+        }
+        return fullName;
+    }
+
+    private static Map<String, Map<String, List<String>>> getLocalizedMessages() {
+        Map<String, Map<String, List<String>>> m = new Map<String, Map<String, List<String>>>();
+
+        // ── Immunexis (zelanumab) — autoimmune (RA, PsA) ──
+        m.put('Immunexis_US', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'SHIELD-RA Phase 3: 68% ACR50 at Week 24 with zelanumab vs 31% placebo. Dual IL-23/IL-17A blockade delivers superior joint protection in moderate-to-severe RA.',
+                'Favorable safety: serious infection rate 1.8/100 PY, no new TB signals, mild injection-site reactions in <5% of patients. No mandatory lab monitoring required.',
+                'Only bispecific targeting both IL-23 and IL-17A in a single molecule — addresses upstream and downstream inflammation simultaneously, unlike sequential monotherapy.',
+                'In PRISM Registry real-world data, 74% of PsA patients on zelanumab reported meaningful improvement in daily activities at 12 months. Patients rank reduced morning stiffness as their top quality-of-life gain.',
+                'Ready-to-use prefilled pen, room-temperature stable for 14 days. Patients self-administer every 4 weeks — half the injection frequency of leading IL-17A inhibitors.'
+            },
+            'objectives' => new List<String>{
+                'Position zelanumab as first-line biologic after csDMARD inadequate response. Secure formulary discussion with rheumatology department head.',
+                'Identify patients with moderate-to-severe RA who have failed at least one csDMARD or show early radiographic progression. Flag candidates during chart review with the care team.'
+            }
+        });
+        m.put('Immunexis_GB', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'SHIELD-RA Phase 3: 68% ACR50 at Week 24 with zelanumab versus 31% placebo. Dual IL-23/IL-17A blockade offers superior joint protection in moderate-to-severe RA.',
+                'Favourable safety profile: serious infection rate 1.8/100 PY, no new TB signals, mild injection-site reactions in fewer than 5% of patients. No mandatory lab monitoring.',
+                'The only bispecific targeting both IL-23 and IL-17A in a single molecule — addressing upstream and downstream inflammation simultaneously, unlike sequential monotherapy.',
+                'PRISM Registry real-world data: 74% of PsA patients on zelanumab reported meaningful improvement in daily activities at 12 months. Reduced morning stiffness rated as the top quality-of-life benefit.',
+                'Ready-to-use prefilled pen, room-temperature stable for 14 days. Patients self-administer every 4 weeks — half the injection frequency of leading IL-17A inhibitors.'
+            },
+            'objectives' => new List<String>{
+                'Position zelanumab as first-line biologic following inadequate response to csDMARDs. Arrange formulary review with rheumatology department lead.',
+                'Identify patients with moderate-to-severe RA who have failed at least one csDMARD or show early radiographic progression. Coordinate chart review with the rheumatology care team.'
+            }
+        });
+        m.put('Immunexis_FR', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'SHIELD-RA Phase 3 : ACR50 de 68% a S24 sous zelanumab contre 31% placebo. Le double blocage IL-23/IL-17A offre une protection articulaire superieure dans la PR moderee a severe.',
+                'Profil de securite favorable : infections graves 1,8/100 PA, aucun signal TB, reactions au site d injection legeres chez <5% des patients. Pas de suivi biologique obligatoire.',
+                'Seul bispecifique ciblant IL-23 et IL-17A en une seule molecule — agit simultanement sur l inflammation en amont et en aval, contrairement a la monotherapie sequentielle.',
+                'Donnees en vie reelle PRISM : 74% des patients PsA sous zelanumab rapportent une amelioration significative des activites quotidiennes a 12 mois. La reduction de la raideur matinale est le benefice le plus cite.',
+                'Stylo prerempli pret a l emploi, stable a temperature ambiante pendant 14 jours. Auto-injection toutes les 4 semaines — deux fois moins frequent que les anti-IL-17A de reference.'
+            },
+            'objectives' => new List<String>{
+                'Positionner zelanumab comme biologique de 1re intention apres reponse inadequate aux csDMARD. Obtenir discussion au comite du medicament avec le chef de rhumatologie.',
+                'Identifier les patients atteints de PR moderee a severe en echec d au moins un csDMARD ou presentant une progression radiographique precoce. Coordonner la revue de dossiers avec l equipe de soins.'
+            }
+        });
+        m.put('Immunexis_DE', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'SHIELD-RA Phase 3: 68% ACR50 in Woche 24 unter Zelanumab vs. 31% Placebo. Duale IL-23/IL-17A-Blockade bietet ueberlegenen Gelenkschutz bei mittelschwerer bis schwerer RA.',
+                'Guenstiges Sicherheitsprofil: schwere Infektionen 1,8/100 PJ, keine neuen TB-Signale, leichte Reaktionen an der Injektionsstelle bei <5% der Patienten. Kein obligatorisches Labormonitoring.',
+                'Einziger bispezifischer Antikoerper gegen IL-23 und IL-17A in einem Molekuel — adressiert gleichzeitig vorgelagerte und nachgelagerte Entzuendung, im Gegensatz zur sequenziellen Monotherapie.',
+                'PRISM-Registerdaten: 74% der PsA-Patienten unter Zelanumab berichten nach 12 Monaten ueber eine bedeutsame Verbesserung im Alltag. Reduzierte Morgensteifigkeit wird als wichtigster Lebensqualitaetsgewinn genannt.',
+                'Gebrauchsfertiger Fertigpen, 14 Tage bei Raumtemperatur stabil. Selbstinjektion alle 4 Wochen — halb so haeufig wie fuehrende IL-17A-Inhibitoren.'
+            },
+            'objectives' => new List<String>{
+                'Zelanumab als Erstlinien-Biologikum nach unzureichendem Ansprechen auf csDMARDs positionieren. Aufnahme in die Hausliste mit dem Leiter der Rheumatologie besprechen.',
+                'Patienten mit mittelschwerer bis schwerer RA identifizieren, die auf mindestens ein csDMARD nicht angesprochen haben oder fruehere Roentgenprogression zeigen. Aktenreview mit dem Behandlungsteam koordinieren.'
+            }
+        });
+        m.put('Immunexis_IT', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'SHIELD-RA Fase 3: ACR50 del 68% alla settimana 24 con zelanumab vs 31% placebo. Il doppio blocco IL-23/IL-17A offre protezione articolare superiore nell AR moderata-grave.',
+                'Profilo di sicurezza favorevole: infezioni gravi 1,8/100 PA, nessun segnale TB, reazioni lievi nel sito di iniezione in <5% dei pazienti. Nessun monitoraggio di laboratorio obbligatorio.',
+                'Unico bispecifico che colpisce sia IL-23 che IL-17A in un unica molecola — agisce simultaneamente sull infiammazione a monte e a valle, a differenza della monoterapia sequenziale.',
+                'Dati real-world PRISM: il 74% dei pazienti PsA in trattamento con zelanumab riporta un miglioramento significativo nelle attivita quotidiane a 12 mesi. La riduzione della rigidita mattutina e il beneficio piu citato.',
+                'Penna preriempita pronta all uso, stabile a temperatura ambiente per 14 giorni. Autosomministrazione ogni 4 settimane — meta della frequenza degli inibitori IL-17A di riferimento.'
+            },
+            'objectives' => new List<String>{
+                'Posizionare zelanumab come biologico di prima linea dopo risposta inadeguata ai csDMARD. Ottenere presentazione al comitato terapeutico con il responsabile di reumatologia.',
+                'Identificare pazienti con AR moderata-grave in fallimento di almeno un csDMARD o con progressione radiografica precoce. Coordinare la revisione delle cartelle con il team di cura.'
+            }
+        });
+        m.put('Immunexis_ES', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'SHIELD-RA Fase 3: ACR50 del 68% en semana 24 con zelanumab frente al 31% con placebo. El doble bloqueo IL-23/IL-17A ofrece proteccion articular superior en AR moderada a grave.',
+                'Perfil de seguridad favorable: infecciones graves 1,8/100 PA, sin senales de TB, reacciones leves en sitio de inyeccion en <5% de pacientes. Sin monitorizacion analitica obligatoria.',
+                'Unico biespecifico dirigido contra IL-23 e IL-17A en una sola molecula — aborda la inflamacion aguas arriba y aguas abajo simultaneamente, a diferencia de la monoterapia secuencial.',
+                'Datos en vida real PRISM: 74% de pacientes con APs bajo zelanumab reportan mejoria significativa en actividades diarias a los 12 meses. La reduccion de la rigidez matutina es el beneficio mas valorado.',
+                'Pluma precargada lista para usar, estable a temperatura ambiente durante 14 dias. Autoinyeccion cada 4 semanas — la mitad de frecuencia que los inhibidores IL-17A de referencia.'
+            },
+            'objectives' => new List<String>{
+                'Posicionar zelanumab como biologico de primera linea tras respuesta inadecuada a FAMEsc. Conseguir revision en comite de farmacia con el jefe de reumatologia.',
+                'Identificar pacientes con AR moderada a grave que hayan fallado al menos un FAMEsc o muestren progresion radiografica temprana. Coordinar revision de historiales con el equipo asistencial.'
+            }
+        });
+        m.put('Immunexis_JP', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'SHIELD-RA第3相試験：ゼラヌマブ投与24週時ACR50達成率68%（プラセボ31%）。IL-23/IL-17Aデュアルブロックが中等度～重度RAで優れた関節保護を実現。',
+                '良好な安全性：重篤感染率1.8/100人年、新規TBシグナルなし、注射部位反応は5%未満で軽度。定期的な臨床検査モニタリング不要。',
+                'IL-23とIL-17Aの両方を単一分子で標的とする唯一のバイスペシフィック抗体——逐次単剤療法と異なり、上流・下流の炎症を同時に制御。',
+                'PRISMレジストリ実臨床データ：ゼラヌマブ投与PsA患者の74%が12ヶ月時に日常活動の有意な改善を報告。朝のこわばり軽減が最も評価されるQOL向上。',
+                'すぐに使えるプレフィルドペン、室温14日間安定。4週に1回の自己注射——主要IL-17A阻害剤の半分の頻度。'
+            },
+            'objectives' => new List<String>{
+                'csDMARD効果不十分例に対する第一選択バイオ製剤としてゼラヌマブを位置づける。リウマチ科部長との採用検討会議を確保。',
+                'csDMARD1剤以上無効または早期X線進行を示す中等度～重度RA患者を特定。診療チームとのカルテレビューを調整する。'
+            }
+        });
+        m.put('Immunexis_KR', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'SHIELD-RA 3상: 젤라누맙 24주차 ACR50 68%(위약 31%). IL-23/IL-17A 이중 차단이 중등도~중증 RA에서 우수한 관절 보호 효과를 제공.',
+                '양호한 안전성: 중증 감염률 1.8/100인년, 새로운 TB 신호 없음, 주사 부위 반응 5% 미만으로 경미. 필수 검사 모니터링 불필요.',
+                'IL-23과 IL-17A를 단일 분자로 동시 표적하는 유일한 이중특이항체 — 순차적 단독요법과 달리 상류·하류 염증을 동시 억제.',
+                'PRISM 레지스트리 실제 데이터: 젤라누맙 투여 PsA 환자의 74%가 12개월 시점에서 일상 활동의 의미 있는 개선을 보고. 아침 경직 감소가 가장 높은 삶의 질 개선.',
+                '바로 사용 가능한 프리필드 펜, 실온 14일 안정. 4주 1회 자가 주사 — 주요 IL-17A 억제제의 절반 빈도.'
+            },
+            'objectives' => new List<String>{
+                'csDMARD 불충분 반응 후 1차 생물학적 제제로 젤라누맙을 포지셔닝. 류마티스내과 과장과 약물심의위원회 논의 확보.',
+                'csDMARD 1제 이상 실패 또는 초기 방사선학적 진행을 보이는 중등도~중증 RA 환자 식별. 진료팀과 차트 리뷰 조율.'
+            }
+        });
+        m.put('Immunexis_BR', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'SHIELD-RA Fase 3: ACR50 de 68% na semana 24 com zelanumab vs 31% placebo. O duplo bloqueio IL-23/IL-17A oferece protecao articular superior na AR moderada a grave.',
+                'Perfil de seguranca favoravel: infeccoes graves 1,8/100 PA, sem sinais de TB, reacoes leves no local de injecao em <5% dos pacientes. Sem monitoramento laboratorial obrigatorio.',
+                'Unico biespecifico que atinge IL-23 e IL-17A em uma unica molecula — aborda inflamacao a montante e a jusante simultaneamente, diferente da monoterapia sequencial.',
+                'Dados do mundo real PRISM: 74% dos pacientes com APs em zelanumab relatam melhora significativa nas atividades diarias em 12 meses. Reducao da rigidez matinal e o beneficio mais citado.',
+                'Caneta preenchida pronta para uso, estavel em temperatura ambiente por 14 dias. Autoinjecao a cada 4 semanas — metade da frequencia dos inibidores IL-17A de referencia.'
+            },
+            'objectives' => new List<String>{
+                'Posicionar zelanumab como biologico de primeira linha apos resposta inadequada a csDMARDs. Garantir discussao no comite de farmacia com o chefe de reumatologia.',
+                'Identificar pacientes com AR moderada a grave que falharam pelo menos um csDMARD ou mostram progressao radiografica precoce. Coordenar revisao de prontuarios com a equipe de cuidados.'
+            }
+        });
+        m.put('Immunexis_MX', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'SHIELD-RA Fase 3: ACR50 del 68% en semana 24 con zelanumab vs 31% placebo. El doble bloqueo IL-23/IL-17A brinda proteccion articular superior en AR moderada a severa.',
+                'Perfil de seguridad favorable: infecciones graves 1,8/100 PA, sin senales de TB, reacciones leves en sitio de inyeccion en <5% de pacientes. Sin monitoreo de laboratorio obligatorio.',
+                'Unico biespecifico dirigido contra IL-23 e IL-17A en una sola molecula — aborda la inflamacion aguas arriba y aguas abajo simultaneamente, a diferencia de la monoterapia secuencial.',
+                'Datos en vida real PRISM: 74% de pacientes con APs bajo zelanumab reportan mejoria significativa en actividades diarias a 12 meses. La reduccion de la rigidez matutina es el beneficio mas valorado.',
+                'Pluma precargada lista para usar, estable a temperatura ambiente durante 14 dias. Autoinyeccion cada 4 semanas — la mitad de frecuencia que los inhibidores IL-17A de referencia.'
+            },
+            'objectives' => new List<String>{
+                'Posicionar zelanumab como biologico de primera linea tras respuesta inadecuada a FAMEsc. Asegurar presentacion en comite de farmacia con el jefe de reumatologia.',
+                'Identificar pacientes con AR moderada a severa que hayan fallado al menos un FAMEsc o muestren progresion radiografica temprana. Coordinar revision de expedientes con el equipo medico.'
+            }
+        });
+        m.put('Immunexis_AR', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'SHIELD-RA Fase 3: ACR50 del 68% en semana 24 con zelanumab vs 31% placebo. El doble bloqueo IL-23/IL-17A ofrece proteccion articular superior en AR moderada a severa.',
+                'Perfil de seguridad favorable: infecciones graves 1,8/100 PA, sin senales de TB, reacciones leves en sitio de inyeccion en <5% de pacientes. Sin monitoreo de laboratorio obligatorio.',
+                'Unico biespecifico dirigido contra IL-23 e IL-17A en una sola molecula — aborda simultaneamente la inflamacion aguas arriba y aguas abajo, a diferencia de la monoterapia secuencial.',
+                'Datos en vida real PRISM: 74% de pacientes con APs bajo zelanumab reportan mejoria significativa en actividades diarias a los 12 meses. La reduccion de la rigidez matutina es el beneficio mas valorado.',
+                'Pluma precargada lista para usar, estable a temperatura ambiente durante 14 dias. Autoinyeccion cada 4 semanas — la mitad de frecuencia que los inhibidores IL-17A de referencia.'
+            },
+            'objectives' => new List<String>{
+                'Posicionar zelanumab como biologico de primera linea tras respuesta inadecuada a FAMEsc. Conseguir revision en comite de farmacia con el jefe de reumatologia.',
+                'Identificar pacientes con AR moderada a severa que hayan fallado al menos un FAMEsc o muestren progresion radiografica temprana. Coordinar revision de historiales con el equipo de atencion.'
+            }
+        });
+
+        // ── Immunonco (vorastinib) — oncology (NSCLC, HCC) ──
+        m.put('Immunonco_US', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'BEACON-LUNG Phase 3: median PFS 11.2 months vs 5.4 months with pembrolizumab alone in PD-L1 >=50% NSCLC. 42% confirmed ORR in first-line setting.',
+                'Manageable irAE profile: Grade >=3 events in 18% of patients. No unexpected hepatotoxicity. Median time to irAE onset: 6 weeks, responsive to standard steroid protocols.',
+                'Dual PD-1/TIGIT blockade overcomes adaptive resistance seen with anti-PD-1 monotherapy. TIGIT+ NK cell reinvigoration drives responses even in PD-L1-low tumors.',
+                'BEACON-HCC Phase 2: 28% ORR in post-atezolizumab-bevacizumab HCC patients, a population with no approved second-line IO. Median duration of response: 14.1 months.',
+                'Fixed-dose IV infusion every 3 weeks, no weight-based dosing. Compatible with standard oncology infusion chairs — 30-minute administration after the first cycle.'
+            },
+            'objectives' => new List<String>{
+                'Drive vorastinib adoption as preferred first-line IO in PD-L1 >=50% NSCLC. Secure tumor board presentation slot to review BEACON-LUNG data.',
+                'Identify advanced NSCLC patients with PD-L1 >=50% who are treatment-naive or progressing on current IO. Review molecular profiling reports with the oncology team to flag candidates.'
+            }
+        });
+        m.put('Immunonco_GB', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'BEACON-LUNG Phase 3: median PFS 11.2 months versus 5.4 months with pembrolizumab alone in PD-L1 >=50% NSCLC. 42% confirmed ORR in the first-line setting.',
+                'Manageable irAE profile: Grade >=3 events in 18% of patients. No unexpected hepatotoxicity signal. Median time to irAE onset: 6 weeks, responsive to standard steroid protocols.',
+                'Dual PD-1/TIGIT blockade overcomes adaptive resistance observed with anti-PD-1 monotherapy. TIGIT+ NK cell reinvigoration drives responses even in PD-L1-low tumours.',
+                'BEACON-HCC Phase 2: 28% ORR in post-atezolizumab-bevacizumab HCC patients with no approved second-line IO. Median duration of response: 14.1 months.',
+                'Fixed-dose IV infusion every 3 weeks, no weight-based dosing. Compatible with standard oncology infusion chairs — 30-minute administration after the first cycle.'
+            },
+            'objectives' => new List<String>{
+                'Drive vorastinib adoption as preferred first-line IO in PD-L1 >=50% NSCLC. Secure tumour board presentation to review BEACON-LUNG data with the MDT.',
+                'Identify advanced NSCLC patients with PD-L1 >=50% who are treatment-naive or progressing on current IO. Review molecular profiling reports with the oncology MDT to flag candidates.'
+            }
+        });
+        m.put('Immunonco_FR', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'BEACON-LUNG Phase 3 : SG mediane 11,2 mois vs 5,4 mois sous pembrolizumab seul dans le CBNPC PD-L1 >=50%. TRO confirme de 42% en premiere ligne.',
+                'Profil d EI immuno-medies gerable : evenements grade >=3 chez 18% des patients. Pas d hepatotoxicite inattendue. Delai median : 6 semaines, repondant aux protocoles corticoides.',
+                'Le double blocage PD-1/TIGIT surmonte la resistance adaptative sous anti-PD-1. La reactivation des cellules NK TIGIT+ induit des reponses meme dans les tumeurs PD-L1 faibles.',
+                'BEACON-HCC Phase 2 : TRO de 28% chez les patients CHC post-atezolizumab-bevacizumab, sans IO de 2e ligne approuvee. Duree mediane de reponse : 14,1 mois.',
+                'Perfusion IV a dose fixe toutes les 3 semaines, sans ajustement au poids. Compatible avec les fauteuils de perfusion standard — 30 minutes apres le premier cycle.'
+            },
+            'objectives' => new List<String>{
+                'Promouvoir vorastinib comme IO de 1re ligne dans le CBNPC PD-L1 >=50%. Obtenir une presentation en RCP pour les donnees BEACON-LUNG.',
+                'Identifier les patients CBNPC avance PD-L1 >=50% naifs de traitement ou en progression sous IO. Revoir les profils moleculaires avec l equipe d oncologie pour reperer les candidats.'
+            }
+        });
+        m.put('Immunonco_DE', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'BEACON-LUNG Phase 3: medianes PFS 11,2 Monate vs. 5,4 Monate unter Pembrolizumab allein bei PD-L1 >=50% NSCLC. 42% bestaetigte ORR in der Erstlinie.',
+                'Handhabbares irAE-Profil: Grad >=3 Ereignisse bei 18% der Patienten. Keine unerwartete Hepatotoxizitaet. Mediane Zeit bis irAE-Onset: 6 Wochen, Ansprechen auf Standard-Steroid-Protokolle.',
+                'Duale PD-1/TIGIT-Blockade ueberwindet adaptive Resistenz unter Anti-PD-1-Monotherapie. TIGIT+ NK-Zell-Reaktivierung erzielt Ansprechen auch bei PD-L1-niedrigen Tumoren.',
+                'BEACON-HCC Phase 2: 28% ORR bei Post-Atezolizumab-Bevacizumab-HCC-Patienten ohne zugelassene Zweitlinien-IO. Mediane Ansprechdauer: 14,1 Monate.',
+                'Fixdosis-IV-Infusion alle 3 Wochen, keine gewichtsbasierte Dosierung. Kompatibel mit Standard-Infusionsstuehlen — 30 Minuten Verabreichung nach dem ersten Zyklus.'
+            },
+            'objectives' => new List<String>{
+                'Vorastinib als bevorzugte Erstlinien-IO bei PD-L1 >=50% NSCLC etablieren. Vorstellung im Tumorboard zur Besprechung der BEACON-LUNG-Daten sichern.',
+                'Fortgeschrittene NSCLC-Patienten mit PD-L1 >=50% identifizieren, die therapienaiv sind oder unter aktueller IO progredieren. Molekulare Profilberichte mit dem Onkologie-Team pruefen.'
+            }
+        });
+        m.put('Immunonco_IT', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'BEACON-LUNG Fase 3: PFS mediana 11,2 mesi vs 5,4 mesi con pembrolizumab in monoterapia nel NSCLC PD-L1 >=50%. ORR confermato del 42% in prima linea.',
+                'Profilo irAE gestibile: eventi grado >=3 nel 18% dei pazienti. Nessuna epatotossicita inattesa. Tempo mediano all insorgenza: 6 settimane, responsivo a protocolli steroidei standard.',
+                'Il doppio blocco PD-1/TIGIT supera la resistenza adattativa con anti-PD-1 in monoterapia. La riattivazione delle cellule NK TIGIT+ genera risposte anche nei tumori PD-L1 bassi.',
+                'BEACON-HCC Fase 2: ORR del 28% in pazienti HCC post-atezolizumab-bevacizumab, senza IO di seconda linea approvata. Durata mediana della risposta: 14,1 mesi.',
+                'Infusione IV a dose fissa ogni 3 settimane, senza dosaggio basato sul peso. Compatibile con le poltrone di infusione standard — 30 minuti dopo il primo ciclo.'
+            },
+            'objectives' => new List<String>{
+                'Promuovere vorastinib come IO di prima linea nel NSCLC PD-L1 >=50%. Ottenere slot al tumor board per i dati BEACON-LUNG.',
+                'Identificare pazienti NSCLC avanzato con PD-L1 >=50% naive o in progressione sotto IO. Rivedere i profili molecolari con il team oncologico per individuare i candidati.'
+            }
+        });
+        m.put('Immunonco_ES', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'BEACON-LUNG Fase 3: SLP mediana 11,2 meses vs 5,4 meses con pembrolizumab solo en CPNM PD-L1 >=50%. TRO confirmada del 42% en primera linea.',
+                'Perfil de irAE manejable: eventos grado >=3 en 18% de pacientes. Sin hepatotoxicidad inesperada. Tiempo mediano hasta irAE: 6 semanas, responde a protocolos de corticoides.',
+                'El doble bloqueo PD-1/TIGIT supera la resistencia adaptativa del anti-PD-1 en monoterapia. La reactivacion de celulas NK TIGIT+ genera respuestas incluso en tumores PD-L1 bajos.',
+                'BEACON-HCC Fase 2: TRO del 28% en pacientes CHC post-atezolizumab-bevacizumab, sin IO de segunda linea aprobada. Duracion mediana de respuesta: 14,1 meses.',
+                'Infusion IV a dosis fija cada 3 semanas, sin ajuste por peso. Compatible con sillones de infusion estandar — 30 minutos de administracion tras el primer ciclo.'
+            },
+            'objectives' => new List<String>{
+                'Impulsar vorastinib como IO de primera linea en CPNM PD-L1 >=50%. Asegurar presentacion en comite de tumores para datos BEACON-LUNG.',
+                'Identificar pacientes con CPNM avanzado PD-L1 >=50% naive o en progresion bajo IO actual. Revisar perfiles moleculares con el equipo de oncologia para detectar candidatos.'
+            }
+        });
+        m.put('Immunonco_JP', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'BEACON-LUNG第3相：PD-L1>=50% NSCLCでボラスチニブPFS中央値11.2ヶ月（ペムブロリズマブ単独5.4ヶ月）。一次治療確認ORR 42%。',
+                '管理可能なirAE：Grade>=3イベント18%。予期しない肝毒性なし。irAE発現中央値6週間、標準ステロイドプロトコルに反応。',
+                'PD-1/TIGITデュアルブロックが抗PD-1単剤の適応耐性を克服。TIGIT+NK細胞再活性化がPD-L1低発現腫瘍でも奏効を実現。',
+                'BEACON-HCC第2相：アテゾリズマブ・ベバシズマブ後HCC患者でORR 28%、承認済み2次IO不在の集団。奏効期間中央値14.1ヶ月。',
+                '3週毎の固定用量IV点滴、体重ベースの用量調節不要。標準点滴椅子対応——初回以降30分で投与完了。'
+            },
+            'objectives' => new List<String>{
+                'PD-L1>=50% NSCLCにおけるボラスチニブの1次IO推奨薬としての採用を推進。キャンサーボードでBEACON-LUNGデータ発表枠を確保。',
+                'PD-L1>=50%の進行NSCLC治療未施行または現行IO進行中の患者を特定。腫瘍内科チームと分子プロファイリング結果をレビューし候補を選定。'
+            }
+        });
+        m.put('Immunonco_KR', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'BEACON-LUNG 3상: PD-L1 >=50% NSCLC에서 보라스티닙 PFS 중앙값 11.2개월(펨브롤리주맙 단독 5.4개월). 1차 치료 확인 ORR 42%.',
+                '관리 가능한 irAE: Grade >=3 18%. 예상치 못한 간독성 없음. irAE 발현 중앙값 6주, 표준 스테로이드 프로토콜에 반응.',
+                'PD-1/TIGIT 이중 차단이 항PD-1 단독요법의 적응 내성을 극복. TIGIT+ NK 세포 재활성화가 PD-L1 저발현 종양에서도 반응 유도.',
+                'BEACON-HCC 2상: 아테졸리주맙-베바시주맙 후 HCC 환자에서 ORR 28%, 승인된 2차 IO 부재. 반응 지속 중앙값 14.1개월.',
+                '3주마다 고정 용량 IV 주입, 체중 기반 용량 조절 불필요. 표준 항암 주입 의자 호환 — 첫 주기 이후 30분 투여.'
+            },
+            'objectives' => new List<String>{
+                'PD-L1 >=50% NSCLC에서 보라스티닙을 선호 1차 IO로 채택 추진. 종양학 컨퍼런스에서 BEACON-LUNG 데이터 발표 확보.',
+                'PD-L1 >=50% 진행성 NSCLC 치료 미경험 또는 현재 IO 진행 환자 식별. 종양내과팀과 분자 프로파일링 보고서를 검토하여 후보 선별.'
+            }
+        });
+        m.put('Immunonco_BR', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'BEACON-LUNG Fase 3: SLP mediana 11,2 meses vs 5,4 meses com pembrolizumab isolado no CPCNP PD-L1 >=50%. TRO confirmada de 42% em primeira linha.',
+                'Perfil de irAE manejavel: eventos grau >=3 em 18% dos pacientes. Sem hepatotoxicidade inesperada. Tempo mediano ate irAE: 6 semanas, responsivo a corticoides padrao.',
+                'O duplo bloqueio PD-1/TIGIT supera a resistencia adaptativa do anti-PD-1 em monoterapia. A reativacao de celulas NK TIGIT+ gera respostas mesmo em tumores PD-L1 baixos.',
+                'BEACON-HCC Fase 2: TRO de 28% em pacientes CHC pos-atezolizumab-bevacizumab, sem IO de segunda linha aprovada. Duracao mediana de resposta: 14,1 meses.',
+                'Infusao IV em dose fixa a cada 3 semanas, sem dosagem por peso. Compativel com poltronas de infusao padrao — 30 minutos de administracao apos o primeiro ciclo.'
+            },
+            'objectives' => new List<String>{
+                'Impulsionar vorastinib como IO de primeira linha no CPCNP PD-L1 >=50%. Garantir apresentacao no tumor board para dados BEACON-LUNG.',
+                'Identificar pacientes com CPCNP avancado PD-L1 >=50% virgem de tratamento ou em progressao sob IO. Revisar relatorios de perfil molecular com a equipe de oncologia.'
+            }
+        });
+        m.put('Immunonco_MX', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'BEACON-LUNG Fase 3: SLP mediana 11,2 meses vs 5,4 meses con pembrolizumab solo en CPCNP PD-L1 >=50%. TRO confirmada del 42% en primera linea.',
+                'Perfil de irAE manejable: eventos grado >=3 en 18% de pacientes. Sin hepatotoxicidad inesperada. Tiempo mediano hasta irAE: 6 semanas, responde a corticoides estandar.',
+                'El doble bloqueo PD-1/TIGIT supera la resistencia adaptativa del anti-PD-1 en monoterapia. La reactivacion de celulas NK TIGIT+ genera respuestas incluso en tumores PD-L1 bajos.',
+                'BEACON-HCC Fase 2: TRO del 28% en pacientes CHC post-atezolizumab-bevacizumab, sin IO de segunda linea aprobada. Duracion mediana de respuesta: 14,1 meses.',
+                'Infusion IV a dosis fija cada 3 semanas, sin ajuste por peso. Compatible con sillones de infusion estandar — 30 minutos de administracion tras el primer ciclo.'
+            },
+            'objectives' => new List<String>{
+                'Impulsar vorastinib como IO de primera linea en CPCNP PD-L1 >=50%. Asegurar presentacion en comite de tumores para datos BEACON-LUNG.',
+                'Identificar pacientes con CPCNP avanzado PD-L1 >=50% naive o en progresion bajo IO actual. Revisar perfiles moleculares con el equipo de oncologia para detectar candidatos.'
+            }
+        });
+        m.put('Immunonco_AR', new Map<String, List<String>>{
+            'messages' => new List<String>{
+                'BEACON-LUNG Fase 3: SLP mediana 11,2 meses vs 5,4 meses con pembrolizumab solo en CPCNP PD-L1 >=50%. TRO confirmada del 42% en primera linea.',
+                'Perfil de irAE manejable: eventos grado >=3 en 18% de pacientes. Sin hepatotoxicidad inesperada. Tiempo mediano hasta irAE: 6 semanas, responde a corticoides estandar.',
+                'El doble bloqueo PD-1/TIGIT supera la resistencia adaptativa del anti-PD-1 en monoterapia. La reactivacion de celulas NK TIGIT+ genera respuestas incluso en tumores PD-L1 bajos.',
+                'BEACON-HCC Fase 2: TRO del 28% en pacientes CHC post-atezolizumab-bevacizumab, sin IO de segunda linea aprobada. Duracion mediana de respuesta: 14,1 meses.',
+                'Infusion IV a dosis fija cada 3 semanas, sin ajuste por peso. Compatible con sillones de infusion estandar — 30 minutos de administracion tras el primer ciclo.'
+            },
+            'objectives' => new List<String>{
+                'Impulsar vorastinib como IO de primera linea en CPCNP PD-L1 >=50%. Asegurar presentacion en comite de tumores para discutir datos BEACON-LUNG.',
+                'Identificar pacientes con CPCNP avanzado PD-L1 >=50% naive o en progresion bajo IO actual. Revisar perfiles moleculares con el equipo de oncologia para seleccionar candidatos.'
+            }
+        });
+
+        return m;
     }
 
 }
