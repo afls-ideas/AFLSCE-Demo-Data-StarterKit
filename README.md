@@ -24,7 +24,7 @@ sf project deploy start --source-dir force-app --target-org YOUR_ORG_ALIAS
 2. Open the **AFLSCE Demo Data** app from the App Launcher
 3. Assign the **AFLSCE Demo Account Plan** permission set (for Account & Action Plans tab)
 4. Open the **AFLSCE Demo Data** app from the App Launcher
-5. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Inventory Replenishment → Scenario Builder → Account & Action Plans → Activity Plans → Campaigns → Visits
+5. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Inventory Replenishment → Scenario Builder → Account & Action Plans → Activity Plans → Campaigns → Visits → Medical Insights
 
 ## What Gets Created
 
@@ -164,6 +164,15 @@ Creates completed Visit records for a selected territory with a UI-selectable pr
 
 > **Before deleting visits:** Disable `VisitLockHandler` and `RemoteSessionInvitationVisitHandler` trigger handlers in Admin Console → Trigger Settings, then re-enable after.
 
+### Tab 12: Medical Insights
+
+Creates realistic medical insight records from field visits, linked to HCP accounts and brand products:
+
+- **MedicalInsight** — 1-2 per brand per leaf territory, `SourceType = Visit`. 10 Immunexis templates (ACR50 response, infection risk, dual mechanism, patient switching, adherence, formulary requests, KOL engagement, off-label inquiry, payer pushback) and 10 Immunonco templates (PFS data, irAE management, TIGIT mechanism, HCC response, infusion scheduling, tumor board, molecular profiling, chemo combination, companion diagnostic, patient access). Owned by the territory rep
+- **MedicalInsightAccount** — links each insight to the HCP account where the insight was captured
+- **MedicalInsightProduct** — links each insight to the country-specific brand (`LifeSciMarketableProduct`)
+- **Sharing** — `MedicalInsightShare` records grant Read access to territory groups (Private OWD)
+
 ## Tagging & Cleanup
 
 All created records are tagged for safe cleanup:
@@ -196,6 +205,9 @@ All created records are tagged for safe cleanup:
 | ActionPlan | `SourceSystemName` | `AFLSCE-Demo-Data` |
 | Campaign | `Name` | `[AFLSCE-Demo] *` (prefix) |
 | ProductGuidance | `SourceSystemName` | `AFLSCE-Demo-Data` |
+| MedicalInsight | `External_ID__c` | `AFLSCE-Demo-MI-*` |
+| MedicalInsightAccount | `External_ID__c` | `AFLSCE-Demo-MIA-*` |
+| MedicalInsightProduct | `External_ID__c` | `AFLSCE-Demo-MIP-*` |
 
 Every tab has a **Delete** button that removes only the records created by this tool. Your existing org data is never touched.
 
@@ -226,6 +238,7 @@ force-app/main/default/
 │   ├── DemoAccountPlanData            English plan archetypes, objectives & KAM task definitions
 │   ├── DemoAccountPlanLocale          Localized plan names, objectives & templates (7 languages)
 │   ├── DemoCampaignController          Campaign + CampaignMember creation (journey + marketing)
+│   ├── DemoMedicalInsightController   Medical Insights with account & product links
 │   └── DemoVisitController            Visit creation with channel picker & planned visits
 ├── lwc/                  Lightning Web Components
 │   ├── demoDataAdmin           Main tabbed UI
@@ -239,6 +252,7 @@ force-app/main/default/
 │   ├── activityPlanSetup       Account & Action Plans creation UI
 │   ├── providerActivityPlanSetup  Activity Plans & Goals with measure type picker
 │   ├── campaignSetup             Campaign + journey member creation
+│   ├── medicalInsightSetup     Medical Insights with account & product links
 │   └── visitSetup              Visit creation with channel picker, territory selector & batched delete
 ├── flexipages/           Lightning Record Pages
 │   ├── Action_Plan_Record_Page              ActionPlan record page
