@@ -308,7 +308,7 @@ public without sharing class DemoVisitController {
                 details.add('SUCCESS:Created ' + totalPvpd + ' product detailing records');
 
                 // Step 9b: Create ProviderVisitDtlProductMsg for completed visits
-                List<SObject> allMsgs = buildProductMessages(successPvpdIds, countryCode, ownerId, seed);
+                List<SObject> allMsgs = buildProductMessages(successPvpdIds, countryCode, ownerId, seed, false);
                 if (!allMsgs.isEmpty()) {
                     details.add('HEADER:Step 9b — Inserting ' + allMsgs.size() + ' product messages');
                     Integer totalMsgs = 0;
@@ -453,7 +453,7 @@ public without sharing class DemoVisitController {
                     }
                     details.add('SUCCESS:Created ' + totalPlannedPvpd + ' planned product detailing records');
 
-                    List<SObject> plannedMsgs = buildProductMessages(plannedPvpdIds, countryCode, ownerId, seed + 7777);
+                    List<SObject> plannedMsgs = buildProductMessages(plannedPvpdIds, countryCode, ownerId, seed + 7777, true);
                     if (!plannedMsgs.isEmpty()) {
                         Integer totalPlannedMsgs = 0;
                         Database.SaveResult[] pmResults = Database.insert(plannedMsgs, false);
@@ -639,7 +639,7 @@ public without sharing class DemoVisitController {
         return (Integer) Math.mod(hash, maxVal);
     }
 
-    private static List<SObject> buildProductMessages(List<Id> pvpdIds, String countryCode, Id ownerId, Integer seed) {
+    private static List<SObject> buildProductMessages(List<Id> pvpdIds, String countryCode, Id ownerId, Integer seed, Boolean isPlanned) {
         List<SObject> msgs = new List<SObject>();
         if (pvpdIds.isEmpty()) return msgs;
 
@@ -698,9 +698,11 @@ public without sharing class DemoVisitController {
                 msg.put('MessageRecordId', pg.get('Id'));
                 msg.put('OwnerId', ownerId);
                 msg.put('SourceSystemName', DEMO_TAG);
-                Integer reactionIdx = pseudoRandom(seed + idx * 71 + pick, reactions.size());
-                if (reactions[reactionIdx] != null) {
-                    msg.put('ReactionType', reactions[reactionIdx]);
+                if (!isPlanned) {
+                    Integer reactionIdx = pseudoRandom(seed + idx * 71 + pick, reactions.size());
+                    if (reactions[reactionIdx] != null) {
+                        msg.put('ReactionType', reactions[reactionIdx]);
+                    }
                 }
                 msgs.add(msg);
                 idx++;
