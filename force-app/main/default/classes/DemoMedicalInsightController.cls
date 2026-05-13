@@ -1,7 +1,7 @@
 public without sharing class DemoMedicalInsightController {
 
     private static final String DEMO_TAG = 'AFLSCE-Demo-Data';
-    private static final String TOPIC_TAG = 'AFLSCE-Demo-Data';
+    private static final String NAME_PREFIX = '[AFLSCE-Demo] ';
 
     private static final String[] BRAND_NAMES = new String[]{ 'Immunexis', 'Immunonco' };
 
@@ -104,10 +104,10 @@ public without sharing class DemoMedicalInsightController {
             List<String> parts = new List<String>();
             if (!objectExists('MedicalInsight')) return 'MedicalInsight not available in this org.';
 
-            String topicTag = TOPIC_TAG;
+            String namePattern = NAME_PREFIX + '%';
             Set<Id> demoInsightIds = new Set<Id>();
             for (SObject mi : Database.query(
-                'SELECT Id FROM MedicalInsight WHERE TopicNames = :topicTag'
+                'SELECT Id FROM MedicalInsight WHERE Name LIKE :namePattern'
             )) {
                 demoInsightIds.add(mi.Id);
             }
@@ -139,9 +139,9 @@ public without sharing class DemoMedicalInsightController {
         List<String> errors = new List<String>();
 
         try {
-            String topicTag = TOPIC_TAG;
+            String namePattern = NAME_PREFIX + '%';
             Integer existing = Database.countQuery(
-                'SELECT COUNT() FROM MedicalInsight WHERE TopicNames = :topicTag'
+                'SELECT COUNT() FROM MedicalInsight WHERE Name LIKE :namePattern'
             );
             if (existing > 0) {
                 throw new AuraHandledException('Demo insights already exist (' + existing + '). Delete first.');
@@ -234,12 +234,11 @@ public without sharing class DemoMedicalInsightController {
                         Id accountId = terrHcps[hcpIdx];
 
                         SObject mi = miType.newSObject();
-                        String insightName = tmpl.get('Name');
+                        String insightName = NAME_PREFIX + tmpl.get('Name');
                         if (insightName.length() > 80) insightName = insightName.substring(0, 80);
                         mi.put('Name', insightName);
                         mi.put('Content', tmpl.get('Content'));
                         mi.put('SourceType', 'Visit');
-                        mi.put('TopicNames', TOPIC_TAG);
                         mi.put('OwnerId', ownerId);
                         insightRecords.add(mi);
                         contexts.add(new InsightContext(accountId, brandId, cc, terr.Id));
@@ -311,10 +310,10 @@ public without sharing class DemoMedicalInsightController {
     public static String deleteMedicalInsights() {
         try {
             List<String> deleted = new List<String>();
-            String topicTag = TOPIC_TAG;
+            String namePattern = NAME_PREFIX + '%';
 
             List<SObject> insights = Database.query(
-                'SELECT Id FROM MedicalInsight WHERE TopicNames = :topicTag LIMIT 10000'
+                'SELECT Id FROM MedicalInsight WHERE Name LIKE :namePattern LIMIT 10000'
             );
             if (insights.isEmpty()) return 'No demo medical insights to delete.';
 
