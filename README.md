@@ -205,7 +205,7 @@ All created records are tagged for safe cleanup:
 | ActionPlan | `SourceSystemName` | `AFLSCE-Demo-Data` |
 | Campaign | `Name` | `[AFLSCE-Demo] *` (prefix) |
 | ProductGuidance | `SourceSystemName` | `AFLSCE-Demo-Data` |
-| MedicalInsight | `Name` | `[AFLSCE-Demo] *` (prefix) |
+| MedicalInsight | `TopicNames` | `AFLSCE-Demo-Data` |
 | MedicalInsightAccount | via MedicalInsightId | (child of tagged MedicalInsight) |
 | MedicalInsightProduct | via MedicalInsightId | (child of tagged MedicalInsight) |
 
