@@ -205,9 +205,9 @@ All created records are tagged for safe cleanup:
 | ActionPlan | `SourceSystemName` | `AFLSCE-Demo-Data` |
 | Campaign | `Name` | `[AFLSCE-Demo] *` (prefix) |
 | ProductGuidance | `SourceSystemName` | `AFLSCE-Demo-Data` |
-| MedicalInsight | `External_ID__c` | `AFLSCE-Demo-MI-*` |
-| MedicalInsightAccount | `External_ID__c` | `AFLSCE-Demo-MIA-*` |
-| MedicalInsightProduct | `External_ID__c` | `AFLSCE-Demo-MIP-*` |
+| MedicalInsight | `Name` | `[AFLSCE-Demo] *` (prefix) |
+| MedicalInsightAccount | via MedicalInsightId | (child of tagged MedicalInsight) |
+| MedicalInsightProduct | via MedicalInsightId | (child of tagged MedicalInsight) |
 
 Every tab has a **Delete** button that removes only the records created by this tool. Your existing org data is never touched.
 

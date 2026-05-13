@@ -1,6 +1,7 @@
 public without sharing class DemoMedicalInsightController {
 
     private static final String DEMO_TAG = 'AFLSCE-Demo-Data';
+    private static final String TAG_PREFIX = '[AFLSCE-Demo] ';
 
     private static final String[] BRAND_NAMES = new String[]{ 'Immunexis', 'Immunonco' };
 
@@ -103,22 +104,25 @@ public without sharing class DemoMedicalInsightController {
             List<String> parts = new List<String>();
             if (!objectExists('MedicalInsight')) return 'MedicalInsight not available in this org.';
 
-            String escaped = String.escapeSingleQuotes(DEMO_TAG);
-            Integer insightCount = Database.countQuery(
-                'SELECT COUNT() FROM MedicalInsight WHERE External_ID__c LIKE \'AFLSCE-Demo-MI-%\''
-            );
-            parts.add('Insights: ' + insightCount);
+            String namePattern = TAG_PREFIX + '%';
+            Set<Id> demoInsightIds = new Set<Id>();
+            for (SObject mi : Database.query(
+                'SELECT Id FROM MedicalInsight WHERE Name LIKE :namePattern'
+            )) {
+                demoInsightIds.add(mi.Id);
+            }
+            parts.add('Insights: ' + demoInsightIds.size());
 
-            if (objectExists('MedicalInsightAccount')) {
+            if (objectExists('MedicalInsightAccount') && !demoInsightIds.isEmpty()) {
                 Integer miaCount = Database.countQuery(
-                    'SELECT COUNT() FROM MedicalInsightAccount WHERE External_ID__c LIKE \'AFLSCE-Demo-MIA-%\''
+                    'SELECT COUNT() FROM MedicalInsightAccount WHERE MedicalInsightId IN :demoInsightIds'
                 );
                 parts.add('Account Links: ' + miaCount);
             }
 
-            if (objectExists('MedicalInsightProduct')) {
+            if (objectExists('MedicalInsightProduct') && !demoInsightIds.isEmpty()) {
                 Integer mipCount = Database.countQuery(
-                    'SELECT COUNT() FROM MedicalInsightProduct WHERE External_ID__c LIKE \'AFLSCE-Demo-MIP-%\''
+                    'SELECT COUNT() FROM MedicalInsightProduct WHERE MedicalInsightId IN :demoInsightIds'
                 );
                 parts.add('Product Links: ' + mipCount);
             }
@@ -135,8 +139,9 @@ public without sharing class DemoMedicalInsightController {
         List<String> errors = new List<String>();
 
         try {
+            String namePattern = TAG_PREFIX + '%';
             Integer existing = Database.countQuery(
-                'SELECT COUNT() FROM MedicalInsight WHERE External_ID__c LIKE \'AFLSCE-Demo-MI-%\''
+                'SELECT COUNT() FROM MedicalInsight WHERE Name LIKE :namePattern'
             );
             if (existing > 0) {
                 throw new AuraHandledException('Demo insights already exist (' + existing + '). Delete first.');
@@ -229,11 +234,12 @@ public without sharing class DemoMedicalInsightController {
                         Id accountId = terrHcps[hcpIdx];
 
                         SObject mi = miType.newSObject();
-                        mi.put('Name', tmpl.get('Name'));
+                        String insightName = TAG_PREFIX + tmpl.get('Name');
+                        if (insightName.length() > 80) insightName = insightName.substring(0, 80);
+                        mi.put('Name', insightName);
                         mi.put('Content', tmpl.get('Content'));
                         mi.put('SourceType', 'Visit');
                         mi.put('OwnerId', ownerId);
-                        mi.put('External_ID__c', 'AFLSCE-Demo-MI-' + seqNum);
                         insightRecords.add(mi);
                         contexts.add(new InsightContext(accountId, brandId, cc, terr.Id));
                     }
@@ -253,14 +259,11 @@ public without sharing class DemoMedicalInsightController {
             details.add('HEADER:Step 5 — Linking to accounts');
             Schema.SObjectType miaType = Schema.getGlobalDescribe().get('MedicalInsightAccount');
             List<SObject> accountLinks = new List<SObject>();
-            Integer miaSeq = 0;
             for (Integer i = 0; i < miResults.size(); i++) {
                 if (!miResults[i].isSuccess()) continue;
-                miaSeq++;
                 SObject mia = miaType.newSObject();
                 mia.put('MedicalInsightId', miResults[i].getId());
                 mia.put('AccountId', contexts[i].accountId);
-                mia.put('External_ID__c', 'AFLSCE-Demo-MIA-' + miaSeq);
                 accountLinks.add(mia);
             }
             Database.SaveResult[] miaResults = Database.insert(accountLinks, false);
@@ -274,14 +277,11 @@ public without sharing class DemoMedicalInsightController {
             details.add('HEADER:Step 6 — Linking to products');
             Schema.SObjectType mipType = Schema.getGlobalDescribe().get('MedicalInsightProduct');
             List<SObject> productLinks = new List<SObject>();
-            Integer mipSeq = 0;
             for (Integer i = 0; i < miResults.size(); i++) {
                 if (!miResults[i].isSuccess()) continue;
-                mipSeq++;
                 SObject mip = mipType.newSObject();
                 mip.put('MedicalInsightId', miResults[i].getId());
                 mip.put('ProductId', contexts[i].brandId);
-                mip.put('External_ID__c', 'AFLSCE-Demo-MIP-' + mipSeq);
                 productLinks.add(mip);
             }
             Database.SaveResult[] mipResults = Database.insert(productLinks, false);
@@ -310,10 +310,19 @@ public without sharing class DemoMedicalInsightController {
     public static String deleteMedicalInsights() {
         try {
             List<String> deleted = new List<String>();
+            String namePattern = TAG_PREFIX + '%';
+
+            List<SObject> insights = Database.query(
+                'SELECT Id FROM MedicalInsight WHERE Name LIKE :namePattern LIMIT 10000'
+            );
+            if (insights.isEmpty()) return 'No demo medical insights to delete.';
+
+            Set<Id> insightIds = new Set<Id>();
+            for (SObject mi : insights) insightIds.add(mi.Id);
 
             if (objectExists('MedicalInsightProduct')) {
                 List<SObject> mips = Database.query(
-                    'SELECT Id FROM MedicalInsightProduct WHERE External_ID__c LIKE \'AFLSCE-Demo-MIP-%\' LIMIT 10000'
+                    'SELECT Id FROM MedicalInsightProduct WHERE MedicalInsightId IN :insightIds LIMIT 10000'
                 );
                 if (!mips.isEmpty()) {
                     Database.delete(mips, false);
@@ -323,7 +332,7 @@ public without sharing class DemoMedicalInsightController {
 
             if (objectExists('MedicalInsightAccount')) {
                 List<SObject> mias = Database.query(
-                    'SELECT Id FROM MedicalInsightAccount WHERE External_ID__c LIKE \'AFLSCE-Demo-MIA-%\' LIMIT 10000'
+                    'SELECT Id FROM MedicalInsightAccount WHERE MedicalInsightId IN :insightIds LIMIT 10000'
                 );
                 if (!mias.isEmpty()) {
                     Database.delete(mias, false);
@@ -331,17 +340,10 @@ public without sharing class DemoMedicalInsightController {
                 }
             }
 
-            List<SObject> insights = Database.query(
-                'SELECT Id FROM MedicalInsight WHERE External_ID__c LIKE \'AFLSCE-Demo-MI-%\' LIMIT 10000'
-            );
-            if (!insights.isEmpty()) {
-                Database.delete(insights, false);
-                deleted.add(insights.size() + ' insights');
-            }
+            Database.delete(insights, false);
+            deleted.add(insights.size() + ' insights');
 
-            return deleted.isEmpty()
-                ? 'No demo medical insights to delete.'
-                : 'Deleted ' + String.join(deleted, ', ') + '.';
+            return 'Deleted ' + String.join(deleted, ', ') + '.';
         } catch (Exception e) {
             throw new AuraHandledException('Error: ' + e.getMessage());
         }
