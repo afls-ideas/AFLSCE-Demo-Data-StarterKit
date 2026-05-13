@@ -1,7 +1,7 @@
 public without sharing class DemoMedicalInsightController {
 
     private static final String DEMO_TAG = 'AFLSCE-Demo-Data';
-    private static final String NAME_PREFIX = '[AFLSCE-Demo] ';
+    private static final String NAME_SUFFIX = ' #AFLSCE';
 
     private static final String[] BRAND_NAMES = new String[]{ 'Immunexis', 'Immunonco' };
 
@@ -104,7 +104,7 @@ public without sharing class DemoMedicalInsightController {
             List<String> parts = new List<String>();
             if (!objectExists('MedicalInsight')) return 'MedicalInsight not available in this org.';
 
-            String namePattern = NAME_PREFIX + '%';
+            String namePattern = '%' + NAME_SUFFIX;
             Set<Id> demoInsightIds = new Set<Id>();
             for (SObject mi : Database.query(
                 'SELECT Id FROM MedicalInsight WHERE Name LIKE :namePattern'
@@ -139,7 +139,7 @@ public without sharing class DemoMedicalInsightController {
         List<String> errors = new List<String>();
 
         try {
-            String namePattern = NAME_PREFIX + '%';
+            String namePattern = '%' + NAME_SUFFIX;
             Integer existing = Database.countQuery(
                 'SELECT COUNT() FROM MedicalInsight WHERE Name LIKE :namePattern'
             );
@@ -234,8 +234,10 @@ public without sharing class DemoMedicalInsightController {
                         Id accountId = terrHcps[hcpIdx];
 
                         SObject mi = miType.newSObject();
-                        String insightName = NAME_PREFIX + tmpl.get('Name');
-                        if (insightName.length() > 80) insightName = insightName.substring(0, 80);
+                        String baseName = tmpl.get('Name');
+                        Integer maxBase = 80 - NAME_SUFFIX.length();
+                        if (baseName.length() > maxBase) baseName = baseName.substring(0, maxBase);
+                        String insightName = baseName + NAME_SUFFIX;
                         mi.put('Name', insightName);
                         mi.put('Content', tmpl.get('Content'));
                         mi.put('SourceType', 'Visit');
@@ -310,7 +312,7 @@ public without sharing class DemoMedicalInsightController {
     public static String deleteMedicalInsights() {
         try {
             List<String> deleted = new List<String>();
-            String namePattern = NAME_PREFIX + '%';
+            String namePattern = '%' + NAME_SUFFIX;
 
             List<SObject> insights = Database.query(
                 'SELECT Id FROM MedicalInsight WHERE Name LIKE :namePattern LIMIT 10000'
