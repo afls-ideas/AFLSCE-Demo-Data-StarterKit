@@ -2,7 +2,8 @@ import { LightningElement, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
 import getStatus from '@salesforce/apex/DemoMedicalInsightController.getStatus';
-import createMedicalInsights from '@salesforce/apex/DemoMedicalInsightController.createMedicalInsights';
+import getTerritories from '@salesforce/apex/DemoMedicalInsightController.getTerritories';
+import createInsightsForTerritory from '@salesforce/apex/DemoMedicalInsightController.createInsightsForTerritory';
 import deleteMedicalInsights from '@salesforce/apex/DemoMedicalInsightController.deleteMedicalInsights';
 
 export default class MedicalInsightSetup extends LightningElement {
@@ -13,6 +14,8 @@ export default class MedicalInsightSetup extends LightningElement {
     isSuccess = false;
     wiredStatusResult;
     activityLog = [];
+    territoryOptions = [];
+    selectedTerritoryId;
 
     @wire(getStatus)
     wiredStatus(result) {
@@ -26,6 +29,19 @@ export default class MedicalInsightSetup extends LightningElement {
         }
     }
 
+    @wire(getTerritories)
+    wiredTerritories({ data, error }) {
+        if (data) {
+            this.territoryOptions = data;
+        } else if (error) {
+            this.territoryOptions = [];
+        }
+    }
+
+    handleTerritoryChange(event) {
+        this.selectedTerritoryId = event.detail.value;
+    }
+
     get resultClass() {
         return this.isSuccess
             ? 'slds-box slds-theme_success slds-p-around_small slds-m-bottom_small'
@@ -34,6 +50,13 @@ export default class MedicalInsightSetup extends LightningElement {
 
     get hasActivityLog() {
         return this.activityLog.length > 0;
+    }
+
+    addLogEntry(message, type) {
+        this.activityLog = [
+            ...this.activityLog,
+            { id: this.activityLog.length, message, ['is' + type]: true }
+        ];
     }
 
     parseDetails(detailsList) {
@@ -47,8 +70,6 @@ export default class MedicalInsightSetup extends LightningElement {
                 entries.push({ id: entries.length, message: item.substring(8), isSuccess: true });
             } else if (item.startsWith('ERROR:')) {
                 entries.push({ id: entries.length, message: item.substring(6), isError: true });
-            } else if (item.startsWith('WARNING:')) {
-                entries.push({ id: entries.length, message: item.substring(8), isWarning: true });
             } else {
                 entries.push({ id: entries.length, message: item, isDetail: true });
             }
@@ -61,11 +82,18 @@ export default class MedicalInsightSetup extends LightningElement {
     }
 
     async handleCreate() {
+        if (!this.selectedTerritoryId) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error', message: 'Please select a territory first.', variant: 'error'
+            }));
+            return;
+        }
         this.isLoading = true;
         this.resultMessage = undefined;
         this.activityLog = [];
+
         try {
-            const raw = await createMedicalInsights();
+            const raw = await createInsightsForTerritory({ territoryId: this.selectedTerritoryId });
             let result;
             try {
                 result = typeof raw === 'string' ? JSON.parse(raw) : raw;

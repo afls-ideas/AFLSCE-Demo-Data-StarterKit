@@ -49,11 +49,23 @@
                 </template>
             </div>
 
+            <!-- Territory Picker -->
+            <div class="slds-m-bottom_medium">
+                <lightning-combobox
+                    name="territory"
+                    label="Select Territory"
+                    placeholder="Choose a territory..."
+                    options={territoryOptions}
+                    value={selectedTerritoryId}
+                    onchange={handleTerritoryChange}>
+                </lightning-combobox>
+            </div>
+
             <!-- Action Buttons -->
             <div class="slds-m-bottom_medium">
                 <lightning-button
                     variant="brand"
-                    label="Create Medical Insights"
+                    label="Create Insights for Territory"
                     icon-name="utility:add"
                     onclick={handleCreate}
                     disabled={isLoading}
@@ -61,7 +73,7 @@
                 </lightning-button>
                 <lightning-button
                     variant="destructive"
-                    label="Delete Medical Insights"
+                    label="Delete All Medical Insights"
                     icon-name="utility:delete"
                     onclick={handleDelete}
                     disabled={isLoading}>

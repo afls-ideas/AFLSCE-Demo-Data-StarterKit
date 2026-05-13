@@ -166,12 +166,13 @@ Creates completed Visit records for a selected territory with a UI-selectable pr
 
 ### Tab 12: Medical Insights
 
-Creates realistic medical insight records from field visits, linked to HCP accounts and brand products:
+Creates realistic medical insight records from field visits, linked to HCP accounts and brand products. Select a territory from the picker and click to create insights for that territory. Localized to each country's language (English, French, German, Italian, Spanish, Japanese, Korean, Portuguese):
 
-- **MedicalInsight** — 1-2 per brand per leaf territory, `SourceType = Visit`. 10 Immunexis templates (ACR50 response, infection risk, dual mechanism, patient switching, adherence, formulary requests, KOL engagement, off-label inquiry, payer pushback) and 10 Immunonco templates (PFS data, irAE management, TIGIT mechanism, HCC response, infusion scheduling, tumor board, molecular profiling, chemo combination, companion diagnostic, patient access). Owned by the territory rep
+- **MedicalInsight** — 1-2 per brand per HCP in the selected territory, `SourceType = Visit`. 10 Immunexis templates (RA treatment switching, dosing flexibility, real-world evidence, formulary requests, biosimilar differentiation, early intervention, combination therapy, patient support, safety monitoring, infusion partnerships) and 10 Immunonco templates (checkpoint inhibitor response, chemo combination, biomarker testing, irAE management, tumor board, second-line efficacy, patient selection, real-world survival, sequencing after progression, access and reimbursement). Owned by the territory rep
 - **MedicalInsightAccount** — links each insight to the HCP account where the insight was captured
 - **MedicalInsightProduct** — links each insight to the country-specific brand (`LifeSciMarketableProduct`)
-- **Sharing** — `MedicalInsightShare` records grant Read access to territory groups (Private OWD)
+- **Sharing** — `MedicalInsightShare` records grant Edit access to territory groups
+- **Note:** Deactivate the **Insight Trigger Flow** in Setup > Flows before creating insights, then reactivate after
 
 ## Tagging & Cleanup
 
@@ -238,7 +239,8 @@ force-app/main/default/
 │   ├── DemoAccountPlanData            English plan archetypes, objectives & KAM task definitions
 │   ├── DemoAccountPlanLocale          Localized plan names, objectives & templates (7 languages)
 │   ├── DemoCampaignController          Campaign + CampaignMember creation (journey + marketing)
-│   ├── DemoMedicalInsightController   Medical Insights with account & product links
+│   ├── DemoMedicalInsightController   Medical Insights with territory picker & per-HCP creation
+│   ├── DemoMedicalInsightLocale       Localized insight templates (8 languages)
 │   └── DemoVisitController            Visit creation with channel picker & planned visits
 ├── lwc/                  Lightning Web Components
 │   ├── demoDataAdmin           Main tabbed UI
