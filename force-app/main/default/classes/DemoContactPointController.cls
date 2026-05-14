@@ -220,9 +220,11 @@ public with sharing class DemoContactPointController {
         try {
             List<String> counts = new List<String>();
 
-            counts.add('Addresses: ' + [SELECT COUNT() FROM ContactPointAddress WHERE Name LIKE :(DEMO_TAG + '%')]);
-
             Set<Id> accountIds = getDemoAccountIds();
+
+            Integer addrByName = (Integer) [SELECT COUNT() FROM ContactPointAddress WHERE Name LIKE :(DEMO_TAG + '%')];
+            Integer addrByParent = accountIds.isEmpty() ? 0 : [SELECT COUNT() FROM ContactPointAddress WHERE ParentId IN :accountIds];
+            counts.add('Addresses: ' + Math.max(addrByName, addrByParent));
             if (!accountIds.isEmpty()) {
                 counts.add('Emails: ' + [SELECT COUNT() FROM ContactPointEmail WHERE ParentId IN :accountIds]);
                 counts.add('Phones: ' + [SELECT COUNT() FROM ContactPointPhone WHERE ParentId IN :accountIds]);
@@ -254,6 +256,11 @@ public with sharing class DemoContactPointController {
             if (objectType == 'ContactPointAddress') {
                 List<ContactPointAddress> recs = [SELECT Id FROM ContactPointAddress WHERE Name LIKE :(DEMO_TAG + '%')];
                 if (!recs.isEmpty()) { deleted += countDeleteSuccesses(Database.delete(recs, false)); }
+                Set<Id> acctIds = getDemoAccountIds();
+                if (!acctIds.isEmpty()) {
+                    List<ContactPointAddress> byParent = [SELECT Id FROM ContactPointAddress WHERE ParentId IN :acctIds];
+                    if (!byParent.isEmpty()) { deleted += countDeleteSuccesses(Database.delete(byParent, false)); }
+                }
             } else if (objectType == 'ContactPointEmail' || objectType == 'ContactPointPhone') {
                 Set<Id> accountIds = getDemoAccountIds();
                 if (!accountIds.isEmpty()) {
