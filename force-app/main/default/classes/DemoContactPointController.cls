@@ -181,6 +181,18 @@ public with sharing class DemoContactPointController {
                 Boolean hasMore = (batchOffset + BATCH_SIZE) < total;
                 return batchResult(0, 0, hasMore, new List<String>(), details);
             }
+
+            // Delete any existing demo licenses for these accounts to avoid Identifier uniqueness errors
+            Set<Id> batchAcctIds = new Set<Id>();
+            for (Account a : batch) { batchAcctIds.add(a.Id); }
+            String escapedTag = String.escapeSingleQuotes(DEMO_TAG);
+            List<SObject> existing = Database.query(
+                'SELECT Id FROM BusinessLicense WHERE AccountId IN :batchAcctIds AND Identifier LIKE \'' + escapedTag + '%\'');
+            if (!existing.isEmpty()) {
+                Database.delete(existing, false);
+                details.add('Deleted ' + existing.size() + ' existing demo licenses before re-creating');
+            }
+
             Database.SaveResult[] sr = Database.insert(records, false);
             List<String> errors = new List<String>();
             collectErrors(sr, records, errors);
