@@ -642,44 +642,66 @@ public with sharing class DemoContactPointController {
             Boolean useStateJurisdiction = (countryCode == 'US');
 
             if (acct.IsPersonAccount) {
-                // State license (JurisdictionState scope)
-                String stateLicNum = generateMedicalLicenseNumber(acct.BillingCountryCode, counter++);
-                SObject stateBl = blType.newSObject();
-                stateBl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' STATE - ' + state);
-                stateBl.put('LicenseNumber', stateLicNum);
-                stateBl.put('Status', 'Verified');
-                stateBl.put('IsActive', true);
-                stateBl.put('VerificationStatus', 'Authorized');
-                stateBl.put('LicenseClass', 'Healthcare');
-                stateBl.put('Description', acct.Name + ' STATE License - ' + state);
-                stateBl.put('IssueDate', Date.today().addYears(-3));
-                stateBl.put('PeriodStart', Datetime.newInstance(Date.today().addYears(-3), Time.newInstance(0, 0, 0, 0)));
-                stateBl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(5), Time.newInstance(0, 0, 0, 0)));
-                stateBl.put('ComplianceScope', 'JurisdictionState');
-                stateBl.put('JurisdictionState', state);
-                stateBl.put('Identifier', DEMO_TAG + '-' + stateLicNum);
-                stateBl.put('AccountId', acct.Id);
-                if (acct.PersonContactId != null) stateBl.put('ContactId', acct.PersonContactId);
-                licenses.add(stateBl);
+                String baseLicNum = generateMedicalLicenseNumber(acct.BillingCountryCode, counter++);
 
-                // DEA license (Address scope)
-                String deaLicNum = 'DEA-' + stateLicNum;
-                SObject deaBl = blType.newSObject();
-                deaBl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' DEA');
-                deaBl.put('LicenseNumber', deaLicNum);
-                deaBl.put('Status', 'Verified');
-                deaBl.put('IsActive', true);
-                deaBl.put('VerificationStatus', 'Authorized');
-                deaBl.put('LicenseClass', 'Healthcare');
-                deaBl.put('Description', acct.Name + ' DEA License');
-                deaBl.put('IssueDate', Date.today().addYears(-3));
-                deaBl.put('PeriodStart', Datetime.newInstance(Date.today().addYears(-3), Time.newInstance(0, 0, 0, 0)));
-                deaBl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(5), Time.newInstance(0, 0, 0, 0)));
-                deaBl.put('ComplianceScope', 'Address');
-                deaBl.put('Identifier', DEMO_TAG + '-' + deaLicNum);
-                deaBl.put('AccountId', acct.Id);
-                if (acct.PersonContactId != null) deaBl.put('ContactId', acct.PersonContactId);
-                licenses.add(deaBl);
+                if (useStateJurisdiction) {
+                    // US: State license (JurisdictionState scope)
+                    SObject stateBl = blType.newSObject();
+                    stateBl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' STATE - ' + state);
+                    stateBl.put('LicenseNumber', baseLicNum);
+                    stateBl.put('Status', 'Verified');
+                    stateBl.put('IsActive', true);
+                    stateBl.put('VerificationStatus', 'Authorized');
+                    stateBl.put('LicenseClass', 'Healthcare');
+                    stateBl.put('Description', acct.Name + ' STATE License - ' + state);
+                    stateBl.put('IssueDate', Date.today().addYears(-3));
+                    stateBl.put('PeriodStart', Datetime.newInstance(Date.today().addYears(-3), Time.newInstance(0, 0, 0, 0)));
+                    stateBl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(5), Time.newInstance(0, 0, 0, 0)));
+                    stateBl.put('ComplianceScope', 'JurisdictionState');
+                    stateBl.put('JurisdictionState', state);
+                    stateBl.put('Identifier', DEMO_TAG + '-' + baseLicNum);
+                    stateBl.put('AccountId', acct.Id);
+                    if (acct.PersonContactId != null) stateBl.put('ContactId', acct.PersonContactId);
+                    licenses.add(stateBl);
+
+                    // US: DEA license (Address scope)
+                    String deaLicNum = 'DEA-' + baseLicNum;
+                    SObject deaBl = blType.newSObject();
+                    deaBl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' DEA');
+                    deaBl.put('LicenseNumber', deaLicNum);
+                    deaBl.put('Status', 'Verified');
+                    deaBl.put('IsActive', true);
+                    deaBl.put('VerificationStatus', 'Authorized');
+                    deaBl.put('LicenseClass', 'Healthcare');
+                    deaBl.put('Description', acct.Name + ' DEA License');
+                    deaBl.put('IssueDate', Date.today().addYears(-3));
+                    deaBl.put('PeriodStart', Datetime.newInstance(Date.today().addYears(-3), Time.newInstance(0, 0, 0, 0)));
+                    deaBl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(5), Time.newInstance(0, 0, 0, 0)));
+                    deaBl.put('ComplianceScope', 'Address');
+                    deaBl.put('Identifier', DEMO_TAG + '-' + deaLicNum);
+                    deaBl.put('AccountId', acct.Id);
+                    if (acct.PersonContactId != null) deaBl.put('ContactId', acct.PersonContactId);
+                    licenses.add(deaBl);
+                } else {
+                    // Non-US: single national medical license (Address scope)
+                    String licLabel = getNationalLicenseLabel(countryCode);
+                    SObject natBl = blType.newSObject();
+                    natBl.put('Name', DEMO_TAG + ' - ' + acct.Name + ' ' + licLabel);
+                    natBl.put('LicenseNumber', baseLicNum);
+                    natBl.put('Status', 'Verified');
+                    natBl.put('IsActive', true);
+                    natBl.put('VerificationStatus', 'Authorized');
+                    natBl.put('LicenseClass', 'Healthcare');
+                    natBl.put('Description', acct.Name + ' ' + licLabel);
+                    natBl.put('IssueDate', Date.today().addYears(-3));
+                    natBl.put('PeriodStart', Datetime.newInstance(Date.today().addYears(-3), Time.newInstance(0, 0, 0, 0)));
+                    natBl.put('PeriodEnd', Datetime.newInstance(Date.today().addYears(5), Time.newInstance(0, 0, 0, 0)));
+                    natBl.put('ComplianceScope', 'Address');
+                    natBl.put('Identifier', DEMO_TAG + '-' + baseLicNum);
+                    natBl.put('AccountId', acct.Id);
+                    if (acct.PersonContactId != null) natBl.put('ContactId', acct.PersonContactId);
+                    licenses.add(natBl);
+                }
                 continue;
             }
 
@@ -840,6 +862,20 @@ public with sharing class DemoContactPointController {
         if (country == 'Argentina' || country == 'AR') return 'REFES-' + seq;
         String stateAbbr = (state != null && state.length() >= 2) ? state.substring(0, 2).toUpperCase() : 'CA';
         return stateAbbr + '-MFL-' + seq;
+    }
+
+    private static String getNationalLicenseLabel(String countryCode) {
+        if (countryCode == 'GB') return 'GMC Registration';
+        if (countryCode == 'FR') return 'RPPS';
+        if (countryCode == 'DE') return 'Approbation';
+        if (countryCode == 'IT') return 'Ordine dei Medici';
+        if (countryCode == 'ES') return 'Colegiación';
+        if (countryCode == 'JP') return '医師免許';
+        if (countryCode == 'KR') return '의사면허';
+        if (countryCode == 'BR') return 'CRM';
+        if (countryCode == 'MX') return 'Cédula Profesional';
+        if (countryCode == 'AR') return 'Matrícula Nacional';
+        return 'Medical License';
     }
 
     private static String generateMedicalLicenseNumber(String countryCode, Integer seed) {
