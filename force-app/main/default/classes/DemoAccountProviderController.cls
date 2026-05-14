@@ -599,8 +599,28 @@ public with sharing class DemoAccountProviderController {
         // Edinburgh (2)
         accts.add(makeOrg(hcoRtId, 'Royal Infirmary of Edinburgh', '51 Little France Crescent', 'Edinburgh', null, 'EH16 4SA', 'GB', '+44 131 536 1000', 'https://www.nhslothian.scot', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'Western General Hospital', 'Crewe Road South', 'Edinburgh', null, 'EH4 2XU', 'GB', '+44 131 537 1000', 'https://www.nhslothian.scot', 'Hospital'));
+        // NHS Foundation Trusts
+        accts.add(makeOrg(hcoRtId, 'Barts Health NHS Trust', 'Trust Headquarters, 9 Prescot Street', 'London', null, 'E1 8PR', 'GB', '+44 20 3416 5000', 'https://www.bartshealth.nhs.uk', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Guy\'s and St Thomas\' NHS Foundation Trust', 'Great Maze Pond', 'London', null, 'SE1 9RT', 'GB', '+44 20 7188 7188', 'https://www.guysandstthomas.nhs.uk', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'Manchester University NHS Foundation Trust', 'Cobbett House, Oxford Road', 'Manchester', null, 'M13 9WL', 'GB', '+44 161 276 1234', 'https://www.mft.nhs.uk', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'NHS Lothian', 'Waverley Gate, 2-4 Waterloo Place', 'Edinburgh', null, 'EH1 3EG', 'GB', '+44 131 536 9000', 'https://www.nhslothian.scot', 'Hospital'));
+        // Integrated Care Boards (ICBs)
+        accts.add(makeOrg(hcoRtId, 'NHS North East London ICB', '4th Floor, Unex Tower, 5 Station Street', 'London', null, 'E15 1DA', 'GB', '+44 20 3688 2500', 'https://www.northeastlondon.icb.nhs.uk', 'Insurance'));
+        accts.add(makeOrg(hcoRtId, 'NHS South East London ICB', '160 Tooley Street', 'London', null, 'SE1 2QH', 'GB', '+44 20 3049 4000', 'https://www.selondonics.org', 'Insurance'));
+        accts.add(makeOrg(hcoRtId, 'NHS Greater Manchester ICB', '3rd Floor, Piccadilly Place', 'Manchester', null, 'M1 3BN', 'GB', '+44 161 625 7791', 'https://www.gmhsc.org.uk', 'Insurance'));
+        // GP Surgeries
+        accts.add(makeOrg(hcoRtId, 'Whitechapel Health Centre', '171 Whitechapel Road', 'London', null, 'E1 1BU', 'GB', '+44 20 7247 0784', null, 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'The Bermondsey and Lansdowne Medical Mission', '68 Grange Road', 'London', null, 'SE1 3BH', 'GB', '+44 20 7237 2763', null, 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'Bloomsbury Surgery', '43 Brunswick Square', 'London', null, 'WC1N 1AF', 'GB', '+44 20 7837 8282', null, 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'Fallowfield Medical Centre', '171 Ladybarn Road', 'Manchester', null, 'M14 6RJ', 'GB', '+44 161 225 2000', null, 'Clinic'));
+        accts.add(makeOrg(hcoRtId, 'Stockbridge Health Centre', '1 India Place', 'Edinburgh', null, 'EH3 6EH', 'GB', '+44 131 225 3657', null, 'Clinic'));
 
         // ---- France ----
+        // Structural: AP-HP (hospital group) and ARS (regional health agencies — payer equivalent)
+        accts.add(makeOrg(hcoRtId, 'AP-HP (Assistance Publique - Hôpitaux de Paris)', '3 Avenue Victoria', 'Paris', null, '75004', 'FR', '+33 1 40 27 30 00', 'https://www.aphp.fr', 'Hospital'));
+        accts.add(makeOrg(hcoRtId, 'ARS Ile-de-France', '35 Rue de la Gare', 'Paris', null, '75019', 'FR', '+33 1 44 02 00 00', 'https://www.ars.sante.fr/ile-de-france', 'Insurance'));
+        accts.add(makeOrg(hcoRtId, 'ARS Auvergne-Rhône-Alpes', '241 Rue Garibaldi', 'Lyon', null, '69003', 'FR', '+33 4 72 34 74 00', 'https://www.ars.sante.fr/auvergne-rhone-alpes', 'Insurance'));
+        accts.add(makeOrg(hcoRtId, 'CPAM de Paris', '21 Rue Georges Auric', 'Paris', null, '75019', 'FR', '+33 1 53 38 70 00', 'https://www.ameli.fr', 'Insurance'));
         // Paris (7)
         accts.add(makeOrg(hcoRtId, 'Hôpital Pitié-Salpêtrière', '47-83 Boulevard de l\'Hôpital', 'Paris', null, '75013', 'FR', '+33 1 42 16 00 00', 'https://www.aphp.fr/pitie-salpetriere', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'Hôpital Européen Georges-Pompidou', '20 Rue Leblanc', 'Paris', null, '75015', 'FR', '+33 1 56 09 20 00', 'https://www.aphp.fr/hegp', 'Hospital'));
@@ -631,6 +651,9 @@ public with sharing class DemoAccountProviderController {
         accts.add(makeOrg(hcoRtId, 'Asklepios Klinik Barmbek', 'Rübenkamp 220', 'Hamburg', null, '22307', 'DE', '+49 40 1818 82 0', 'https://www.asklepios.com', 'Hospital'));
 
         // ---- Italy ----
+        // Structural: ASL (Aziende Sanitarie Locali — local health authorities, payer equivalent)
+        accts.add(makeOrg(hcoRtId, 'ASL Milano', 'Corso Italia 19', 'Milan', 'MI', '20122', 'IT', '+39 02 8578 1', 'https://www.ats-milano.it', 'Insurance'));
+        accts.add(makeOrg(hcoRtId, 'ASL Napoli 1 Centro', 'Via Comunale del Principe 13/A', 'Naples', 'NA', '80145', 'IT', '+39 081 254 1111', 'https://www.aslnapoli1centro.it', 'Insurance'));
         // Rome (5)
         accts.add(makeOrg(hcoRtId, 'Policlinico Agostino Gemelli', 'Largo Agostino Gemelli 8', 'Rome', 'RM', '00168', 'IT', '+39 06 3015 1', 'https://www.policlinicogemelli.it', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'Ospedale Pediatrico Bambino Gesù', 'Piazza Sant\'Onofrio 4', 'Rome', 'RM', '00165', 'IT', '+39 06 6859 1', 'https://www.ospedalebambinogesu.it', 'Hospital'));
@@ -646,6 +669,10 @@ public with sharing class DemoAccountProviderController {
         accts.add(makeOrg(hcoRtId, 'Ospedale Cardarelli', 'Via Antonio Cardarelli 9', 'Naples', 'NA', '80131', 'IT', '+39 081 747 1111', 'https://www.ospedalecardarelli.it', 'Hospital'));
 
         // ---- Spain ----
+        // Structural: Regional health services (Comunidades Autónomas — payer equivalent)
+        accts.add(makeOrg(hcoRtId, 'SERMAS (Servicio Madrileño de Salud)', 'Plaza Carlos Trías Bertrán 7', 'Madrid', null, '28020', 'ES', '+34 91 586 70 00', 'https://www.comunidad.madrid/servicios/salud', 'Insurance'));
+        accts.add(makeOrg(hcoRtId, 'CatSalut (Servei Català de la Salut)', 'Travessera de les Corts 131-159', 'Barcelona', null, '08028', 'ES', '+34 93 403 85 85', 'https://catsalut.gencat.cat', 'Insurance'));
+        accts.add(makeOrg(hcoRtId, 'SAS (Servicio Andaluz de Salud)', 'Avenida de la Constitución 18', 'Seville', null, '41001', 'ES', '+34 955 01 80 00', 'https://www.sspa.juntadeandalucia.es', 'Insurance'));
         // Madrid (6)
         accts.add(makeOrg(hcoRtId, 'Hospital Universitario La Paz', 'Paseo de la Castellana 261', 'Madrid', null, '28046', 'ES', '+34 91 727 70 00', 'https://www.comunidad.madrid/hospital/lapaz', 'Hospital'));
         accts.add(makeOrg(hcoRtId, 'Hospital Universitario 12 de Octubre', 'Avenida de Córdoba s/n', 'Madrid', null, '28041', 'ES', '+34 91 390 80 00', 'https://www.comunidad.madrid/hospital/12octubre', 'Hospital'));

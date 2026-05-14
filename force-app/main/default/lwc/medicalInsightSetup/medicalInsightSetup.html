@@ -73,7 +73,15 @@
                 </lightning-button>
                 <lightning-button
                     variant="destructive"
-                    label="Delete All Medical Insights"
+                    label="Delete Territory Insights"
+                    icon-name="utility:delete"
+                    onclick={handleDeleteTerritory}
+                    disabled={isLoading}
+                    class="slds-m-right_small">
+                </lightning-button>
+                <lightning-button
+                    variant="destructive"
+                    label="Delete All Insights"
                     icon-name="utility:delete"
                     onclick={handleDelete}
                     disabled={isLoading}>

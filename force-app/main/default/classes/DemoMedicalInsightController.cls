@@ -137,13 +137,14 @@ public without sharing class DemoMedicalInsightController {
             ownerId = utas.isEmpty() ? UserInfo.getUserId() : utas[0].UserId;
 
             String demoTag = DEMO_TAG;
-            Set<Id> hcpIds = new Set<Id>();
+            Map<Id, String> hcpNames = new Map<Id, String>();
             for (Account a : [
-                SELECT Id FROM Account
+                SELECT Id, Name FROM Account
                 WHERE Site = :demoTag AND IsPersonAccount = true AND BillingCountryCode = :countryCode
             ]) {
-                hcpIds.add(a.Id);
+                hcpNames.put(a.Id, a.Name);
             }
+            Set<Id> hcpIds = hcpNames.keySet();
 
             Set<Id> leafSet = new Set<Id>{ territoryId };
             List<Id> terrHcps = new List<Id>();
@@ -195,6 +196,24 @@ public without sharing class DemoMedicalInsightController {
                     }
                 }
             }
+            if (countryCode == 'US') {
+                for (Id hcpId : terrHcps) {
+                    for (Id brandId : brandIds) {
+                        String brandName = brandIdToName.get(brandId);
+                        String hcpName = hcpNames.get(hcpId);
+                        if (hcpName == null) hcpName = 'HCP';
+                        seqNum++;
+                        SObject mi = miType.newSObject();
+                        mi.put('Name', buildRxName(brandName, hcpName));
+                        mi.put('Content', buildRxContent(brandName, hcpName, seed + seqNum));
+                        mi.put('SourceType', 'Account');
+                        mi.put('OwnerId', ownerId);
+                        insightRecords.add(mi);
+                        contexts.add(new InsightContext(hcpId, brandId, countryCode, territoryId));
+                    }
+                }
+            }
+
             details.add('SUCCESS:Built ' + insightRecords.size() + ' insights');
 
             Database.SaveResult[] miResults = Database.insert(insightRecords, false);
@@ -260,6 +279,56 @@ public without sharing class DemoMedicalInsightController {
                 'SELECT Id FROM MedicalInsight WHERE Name LIKE :namePattern LIMIT 10000'
             );
             if (insights.isEmpty()) return 'No demo medical insights to delete.';
+
+            Set<Id> insightIds = new Set<Id>();
+            for (SObject mi : insights) insightIds.add(mi.Id);
+
+            if (objectExists('MedicalInsightProduct')) {
+                List<SObject> mips = Database.query(
+                    'SELECT Id FROM MedicalInsightProduct WHERE MedicalInsightId IN :insightIds LIMIT 10000'
+                );
+                if (!mips.isEmpty()) {
+                    Database.delete(mips, false);
+                    deleted.add(mips.size() + ' product links');
+                }
+            }
+
+            if (objectExists('MedicalInsightAccount')) {
+                List<SObject> mias = Database.query(
+                    'SELECT Id FROM MedicalInsightAccount WHERE MedicalInsightId IN :insightIds LIMIT 10000'
+                );
+                if (!mias.isEmpty()) {
+                    Database.delete(mias, false);
+                    deleted.add(mias.size() + ' account links');
+                }
+            }
+
+            Database.delete(insights, false);
+            deleted.add(insights.size() + ' insights');
+
+            return 'Deleted ' + String.join(deleted, ', ') + '.';
+        } catch (Exception e) {
+            throw new AuraHandledException('Error: ' + e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static String deleteMedicalInsightsForTerritory(Id territoryId) {
+        try {
+            List<UserTerritory2Association> utas = [
+                SELECT UserId FROM UserTerritory2Association
+                WHERE Territory2Id = :territoryId ORDER BY Territory2Id LIMIT 1
+            ];
+            if (utas.isEmpty()) return 'No rep assigned to this territory.';
+            Id repId = utas[0].UserId;
+
+            List<String> deleted = new List<String>();
+            String namePattern = '%' + NAME_SUFFIX;
+
+            List<SObject> insights = Database.query(
+                'SELECT Id FROM MedicalInsight WHERE Name LIKE :namePattern AND OwnerId = :repId LIMIT 10000'
+            );
+            if (insights.isEmpty()) return 'No demo medical insights for this territory.';
 
             Set<Id> insightIds = new Set<Id>();
             for (SObject mi : insights) insightIds.add(mi.Id);
@@ -366,6 +435,57 @@ public without sharing class DemoMedicalInsightController {
             if (name.startsWith(baseName)) return baseName;
         }
         return name;
+    }
+
+    private static final String[] RX_BEHAVIORS = new String[]{
+        'Does not prescribe', 'Started prescribing', 'Regular prescriber', 'Brand advocate'
+    };
+    private static final String[] RX_TRENDS = new String[]{ 'trending up', 'trending down', 'flat' };
+
+    private static String buildRxName(String brandName, String hcpName) {
+        String base = hcpName + ' ' + brandName + ' Rx profile';
+        Integer maxBase = 80 - NAME_SUFFIX.length();
+        if (base.length() > maxBase) base = base.substring(0, maxBase);
+        return base + NAME_SUFFIX;
+    }
+
+    private static String buildRxContent(String brandName, String hcpName, Integer seed) {
+        Integer behaviorIdx = pseudoRandom(seed, RX_BEHAVIORS.size());
+        String behavior = RX_BEHAVIORS[behaviorIdx];
+
+        Boolean isOnco = brandName == 'Immunonco';
+        Integer nrx;
+        Integer trx;
+        String trend;
+        if (behaviorIdx == 0) {
+            nrx = 0;
+            trx = 0;
+            trend = 'flat';
+        } else if (behaviorIdx == 1) {
+            nrx = isOnco ? 5 + pseudoRandom(seed + 1, 6) : 10 + pseudoRandom(seed + 1, 11);
+            trx = nrx + 2 + pseudoRandom(seed + 2, 5);
+            trend = 'trending up';
+        } else if (behaviorIdx == 2) {
+            nrx = isOnco ? 15 + pseudoRandom(seed + 1, 16) : 30 + pseudoRandom(seed + 1, 31);
+            trx = nrx + 5 + pseudoRandom(seed + 2, 16);
+            Integer trendIdx = pseudoRandom(seed + 3, RX_TRENDS.size());
+            trend = RX_TRENDS[trendIdx];
+        } else {
+            nrx = isOnco ? 25 + pseudoRandom(seed + 1, 16) : 50 + pseudoRandom(seed + 1, 31);
+            trx = nrx + 10 + pseudoRandom(seed + 2, 21);
+            Integer trendIdx = pseudoRandom(seed + 3, 2);
+            trend = trendIdx == 0 ? 'trending up' : 'flat';
+        }
+
+        return hcpName + ' — ' + brandName + ' prescribing status: ' + behavior + '. '
+            + 'Monthly Rx: NRx ' + nrx + ', TRx ' + trx + ' (' + trend + '). '
+            + (behaviorIdx == 0
+                ? 'No current prescriptions for ' + brandName + '. Opportunity to educate on clinical data and patient outcomes.'
+              : behaviorIdx == 1
+                ? 'Recently started writing ' + brandName + '. Early adoption phase — reinforce efficacy messaging and provide patient support materials.'
+              : behaviorIdx == 2
+                ? 'Consistent ' + brandName + ' prescriber. Maintain relationship, share latest real-world evidence, and explore formulary expansion opportunities.'
+              : 'Strong ' + brandName + ' advocate. Leverage for peer-to-peer education, speaker bureau, and advisory board participation.');
     }
 
     private static Integer pseudoRandom(Integer seed, Integer maxVal) {

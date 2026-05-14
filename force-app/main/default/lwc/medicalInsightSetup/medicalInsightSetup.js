@@ -5,6 +5,7 @@ import getStatus from '@salesforce/apex/DemoMedicalInsightController.getStatus';
 import getTerritories from '@salesforce/apex/DemoMedicalInsightController.getTerritories';
 import createInsightsForTerritory from '@salesforce/apex/DemoMedicalInsightController.createInsightsForTerritory';
 import deleteMedicalInsights from '@salesforce/apex/DemoMedicalInsightController.deleteMedicalInsights';
+import deleteMedicalInsightsForTerritory from '@salesforce/apex/DemoMedicalInsightController.deleteMedicalInsightsForTerritory';
 
 export default class MedicalInsightSetup extends LightningElement {
     statusData;
@@ -114,6 +115,40 @@ export default class MedicalInsightSetup extends LightningElement {
             }
             this.isSuccess = !result.errors || result.errors.length === 0;
             this.resultMessage = result.summary || '';
+        } catch (error) {
+            this.isSuccess = false;
+            this.resultMessage = error.body ? error.body.message : 'An error occurred.';
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error', message: this.resultMessage, variant: 'error'
+            }));
+        } finally {
+            this.isLoading = false;
+            await refreshApex(this.wiredStatusResult);
+        }
+    }
+
+    async handleDeleteTerritory() {
+        if (!this.selectedTerritoryId) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error', message: 'Please select a territory first.', variant: 'error'
+            }));
+            return;
+        }
+        if (!window.confirm('Delete all demo medical insights for the selected territory?')) return;
+        this.isLoading = true;
+        this.resultMessage = undefined;
+        this.activityLog = [];
+        try {
+            const result = await deleteMedicalInsightsForTerritory({ territoryId: this.selectedTerritoryId });
+            this.isSuccess = true;
+            this.resultMessage = result;
+            this.activityLog = [
+                { id: 0, message: 'Delete Complete', isHeader: true },
+                { id: 1, message: result, isSuccess: true }
+            ];
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Success', message: result, variant: 'success'
+            }));
         } catch (error) {
             this.isSuccess = false;
             this.resultMessage = error.body ? error.body.message : 'An error occurred.';

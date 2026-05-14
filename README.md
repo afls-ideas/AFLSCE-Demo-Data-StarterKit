@@ -36,7 +36,7 @@ sf project deploy start --source-dir force-app --target-org YOUR_ORG_ALIAS
 
 ### Tab 2: Accounts & Healthcare Providers
 
-**Accounts (180+ HCOs)**
+**Accounts (200+ HCOs)**
 - Real hospitals, clinics, payers, and pharmacies across US, GB, FR, DE, IT, ES, JP, KR, BR, MX, AR
 - Major city in each country has 6-8 HCOs; secondary cities have 2-3 each
 - Uses Health_Care_Organization record type for orgs, Health_Care_Provider (PersonAccount) for doctors
