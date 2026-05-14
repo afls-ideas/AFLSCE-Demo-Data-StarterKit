@@ -220,15 +220,15 @@ public with sharing class DemoContactPointController {
         try {
             List<String> counts = new List<String>();
 
-            Set<Id> accountIds = new Set<Id>();
-            for (Account a : [SELECT Id FROM Account WHERE Site = :DEMO_TAG]) {
-                accountIds.add(a.Id);
-            }
+            counts.add('Addresses: ' + [SELECT COUNT() FROM ContactPointAddress WHERE Name LIKE :(DEMO_TAG + '%')]);
 
+            Set<Id> accountIds = getDemoAccountIds();
             if (!accountIds.isEmpty()) {
-                counts.add('Addresses: ' + [SELECT COUNT() FROM ContactPointAddress WHERE ParentId IN :accountIds]);
                 counts.add('Emails: ' + [SELECT COUNT() FROM ContactPointEmail WHERE ParentId IN :accountIds]);
                 counts.add('Phones: ' + [SELECT COUNT() FROM ContactPointPhone WHERE ParentId IN :accountIds]);
+            } else {
+                counts.add('Emails: 0');
+                counts.add('Phones: 0');
             }
 
             Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
@@ -239,7 +239,7 @@ public with sharing class DemoContactPointController {
                 counts.add('Licenses: ' + cnt);
             }
 
-            return counts.isEmpty() ? 'No contact points found.' : String.join(counts, ', ');
+            return String.join(counts, ', ');
         } catch (Exception e) {
             throw new AuraHandledException('Error getting status: ' + e.getMessage());
         }
@@ -248,23 +248,23 @@ public with sharing class DemoContactPointController {
     @AuraEnabled
     public static String deleteContactPointBatch(String objectType) {
         try {
-            Set<Id> accountIds = new Set<Id>();
-            for (Account a : [SELECT Id FROM Account WHERE Site = :DEMO_TAG]) {
-                accountIds.add(a.Id);
-            }
-
             Integer deleted = 0;
             String escapedTag = String.escapeSingleQuotes(DEMO_TAG);
 
-            if (objectType == 'ContactPointAddress' && !accountIds.isEmpty()) {
-                List<ContactPointAddress> recs = [SELECT Id FROM ContactPointAddress WHERE ParentId IN :accountIds];
+            if (objectType == 'ContactPointAddress') {
+                List<ContactPointAddress> recs = [SELECT Id FROM ContactPointAddress WHERE Name LIKE :(DEMO_TAG + '%')];
                 if (!recs.isEmpty()) { deleted += countDeleteSuccesses(Database.delete(recs, false)); }
-            } else if (objectType == 'ContactPointEmail' && !accountIds.isEmpty()) {
-                List<ContactPointEmail> recs = [SELECT Id FROM ContactPointEmail WHERE ParentId IN :accountIds];
-                if (!recs.isEmpty()) { deleted += countDeleteSuccesses(Database.delete(recs, false)); }
-            } else if (objectType == 'ContactPointPhone' && !accountIds.isEmpty()) {
-                List<ContactPointPhone> recs = [SELECT Id FROM ContactPointPhone WHERE ParentId IN :accountIds];
-                if (!recs.isEmpty()) { deleted += countDeleteSuccesses(Database.delete(recs, false)); }
+            } else if (objectType == 'ContactPointEmail' || objectType == 'ContactPointPhone') {
+                Set<Id> accountIds = getDemoAccountIds();
+                if (!accountIds.isEmpty()) {
+                    if (objectType == 'ContactPointEmail') {
+                        List<ContactPointEmail> recs = [SELECT Id FROM ContactPointEmail WHERE ParentId IN :accountIds];
+                        if (!recs.isEmpty()) { deleted += countDeleteSuccesses(Database.delete(recs, false)); }
+                    } else {
+                        List<ContactPointPhone> recs = [SELECT Id FROM ContactPointPhone WHERE ParentId IN :accountIds];
+                        if (!recs.isEmpty()) { deleted += countDeleteSuccesses(Database.delete(recs, false)); }
+                    }
+                }
             } else if (objectType == 'ContactPointSocial') {
                 List<SObject> recs = Database.query('SELECT Id FROM ContactPointSocial WHERE SourceSystemName = \'' + escapedTag + '\'');
                 if (!recs.isEmpty()) { deleted += countDeleteSuccesses(Database.delete(recs, false)); }
@@ -277,6 +277,14 @@ public with sharing class DemoContactPointController {
         } catch (Exception e) {
             throw new AuraHandledException('Error deleting ' + objectType + ': ' + e.getMessage());
         }
+    }
+
+    private static Set<Id> getDemoAccountIds() {
+        Set<Id> ids = new Set<Id>();
+        for (Account a : [SELECT Id FROM Account WHERE Site = :DEMO_TAG]) {
+            ids.add(a.Id);
+        }
+        return ids;
     }
 
     // ──────────────────────────────────────────────────────────
