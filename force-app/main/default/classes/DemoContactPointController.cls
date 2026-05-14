@@ -221,8 +221,9 @@ public with sharing class DemoContactPointController {
             List<String> counts = new List<String>();
 
             Set<Id> accountIds = getDemoAccountIds();
+            String likePattern = DEMO_TAG + '%';
 
-            Integer addrByName = (Integer) [SELECT COUNT() FROM ContactPointAddress WHERE Name LIKE :(DEMO_TAG + '%')];
+            Integer addrByName = (Integer) [SELECT COUNT() FROM ContactPointAddress WHERE Name LIKE :likePattern];
             Integer addrByParent = accountIds.isEmpty() ? 0 : [SELECT COUNT() FROM ContactPointAddress WHERE ParentId IN :accountIds];
             counts.add('Addresses: ' + Math.max(addrByName, addrByParent));
             if (!accountIds.isEmpty()) {
@@ -252,9 +253,10 @@ public with sharing class DemoContactPointController {
         try {
             Integer deleted = 0;
             String escapedTag = String.escapeSingleQuotes(DEMO_TAG);
+            String likePattern = DEMO_TAG + '%';
 
             if (objectType == 'ContactPointAddress') {
-                List<ContactPointAddress> recs = [SELECT Id FROM ContactPointAddress WHERE Name LIKE :(DEMO_TAG + '%')];
+                List<ContactPointAddress> recs = [SELECT Id FROM ContactPointAddress WHERE Name LIKE :likePattern];
                 if (!recs.isEmpty()) { deleted += countDeleteSuccesses(Database.delete(recs, false)); }
                 Set<Id> acctIds = getDemoAccountIds();
                 if (!acctIds.isEmpty()) {
