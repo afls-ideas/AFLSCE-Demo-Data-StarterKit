@@ -715,7 +715,7 @@ public without sharing class DemoVisitController {
     public static Map<String, Object> deleteVisitBatch() {
         try {
             Integer deleted = 0;
-            Integer batchSize = 1500;
+            Integer batchSize = 500;
             List<String> errors = new List<String>();
 
             List<Visit> visits = [SELECT Id, Status FROM Visit
@@ -806,7 +806,7 @@ public without sharing class DemoVisitController {
     public static Map<String, Object> deleteVisitBatchForTerritory(Id territoryId) {
         try {
             Integer deleted = 0;
-            Integer batchSize = 1500;
+            Integer batchSize = 500;
             List<String> errors = new List<String>();
 
             List<Visit> visits = [SELECT Id, Status FROM Visit
