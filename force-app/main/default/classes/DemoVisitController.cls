@@ -1192,93 +1192,93 @@ public without sharing class DemoVisitController {
         });
         m.put('Immunexis_GB', new Map<String, List<String>>{
             'messages' => new List<String>{
-                'SHIELD-RA Phase 3: 68% ACR50 at Week 24 with zelanumab versus 31% placebo. Dual IL-23/IL-17A blockade offers superior joint protection in moderate-to-severe RA.',
-                'Favourable safety profile: serious infection rate 1.8/100 PY, no new TB signals, mild injection-site reactions in fewer than 5% of patients. No mandatory lab monitoring.',
-                'The only bispecific targeting both IL-23 and IL-17A in a single molecule — addressing upstream and downstream inflammation simultaneously, unlike sequential monotherapy.',
-                'PRISM Registry real-world data: 74% of PsA patients on zelanumab reported meaningful improvement in daily activities at 12 months. Reduced morning stiffness rated as the top quality-of-life benefit.',
-                'Ready-to-use prefilled pen, room-temperature stable for 14 days. Patients self-administer every 4 weeks — half the injection frequency of leading IL-17A inhibitors.'
+                'SHIELD-RA Phase 3: 68% ACR50 at Week 24 with zelanumab vs 31% placebo. NICE TA expected Q3 — dual IL-23/IL-17A blockade aligns with BSR biologic escalation pathway for moderate-to-severe RA.',
+                'Favourable safety profile: serious infection rate 1.8/100 PY, no new TB signals, injection-site reactions in fewer than 5%. No mandatory lab monitoring — reduces burden on shared-care protocols between secondary and primary care.',
+                'Only bispecific targeting both IL-23 and IL-17A in a single molecule. ICB formulary committees reviewing dual-pathway blockade as a step-change from sequential anti-TNF/anti-IL-17A monotherapy.',
+                'PRISM Registry real-world data: 74% of PsA patients reported meaningful improvement in daily activities at 12 months. BSRBR-RA post-market surveillance confirms consistent outcomes in NHS-treated cohorts.',
+                'Ready-to-use prefilled pen, room-temperature stable for 14 days. 4-weekly self-administration supports NHS homecare delivery models — half the injection frequency of leading IL-17A inhibitors.'
             },
             'objectives' => new List<String>{
-                'Position zelanumab as first-line biologic following inadequate response to csDMARDs. Arrange formulary review with rheumatology department lead.',
-                'Identify patients with moderate-to-severe RA who have failed at least one csDMARD or show early radiographic progression. Coordinate chart review with the rheumatology care team.'
+                'Position zelanumab as first-line biologic after csDMARD inadequate response per NICE TA pathway. Secure ICB formulary review with rheumatology clinical lead and medicines optimisation pharmacist.',
+                'Identify moderate-to-severe RA patients who have failed at least one csDMARD or show early radiographic progression. Coordinate BSRBR-RA registry enrolment and shared-care pathway setup with the GP practice.'
             }
         });
         m.put('Immunexis_FR', new Map<String, List<String>>{
             'messages' => new List<String>{
-                'SHIELD-RA Phase 3 : ACR50 de 68% a S24 sous zelanumab contre 31% placebo. Le double blocage IL-23/IL-17A offre une protection articulaire superieure dans la PR moderee a severe.',
-                'Profil de securite favorable : infections graves 1,8/100 PA, aucun signal TB, reactions au site d injection legeres chez <5% des patients. Pas de suivi biologique obligatoire.',
-                'Seul bispecifique ciblant IL-23 et IL-17A en une seule molecule — agit simultanement sur l inflammation en amont et en aval, contrairement a la monotherapie sequentielle.',
-                'Donnees en vie reelle PRISM : 74% des patients PsA sous zelanumab rapportent une amelioration significative des activites quotidiennes a 12 mois. La reduction de la raideur matinale est le benefice le plus cite.',
-                'Stylo prerempli pret a l emploi, stable a temperature ambiante pendant 14 jours. Auto-injection toutes les 4 semaines — deux fois moins frequent que les anti-IL-17A de reference.'
+                'SHIELD-RA Phase 3 : ACR50 de 68% a S24 sous zelanumab contre 31% placebo. Dossier HAS en cours — double blocage IL-23/IL-17A vise une ASMR III dans la PR moderee a severe apres echec des csDMARD.',
+                'Profil de securite favorable : infections graves 1,8/100 PA, aucun signal TB, reactions au site d injection legeres chez <5%. Pas de suivi biologique obligatoire — simplifie le protocole de retrocession hospitaliere.',
+                'Seul bispecifique ciblant IL-23 et IL-17A en une seule molecule — agit simultanement en amont et en aval. Positionne en alternative aux anti-TNF dans la strategie therapeutique du livret de l AP-HP.',
+                'Donnees en vie reelle PRISM : 74% des patients PsA rapportent une amelioration significative a 12 mois. Donnees confirmees par le registre ORA de la SFR dans les cohortes francaises.',
+                'Stylo prerempli pret a l emploi, stable a temperature ambiante 14 jours. Auto-injection toutes les 4 semaines — compatible avec les protocoles HAD et les circuits de delivrance en pharmacie de ville.'
             },
             'objectives' => new List<String>{
-                'Positionner zelanumab comme biologique de 1re intention apres reponse inadequate aux csDMARD. Obtenir discussion au comite du medicament avec le chef de rhumatologie.',
-                'Identifier les patients atteints de PR moderee a severe en echec d au moins un csDMARD ou presentant une progression radiographique precoce. Coordonner la revue de dossiers avec l equipe de soins.'
+                'Positionner zelanumab comme biologique de 1re intention apres echec csDMARD conformement aux recommandations HAS. Obtenir inscription au livret therapeutique avec le pharmacien referent et le chef de rhumatologie.',
+                'Identifier les patients PR moderee a severe en echec d au moins un csDMARD ou avec progression radiographique precoce. Coordonner l inscription au registre ORA et le protocole de soins ALD 22 avec le medecin traitant.'
             }
         });
         m.put('Immunexis_DE', new Map<String, List<String>>{
             'messages' => new List<String>{
-                'SHIELD-RA Phase 3: 68% ACR50 in Woche 24 unter Zelanumab vs. 31% Placebo. Duale IL-23/IL-17A-Blockade bietet ueberlegenen Gelenkschutz bei mittelschwerer bis schwerer RA.',
-                'Guenstiges Sicherheitsprofil: schwere Infektionen 1,8/100 PJ, keine neuen TB-Signale, leichte Reaktionen an der Injektionsstelle bei <5% der Patienten. Kein obligatorisches Labormonitoring.',
-                'Einziger bispezifischer Antikoerper gegen IL-23 und IL-17A in einem Molekuel — adressiert gleichzeitig vorgelagerte und nachgelagerte Entzuendung, im Gegensatz zur sequenziellen Monotherapie.',
-                'PRISM-Registerdaten: 74% der PsA-Patienten unter Zelanumab berichten nach 12 Monaten ueber eine bedeutsame Verbesserung im Alltag. Reduzierte Morgensteifigkeit wird als wichtigster Lebensqualitaetsgewinn genannt.',
-                'Gebrauchsfertiger Fertigpen, 14 Tage bei Raumtemperatur stabil. Selbstinjektion alle 4 Wochen — halb so haeufig wie fuehrende IL-17A-Inhibitoren.'
+                'SHIELD-RA Phase 3: 68% ACR50 in Woche 24 unter Zelanumab vs. 31% Placebo. G-BA-Nutzenbewertung laeuft — duale IL-23/IL-17A-Blockade zielt auf erheblichen Zusatznutzen bei mittelschwerer bis schwerer RA.',
+                'Guenstiges Sicherheitsprofil: schwere Infektionen 1,8/100 PJ, keine neuen TB-Signale, Injektionsreaktionen bei <5%. Kein obligatorisches Labormonitoring — reduziert Praxisaufwand im KV-Abrechnungskontext.',
+                'Einziger bispezifischer Antikoerper gegen IL-23 und IL-17A in einem Molekuel. Positionierung als Alternative zur sequenziellen Anti-TNF-Therapie gemaess DGRh-Leitlinie und Arzneimittelkommission-Empfehlung.',
+                'PRISM-Registerdaten: 74% der PsA-Patienten berichten nach 12 Monaten ueber bedeutsame Alltagsverbesserung. RABBIT-Register bestaetigt konsistente Langzeitsicherheit in deutschen GKV-Versorgungskohorten.',
+                'Gebrauchsfertiger Fertigpen, 14 Tage bei Raumtemperatur stabil. 4-woechentliche Selbstinjektion — kompatibel mit Selektivvertraegen zur Biologika-Versorgung und Heimselbstbehandlung.'
             },
             'objectives' => new List<String>{
-                'Zelanumab als Erstlinien-Biologikum nach unzureichendem Ansprechen auf csDMARDs positionieren. Aufnahme in die Hausliste mit dem Leiter der Rheumatologie besprechen.',
-                'Patienten mit mittelschwerer bis schwerer RA identifizieren, die auf mindestens ein csDMARD nicht angesprochen haben oder fruehere Roentgenprogression zeigen. Aktenreview mit dem Behandlungsteam koordinieren.'
+                'Zelanumab als Erstlinien-Biologikum nach csDMARD-Versagen positionieren. Aufnahme in die Hausliste mit dem Rheumatologen und dem Krankenhausapotheker im Rahmen der AMNOG-Erstattung abstimmen.',
+                'Patienten mit mittelschwerer bis schwerer RA nach csDMARD-Versagen oder frueher Roentgenprogression identifizieren. RABBIT-Register-Einschluss und DMP-Dokumentation mit dem Hausarzt koordinieren.'
             }
         });
         m.put('Immunexis_IT', new Map<String, List<String>>{
             'messages' => new List<String>{
-                'SHIELD-RA Fase 3: ACR50 del 68% alla settimana 24 con zelanumab vs 31% placebo. Il doppio blocco IL-23/IL-17A offre protezione articolare superiore nell AR moderata-grave.',
-                'Profilo di sicurezza favorevole: infezioni gravi 1,8/100 PA, nessun segnale TB, reazioni lievi nel sito di iniezione in <5% dei pazienti. Nessun monitoraggio di laboratorio obbligatorio.',
-                'Unico bispecifico che colpisce sia IL-23 che IL-17A in un unica molecola — agisce simultaneamente sull infiammazione a monte e a valle, a differenza della monoterapia sequenziale.',
-                'Dati real-world PRISM: il 74% dei pazienti PsA in trattamento con zelanumab riporta un miglioramento significativo nelle attivita quotidiane a 12 mesi. La riduzione della rigidita mattutina e il beneficio piu citato.',
-                'Penna preriempita pronta all uso, stabile a temperatura ambiente per 14 giorni. Autosomministrazione ogni 4 settimane — meta della frequenza degli inibitori IL-17A di riferimento.'
+                'SHIELD-RA Fase 3: ACR50 del 68% a settimana 24 con zelanumab vs 31% placebo. Classificazione AIFA in corso — doppio blocco IL-23/IL-17A mira alla Classe A con piano terapeutico per AR moderata-grave.',
+                'Profilo di sicurezza favorevole: infezioni gravi 1,8/100 PA, nessun segnale TB, reazioni nel sito di iniezione in <5%. Nessun monitoraggio obbligatorio — semplifica la gestione nel doppio prontuario PTR/PTO regionale.',
+                'Unico bispecifico contro IL-23 e IL-17A in un unica molecola. Posizionamento nel Prontuario Terapeutico Regionale come alternativa alla monoterapia sequenziale anti-TNF secondo le linee guida SIR.',
+                'Dati real-world PRISM: 74% dei pazienti PsA riporta miglioramento significativo a 12 mesi. Registro AIFA conferma profilo coerente nelle coorti italiane trattate nel SSN.',
+                'Penna preriempita pronta all uso, stabile a temperatura ambiente 14 giorni. Autosomministrazione ogni 4 settimane — compatibile con la distribuzione diretta ASL e i percorsi di File F.'
             },
             'objectives' => new List<String>{
-                'Posizionare zelanumab come biologico di prima linea dopo risposta inadeguata ai csDMARD. Ottenere presentazione al comitato terapeutico con il responsabile di reumatologia.',
-                'Identificare pazienti con AR moderata-grave in fallimento di almeno un csDMARD o con progressione radiografica precoce. Coordinare la revisione delle cartelle con il team di cura.'
+                'Posizionare zelanumab come biologico di prima linea dopo fallimento csDMARD in linea con le note AIFA. Ottenere inserimento nel PTR con il farmacista ospedaliero e il responsabile di reumatologia.',
+                'Identificare pazienti AR moderata-grave in fallimento di almeno un csDMARD o con progressione radiografica precoce. Coordinare apertura Registro AIFA e piano terapeutico con il medico di medicina generale.'
             }
         });
         m.put('Immunexis_ES', new Map<String, List<String>>{
             'messages' => new List<String>{
-                'SHIELD-RA Fase 3: ACR50 del 68% en semana 24 con zelanumab frente al 31% con placebo. El doble bloqueo IL-23/IL-17A ofrece proteccion articular superior en AR moderada a grave.',
-                'Perfil de seguridad favorable: infecciones graves 1,8/100 PA, sin senales de TB, reacciones leves en sitio de inyeccion en <5% de pacientes. Sin monitorizacion analitica obligatoria.',
-                'Unico biespecifico dirigido contra IL-23 e IL-17A en una sola molecula — aborda la inflamacion aguas arriba y aguas abajo simultaneamente, a diferencia de la monoterapia secuencial.',
-                'Datos en vida real PRISM: 74% de pacientes con APs bajo zelanumab reportan mejoria significativa en actividades diarias a los 12 meses. La reduccion de la rigidez matutina es el beneficio mas valorado.',
-                'Pluma precargada lista para usar, estable a temperatura ambiente durante 14 dias. Autoinyeccion cada 4 semanas — la mitad de frecuencia que los inhibidores IL-17A de referencia.'
+                'SHIELD-RA Fase 3: ACR50 del 68% en semana 24 con zelanumab vs 31% placebo. Evaluacion AEMPS/IPT en curso — doble bloqueo IL-23/IL-17A apunta a financiacion SNS para AR moderada a grave tras fallo de FAMEsc.',
+                'Perfil de seguridad favorable: infecciones graves 1,8/100 PA, sin senales de TB, reacciones en sitio de inyeccion <5%. Sin monitorizacion obligatoria — reduce carga asistencial en consultas de reumatologia del SERMAS.',
+                'Unico biespecifico contra IL-23 e IL-17A en una molecula. Posicionamiento en la Guia Farmacoterapeutica como alternativa a anti-TNF secuencial segun protocolo CIPM y recomendaciones SER.',
+                'Datos real-world PRISM: 74% de pacientes PsA reportan mejoria significativa a 12 meses. Registro BIOBADASER confirma perfil consistente en cohortes espanolas del SNS.',
+                'Pluma precargada lista para usar, estable a temperatura ambiente 14 dias. Autoinyeccion cada 4 semanas — compatible con dispensacion hospitalaria de farmacia y programas de atencion farmaceutica domiciliaria de la CCAA.'
             },
             'objectives' => new List<String>{
-                'Posicionar zelanumab como biologico de primera linea tras respuesta inadecuada a FAMEsc. Conseguir revision en comite de farmacia con el jefe de reumatologia.',
-                'Identificar pacientes con AR moderada a grave que hayan fallado al menos un FAMEsc o muestren progresion radiografica temprana. Coordinar revision de historiales con el equipo asistencial.'
+                'Posicionar zelanumab como biologico de primera linea tras fallo FAMEsc conforme al IPT. Conseguir inclusion en la Guia Farmacoterapeutica con el farmaceutico de hospital y el jefe de reumatologia.',
+                'Identificar pacientes AR moderada a grave en fallo de al menos un FAMEsc o con progresion radiografica temprana. Coordinar registro BIOBADASER e informe para la Comision de Farmacia con el equipo de atencion primaria.'
             }
         });
         m.put('Immunexis_JP', new Map<String, List<String>>{
             'messages' => new List<String>{
-                'SHIELD-RA第3相試験：ゼラヌマブ投与24週時ACR50達成率68%（プラセボ31%）。IL-23/IL-17Aデュアルブロックが中等度～重度RAで優れた関節保護を実現。',
-                '良好な安全性：重篤感染率1.8/100人年、新規TBシグナルなし、注射部位反応は5%未満で軽度。定期的な臨床検査モニタリング不要。',
-                'IL-23とIL-17Aの両方を単一分子で標的とする唯一のバイスペシフィック抗体——逐次単剤療法と異なり、上流・下流の炎症を同時に制御。',
-                'PRISMレジストリ実臨床データ：ゼラヌマブ投与PsA患者の74%が12ヶ月時に日常活動の有意な改善を報告。朝のこわばり軽減が最も評価されるQOL向上。',
-                'すぐに使えるプレフィルドペン、室温14日間安定。4週に1回の自己注射——主要IL-17A阻害剤の半分の頻度。'
+                'SHIELD-RA第3相試験：ゼラヌマブ24週時ACR50達成率68%（プラセボ31%）。PMDA承認申請中——IL-23/IL-17Aデュアルブロックが中等度～重度RAでNHI薬価収載を目指す。',
+                '良好な安全性：重篤感染率1.8/100人年、新規TBシグナルなし、注射部位反応5%未満。定期検査不要——中医協での薬価算定における加算要件を裏付ける安全性データ。',
+                'IL-23とIL-17Aを単一分子で標的とする唯一のバイスペシフィック抗体。JCRガイドラインの生物学的製剤推奨において、逐次Anti-TNF療法の代替として薬事委員会で検討。',
+                'PRISMレジストリ実臨床データ：PsA患者の74%が12ヶ月時に有意な改善を報告。NDB（レセプトデータベース）解析でも日本人コホートで一貫した安全性を確認。',
+                'プレフィルドペン、室温14日間安定。4週1回自己注射——在宅自己注射指導管理料の算定対象。主要IL-17A阻害剤の半分の投与頻度で外来負担を軽減。'
             },
             'objectives' => new List<String>{
-                'csDMARD効果不十分例に対する第一選択バイオ製剤としてゼラヌマブを位置づける。リウマチ科部長との採用検討会議を確保。',
-                'csDMARD1剤以上無効または早期X線進行を示す中等度～重度RA患者を特定。診療チームとのカルテレビューを調整する。'
+                'csDMARD効果不十分例の第一選択バイオ製剤としてゼラヌマブを位置づける。薬事委員会での採用審議とNHI薬価収載後の院内フォーミュラリー登録をリウマチ科部長と調整。',
+                'csDMARD1剤以上無効または早期X線進行を示す中等度～重度RA患者を特定。地域連携パスへの組み込みとかかりつけ医との診療情報提供書を調整する。'
             }
         });
         m.put('Immunexis_KR', new Map<String, List<String>>{
             'messages' => new List<String>{
-                'SHIELD-RA 3상: 젤라누맙 24주차 ACR50 68%(위약 31%). IL-23/IL-17A 이중 차단이 중등도~중증 RA에서 우수한 관절 보호 효과를 제공.',
-                '양호한 안전성: 중증 감염률 1.8/100인년, 새로운 TB 신호 없음, 주사 부위 반응 5% 미만으로 경미. 필수 검사 모니터링 불필요.',
-                'IL-23과 IL-17A를 단일 분자로 동시 표적하는 유일한 이중특이항체 — 순차적 단독요법과 달리 상류·하류 염증을 동시 억제.',
-                'PRISM 레지스트리 실제 데이터: 젤라누맙 투여 PsA 환자의 74%가 12개월 시점에서 일상 활동의 의미 있는 개선을 보고. 아침 경직 감소가 가장 높은 삶의 질 개선.',
-                '바로 사용 가능한 프리필드 펜, 실온 14일 안정. 4주 1회 자가 주사 — 주요 IL-17A 억제제의 절반 빈도.'
+                'SHIELD-RA 3상: 젤라누맙 24주차 ACR50 68%(위약 31%). MFDS 허가 심사 중 — IL-23/IL-17A 이중 차단이 중등도~중증 RA에서 NHIS 급여 등재를 목표.',
+                '양호한 안전성: 중증 감염률 1.8/100인년, TB 신호 없음, 주사 부위 반응 5% 미만. 필수 검사 불필요 — HIRA 약가 협상에서 비용효과성 근거를 강화하는 안전성 데이터.',
+                'IL-23과 IL-17A를 단일 분자로 동시 표적하는 유일한 이중특이항체. 대한류마티스학회 가이드라인에 따라 순차적 Anti-TNF 대안으로 병원 약사위원회에서 검토 중.',
+                'PRISM 레지스트리 실제 데이터: PsA 환자 74%가 12개월 시점 의미 있는 개선 보고. KCR 코호트 연구에서 한국인 환자의 일관된 유효성 및 안전성 확인.',
+                '프리필드 펜, 실온 14일 안정. 4주 1회 자가 주사 — DUR 시스템과 호환되며 주요 IL-17A 억제제의 절반 투여 빈도로 외래 부담 경감.'
             },
             'objectives' => new List<String>{
-                'csDMARD 불충분 반응 후 1차 생물학적 제제로 젤라누맙을 포지셔닝. 류마티스내과 과장과 약물심의위원회 논의 확보.',
-                'csDMARD 1제 이상 실패 또는 초기 방사선학적 진행을 보이는 중등도~중증 RA 환자 식별. 진료팀과 차트 리뷰 조율.'
+                'csDMARD 불충분 반응 후 1차 생물학적 제제로 젤라누맙 포지셔닝. 약사위원회 채택 심의와 NHIS 급여 등재 후 원내 처방 프로토콜을 류마티스내과 과장과 조율.',
+                'csDMARD 1제 이상 실패 또는 초기 방사선학적 진행을 보이는 중등도~중증 RA 환자 식별. KCR 레지스트리 등록 및 위험분담제(RSA) 적용 여부를 진료팀과 협의.'
             }
         });
         m.put('Immunexis_BR', new Map<String, List<String>>{
@@ -1337,93 +1337,93 @@ public without sharing class DemoVisitController {
         });
         m.put('Immunonco_GB', new Map<String, List<String>>{
             'messages' => new List<String>{
-                'BEACON-LUNG Phase 3: median PFS 11.2 months versus 5.4 months with pembrolizumab alone in PD-L1 >=50% NSCLC. 42% confirmed ORR in the first-line setting.',
-                'Manageable irAE profile: Grade >=3 events in 18% of patients. No unexpected hepatotoxicity signal. Median time to irAE onset: 6 weeks, responsive to standard steroid protocols.',
-                'Dual PD-1/TIGIT blockade overcomes adaptive resistance observed with anti-PD-1 monotherapy. TIGIT+ NK cell reinvigoration drives responses even in PD-L1-low tumours.',
-                'BEACON-HCC Phase 2: 28% ORR in post-atezolizumab-bevacizumab HCC patients with no approved second-line IO. Median duration of response: 14.1 months.',
-                'Fixed-dose IV infusion every 3 weeks, no weight-based dosing. Compatible with standard oncology infusion chairs — 30-minute administration after the first cycle.'
+                'BEACON-LUNG Phase 3: median PFS 11.2 months vs 5.4 months with pembrolizumab alone in PD-L1 >=50% NSCLC. NICE TA submission under CDF review — 42% confirmed ORR supports first-line adoption.',
+                'Manageable irAE profile: Grade >=3 events in 18% of patients. Median irAE onset 6 weeks, responsive to standard steroid protocols. Aligns with NHS England irAE management guidelines for acute oncology services.',
+                'Dual PD-1/TIGIT blockade overcomes adaptive resistance seen with anti-PD-1 monotherapy. TIGIT+ NK cell reinvigoration drives responses even in PD-L1-low tumours — extends benefit beyond current NICE-approved IO cohorts.',
+                'BEACON-HCC Phase 2: 28% ORR in post-atezolizumab-bevacizumab HCC with no approved second-line IO. Supports CDF listing for an unmet-need population in hepatobiliary MDTs. Median DOR: 14.1 months.',
+                'Fixed-dose IV infusion every 3 weeks, no weight-based dosing. 30-minute administration compatible with NHS chemotherapy day-unit scheduling — no additional chair-time versus current pembrolizumab protocols.'
             },
             'objectives' => new List<String>{
-                'Drive vorastinib adoption as preferred first-line IO in PD-L1 >=50% NSCLC. Secure tumour board presentation to review BEACON-LUNG data with the MDT.',
-                'Identify advanced NSCLC patients with PD-L1 >=50% who are treatment-naive or progressing on current IO. Review molecular profiling reports with the oncology MDT to flag candidates.'
+                'Drive vorastinib adoption as preferred first-line IO in PD-L1 >=50% NSCLC. Secure lung cancer MDT presentation to review BEACON-LUNG data and align with trust formulary submission timeline.',
+                'Identify advanced NSCLC patients with PD-L1 >=50% who are treatment-naive or progressing on current IO. Coordinate with the Genomic Laboratory Hub for molecular profiling and flag CDF-eligible candidates at MDT.'
             }
         });
         m.put('Immunonco_FR', new Map<String, List<String>>{
             'messages' => new List<String>{
-                'BEACON-LUNG Phase 3 : SG mediane 11,2 mois vs 5,4 mois sous pembrolizumab seul dans le CBNPC PD-L1 >=50%. TRO confirme de 42% en premiere ligne.',
-                'Profil d EI immuno-medies gerable : evenements grade >=3 chez 18% des patients. Pas d hepatotoxicite inattendue. Delai median : 6 semaines, repondant aux protocoles corticoides.',
-                'Le double blocage PD-1/TIGIT surmonte la resistance adaptative sous anti-PD-1. La reactivation des cellules NK TIGIT+ induit des reponses meme dans les tumeurs PD-L1 faibles.',
-                'BEACON-HCC Phase 2 : TRO de 28% chez les patients CHC post-atezolizumab-bevacizumab, sans IO de 2e ligne approuvee. Duree mediane de reponse : 14,1 mois.',
-                'Perfusion IV a dose fixe toutes les 3 semaines, sans ajustement au poids. Compatible avec les fauteuils de perfusion standard — 30 minutes apres le premier cycle.'
+                'BEACON-LUNG Phase 3 : SG mediane 11,2 mois vs 5,4 mois sous pembrolizumab seul dans le CBNPC PD-L1 >=50%. Dossier HAS/ASMR depose — TRO de 42% soutient l inscription sur la liste en sus.',
+                'Profil d EI immuno-medies gerable : grade >=3 chez 18%. Pas d hepatotoxicite inattendue. Conforme aux recommandations INCa pour la prise en charge des irAE en oncologie thoracique.',
+                'Le double blocage PD-1/TIGIT surmonte la resistance adaptative sous anti-PD-1. Reactivation NK TIGIT+ — donnees IQVIA confirment un besoin non couvert dans les RCP des centres CLCC.',
+                'BEACON-HCC Phase 2 : TRO 28% en post-atezolizumab-bevacizumab CHC, sans IO de 2e ligne approuvee. Inscription ATU nominative en cours pour cette population sans alternative therapeutique.',
+                'Perfusion IV dose fixe toutes les 3 semaines, sans ajustement au poids. 30 minutes — compatible avec les HDJ des centres de lutte contre le cancer et les GHT en circuit ville-hopital.'
             },
             'objectives' => new List<String>{
-                'Promouvoir vorastinib comme IO de 1re ligne dans le CBNPC PD-L1 >=50%. Obtenir une presentation en RCP pour les donnees BEACON-LUNG.',
-                'Identifier les patients CBNPC avance PD-L1 >=50% naifs de traitement ou en progression sous IO. Revoir les profils moleculaires avec l equipe d oncologie pour reperer les candidats.'
+                'Promouvoir vorastinib comme IO de 1re ligne CBNPC PD-L1 >=50%. Obtenir presentation en RCP thoracique et preparer le dossier pour l inscription au livret therapeutique du GHT.',
+                'Identifier les patients CBNPC avance PD-L1 >=50% naifs ou en progression sous IO. Coordonner avec la plateforme de genetique moleculaire des cancers pour le profilage et la demande d ATU si eligible.'
             }
         });
         m.put('Immunonco_DE', new Map<String, List<String>>{
             'messages' => new List<String>{
-                'BEACON-LUNG Phase 3: medianes PFS 11,2 Monate vs. 5,4 Monate unter Pembrolizumab allein bei PD-L1 >=50% NSCLC. 42% bestaetigte ORR in der Erstlinie.',
-                'Handhabbares irAE-Profil: Grad >=3 Ereignisse bei 18% der Patienten. Keine unerwartete Hepatotoxizitaet. Mediane Zeit bis irAE-Onset: 6 Wochen, Ansprechen auf Standard-Steroid-Protokolle.',
-                'Duale PD-1/TIGIT-Blockade ueberwindet adaptive Resistenz unter Anti-PD-1-Monotherapie. TIGIT+ NK-Zell-Reaktivierung erzielt Ansprechen auch bei PD-L1-niedrigen Tumoren.',
-                'BEACON-HCC Phase 2: 28% ORR bei Post-Atezolizumab-Bevacizumab-HCC-Patienten ohne zugelassene Zweitlinien-IO. Mediane Ansprechdauer: 14,1 Monate.',
-                'Fixdosis-IV-Infusion alle 3 Wochen, keine gewichtsbasierte Dosierung. Kompatibel mit Standard-Infusionsstuehlen — 30 Minuten Verabreichung nach dem ersten Zyklus.'
+                'BEACON-LUNG Phase 3: medianes PFS 11,2 vs. 5,4 Monate unter Pembrolizumab allein bei PD-L1 >=50% NSCLC. G-BA-Nutzenbewertung eingereicht — 42% ORR stuetzt erheblichen Zusatznutzen in der Erstlinie.',
+                'Handhabbares irAE-Profil: Grad >=3 bei 18%. Keine unerwartete Hepatotoxizitaet. Konform mit der S3-Leitlinie Lungenkarzinom der DGP/DKG fuer das irAE-Management.',
+                'Duale PD-1/TIGIT-Blockade ueberwindet adaptive Resistenz unter Anti-PD-1. TIGIT+ NK-Zell-Reaktivierung bei PD-L1-niedrigen Tumoren — erweitert Benefit ueber aktuelle GKV-erstattete IO-Kohorten hinaus.',
+                'BEACON-HCC Phase 2: 28% ORR post-Atezolizumab-Bevacizumab ohne zugelassene Zweitlinien-IO. Antrag auf Neue Untersuchungs- und Behandlungsmethoden (NUB) fuer diese Indikation in Vorbereitung.',
+                'Fixdosis-IV-Infusion alle 3 Wochen, keine gewichtsbasierte Dosierung. 30 Minuten — kompatibel mit ambulanten Chemotherapie-Tageskliniken und DKG-zertifizierten Onkologischen Zentren.'
             },
             'objectives' => new List<String>{
-                'Vorastinib als bevorzugte Erstlinien-IO bei PD-L1 >=50% NSCLC etablieren. Vorstellung im Tumorboard zur Besprechung der BEACON-LUNG-Daten sichern.',
-                'Fortgeschrittene NSCLC-Patienten mit PD-L1 >=50% identifizieren, die therapienaiv sind oder unter aktueller IO progredieren. Molekulare Profilberichte mit dem Onkologie-Team pruefen.'
+                'Vorastinib als bevorzugte Erstlinien-IO bei PD-L1 >=50% NSCLC etablieren. Vorstellung im Tumorboard und Abstimmung des Erstattungsantrags mit der Krankenhausapotheke nach AMNOG-Beschluss.',
+                'Fortgeschrittene NSCLC-Patienten PD-L1 >=50% therapienaiv oder unter IO progredierend identifizieren. Molekulares Profiling ueber das Netzwerk Genomische Medizin koordinieren und NUB-faehige Kandidaten im Tumorboard markieren.'
             }
         });
         m.put('Immunonco_IT', new Map<String, List<String>>{
             'messages' => new List<String>{
-                'BEACON-LUNG Fase 3: PFS mediana 11,2 mesi vs 5,4 mesi con pembrolizumab in monoterapia nel NSCLC PD-L1 >=50%. ORR confermato del 42% in prima linea.',
-                'Profilo irAE gestibile: eventi grado >=3 nel 18% dei pazienti. Nessuna epatotossicita inattesa. Tempo mediano all insorgenza: 6 settimane, responsivo a protocolli steroidei standard.',
-                'Il doppio blocco PD-1/TIGIT supera la resistenza adattativa con anti-PD-1 in monoterapia. La riattivazione delle cellule NK TIGIT+ genera risposte anche nei tumori PD-L1 bassi.',
-                'BEACON-HCC Fase 2: ORR del 28% in pazienti HCC post-atezolizumab-bevacizumab, senza IO di seconda linea approvata. Durata mediana della risposta: 14,1 mesi.',
-                'Infusione IV a dose fissa ogni 3 settimane, senza dosaggio basato sul peso. Compatibile con le poltrone di infusione standard — 30 minuti dopo il primo ciclo.'
+                'BEACON-LUNG Fase 3: PFS mediana 11,2 vs 5,4 mesi con pembrolizumab nel NSCLC PD-L1 >=50%. Negoziazione AIFA in corso — ORR 42% supporta inserimento in Classe H con Registro e piano terapeutico.',
+                'Profilo irAE gestibile: grado >=3 nel 18%. Nessuna epatotossicita inattesa. Conforme alle raccomandazioni AIOM per la gestione degli irAE nei centri oncologici della Rete Oncologica.',
+                'Doppio blocco PD-1/TIGIT supera la resistenza adattativa anti-PD-1. Riattivazione NK TIGIT+ nei tumori PD-L1 bassi — amplia il beneficio oltre le coorti attualmente rimborsate dal Fondo farmaci innovativi.',
+                'BEACON-HCC Fase 2: ORR 28% post-atezolizumab-bevacizumab senza IO di 2a linea approvata. Richiesta Legge 648 in preparazione per accesso anticipato in questa popolazione con bisogno insoddisfatto.',
+                'Infusione IV dose fissa ogni 3 settimane, senza dosaggio a peso. 30 minuti — compatibile con i Day Hospital oncologici e la distribuzione per conto (DPC) delle ASL regionali.'
             },
             'objectives' => new List<String>{
-                'Promuovere vorastinib come IO di prima linea nel NSCLC PD-L1 >=50%. Ottenere slot al tumor board per i dati BEACON-LUNG.',
-                'Identificare pazienti NSCLC avanzato con PD-L1 >=50% naive o in progressione sotto IO. Rivedere i profili molecolari con il team oncologico per individuare i candidati.'
+                'Promuovere vorastinib come IO di prima linea NSCLC PD-L1 >=50%. Ottenere presentazione al Gruppo Oncologico Multidisciplinare e preparare dossier per il Prontuario Terapeutico Regionale.',
+                'Identificare pazienti NSCLC avanzato PD-L1 >=50% naive o in progressione sotto IO. Coordinare profilazione molecolare con il laboratorio di genetica oncologica e segnalare i candidati eleggibili al Registro AIFA.'
             }
         });
         m.put('Immunonco_ES', new Map<String, List<String>>{
             'messages' => new List<String>{
-                'BEACON-LUNG Fase 3: SLP mediana 11,2 meses vs 5,4 meses con pembrolizumab solo en CPNM PD-L1 >=50%. TRO confirmada del 42% en primera linea.',
-                'Perfil de irAE manejable: eventos grado >=3 en 18% de pacientes. Sin hepatotoxicidad inesperada. Tiempo mediano hasta irAE: 6 semanas, responde a protocolos de corticoides.',
-                'El doble bloqueo PD-1/TIGIT supera la resistencia adaptativa del anti-PD-1 en monoterapia. La reactivacion de celulas NK TIGIT+ genera respuestas incluso en tumores PD-L1 bajos.',
-                'BEACON-HCC Fase 2: TRO del 28% en pacientes CHC post-atezolizumab-bevacizumab, sin IO de segunda linea aprobada. Duracion mediana de respuesta: 14,1 meses.',
-                'Infusion IV a dosis fija cada 3 semanas, sin ajuste por peso. Compatible con sillones de infusion estandar — 30 minutos de administracion tras el primer ciclo.'
+                'BEACON-LUNG Fase 3: SLP mediana 11,2 vs 5,4 meses con pembrolizumab en CPNM PD-L1 >=50%. Evaluacion AEMPS/IPT en curso — TRO 42% respalda financiacion SNS en primera linea.',
+                'Perfil irAE manejable: grado >=3 en 18%. Sin hepatotoxicidad inesperada. Alineado con las guias SEOM para manejo de irAE en los servicios de oncologia de la CCAA.',
+                'Doble bloqueo PD-1/TIGIT supera resistencia adaptativa anti-PD-1. Reactivacion NK TIGIT+ en tumores PD-L1 bajos — amplia beneficio mas alla de las cohortes actualmente financiadas por el SNS.',
+                'BEACON-HCC Fase 2: TRO 28% post-atezolizumab-bevacizumab sin IO de 2a linea aprobada. Solicitud de uso compasivo en tramitacion para esta poblacion sin alternativa terapeutica en la CCAA.',
+                'Infusion IV dosis fija cada 3 semanas, sin ajuste por peso. 30 minutos — compatible con hospitales de dia oncologicos del SERMAS/CatSalut/SAS y circuitos de farmacia hospitalaria.'
             },
             'objectives' => new List<String>{
-                'Impulsar vorastinib como IO de primera linea en CPNM PD-L1 >=50%. Asegurar presentacion en comite de tumores para datos BEACON-LUNG.',
-                'Identificar pacientes con CPNM avanzado PD-L1 >=50% naive o en progresion bajo IO actual. Revisar perfiles moleculares con el equipo de oncologia para detectar candidatos.'
+                'Impulsar vorastinib como IO de primera linea CPNM PD-L1 >=50%. Asegurar presentacion en comite de tumores y preparar informe para la Comision de Farmacia del hospital conforme al IPT.',
+                'Identificar pacientes CPNM avanzado PD-L1 >=50% naive o en progresion bajo IO. Coordinar perfil molecular con el laboratorio de diagnostico molecular y marcar candidatos elegibles para uso compasivo en el comite multidisciplinar.'
             }
         });
         m.put('Immunonco_JP', new Map<String, List<String>>{
             'messages' => new List<String>{
-                'BEACON-LUNG第3相：PD-L1>=50% NSCLCでボラスチニブPFS中央値11.2ヶ月（ペムブロリズマブ単独5.4ヶ月）。一次治療確認ORR 42%。',
-                '管理可能なirAE：Grade>=3イベント18%。予期しない肝毒性なし。irAE発現中央値6週間、標準ステロイドプロトコルに反応。',
-                'PD-1/TIGITデュアルブロックが抗PD-1単剤の適応耐性を克服。TIGIT+NK細胞再活性化がPD-L1低発現腫瘍でも奏効を実現。',
-                'BEACON-HCC第2相：アテゾリズマブ・ベバシズマブ後HCC患者でORR 28%、承認済み2次IO不在の集団。奏効期間中央値14.1ヶ月。',
-                '3週毎の固定用量IV点滴、体重ベースの用量調節不要。標準点滴椅子対応——初回以降30分で投与完了。'
+                'BEACON-LUNG第3相：PD-L1>=50% NSCLCでPFS中央値11.2ヶ月（ペムブロリズマブ単独5.4ヶ月）。PMDA承認審査中——ORR 42%がNHI薬価収載・原価計算加算を支持。',
+                '管理可能なirAE：Grade>=3が18%。肝毒性なし。日本臨床腫瘍学会（JSMO）のirAE管理ガイドラインに準拠した標準ステロイド対応。',
+                'PD-1/TIGITデュアルブロックが抗PD-1適応耐性を克服。TIGIT+NK細胞再活性化がPD-L1低発現でも奏効——がんゲノム医療中核拠点病院で新たな治療選択肢を提供。',
+                'BEACON-HCC第2相：post-アテゾ・ベバHCCでORR 28%、2次IO未承認集団。最適使用推進ガイドライン策定を見据えた薬事委員会での検討を推奨。奏効期間14.1ヶ月。',
+                '3週毎固定用量IV点滴、体重調節不要。30分投与——DPC/PDPS包括払い制度下の外来化学療法室スケジューリングに適合。'
             },
             'objectives' => new List<String>{
-                'PD-L1>=50% NSCLCにおけるボラスチニブの1次IO推奨薬としての採用を推進。キャンサーボードでBEACON-LUNGデータ発表枠を確保。',
-                'PD-L1>=50%の進行NSCLC治療未施行または現行IO進行中の患者を特定。腫瘍内科チームと分子プロファイリング結果をレビューし候補を選定。'
+                'PD-L1>=50% NSCLC 1次IOとしてボラスチニブ採用を推進。キャンサーボード発表枠を確保し、薬事委員会での院内採用審議とNHI薬価収載後の処方プロトコルを策定。',
+                'PD-L1>=50%進行NSCLC治療未施行・IO進行中の患者を特定。がんゲノム医療中核拠点のエキスパートパネルと連携し分子プロファイリング対象候補をキャンサーボードで提示。'
             }
         });
         m.put('Immunonco_KR', new Map<String, List<String>>{
             'messages' => new List<String>{
-                'BEACON-LUNG 3상: PD-L1 >=50% NSCLC에서 보라스티닙 PFS 중앙값 11.2개월(펨브롤리주맙 단독 5.4개월). 1차 치료 확인 ORR 42%.',
-                '관리 가능한 irAE: Grade >=3 18%. 예상치 못한 간독성 없음. irAE 발현 중앙값 6주, 표준 스테로이드 프로토콜에 반응.',
-                'PD-1/TIGIT 이중 차단이 항PD-1 단독요법의 적응 내성을 극복. TIGIT+ NK 세포 재활성화가 PD-L1 저발현 종양에서도 반응 유도.',
-                'BEACON-HCC 2상: 아테졸리주맙-베바시주맙 후 HCC 환자에서 ORR 28%, 승인된 2차 IO 부재. 반응 지속 중앙값 14.1개월.',
-                '3주마다 고정 용량 IV 주입, 체중 기반 용량 조절 불필요. 표준 항암 주입 의자 호환 — 첫 주기 이후 30분 투여.'
+                'BEACON-LUNG 3상: PD-L1 >=50% NSCLC에서 PFS 중앙값 11.2개월(펨브롤리주맙 5.4개월). MFDS 허가 심사 중 — ORR 42%가 NHIS 급여 등재 및 HIRA 약가 협상을 지원.',
+                '관리 가능한 irAE: Grade >=3 18%. 간독성 없음. 대한종양내과학회(KSMO) irAE 관리 가이드라인에 부합하는 표준 스테로이드 프로토콜 대응.',
+                'PD-1/TIGIT 이중 차단이 항PD-1 적응 내성 극복. TIGIT+ NK 세포 재활성화가 PD-L1 저발현에서도 반응 — 현재 NHIS 급여 IO 코호트를 넘어 혜택 확대.',
+                'BEACON-HCC 2상: post-아테졸-베바 HCC ORR 28%, 승인 2차 IO 부재. 위험분담제(RSA) 적용 논의 중인 미충족 수요 집단. 반응 지속 14.1개월.',
+                '3주마다 고정 용량 IV 주입, 체중 조절 불필요. 30분 투여 — 국가암센터 및 권역별 암센터 외래 항암 주입실 스케줄에 적합. DUR 시스템 호환.'
             },
             'objectives' => new List<String>{
-                'PD-L1 >=50% NSCLC에서 보라스티닙을 선호 1차 IO로 채택 추진. 종양학 컨퍼런스에서 BEACON-LUNG 데이터 발표 확보.',
-                'PD-L1 >=50% 진행성 NSCLC 치료 미경험 또는 현재 IO 진행 환자 식별. 종양내과팀과 분자 프로파일링 보고서를 검토하여 후보 선별.'
+                'PD-L1 >=50% NSCLC 1차 IO로 보라스티닙 채택 추진. 다학제 종양 컨퍼런스 발표 확보 및 NHIS 급여 등재 후 병원 약사위원회 처방 프로토콜 수립.',
+                'PD-L1 >=50% 진행성 NSCLC 치료 미경험·IO 진행 환자 식별. 유전체 의학 센터와 분자 프로파일링을 조율하고 위험분담제 대상 후보를 다학제 컨퍼런스에서 제시.'
             }
         });
         m.put('Immunonco_BR', new Map<String, List<String>>{
