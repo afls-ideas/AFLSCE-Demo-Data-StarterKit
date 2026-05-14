@@ -387,12 +387,38 @@ public with sharing class DemoAccountProviderController {
             Integer deleted = 0;
             String escapedTag = String.escapeSingleQuotes(DEMO_TAG);
 
+            // Collect demo account IDs upfront for child record cleanup
+            List<Account> demoAccts = [SELECT Id FROM Account WHERE Site = :DEMO_TAG];
+            Set<Id> demoAcctIds = new Set<Id>();
+            for (Account a : demoAccts) { demoAcctIds.add(a.Id); }
+
             // Delete child objects first (reverse order)
             try {
                 deleted += DemoAffiliationHelper.deleteAffiliations();
             } catch (Exception e) { /* Object not available */ }
 
             Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+
+            // Delete ObjectTerritory2Association for demo accounts
+            if (!demoAcctIds.isEmpty() && gd.containsKey('objectterritory2association')) {
+                List<SObject> recs = Database.query(
+                    'SELECT Id FROM ObjectTerritory2Association WHERE ObjectId IN :demoAcctIds'
+                );
+                if (!recs.isEmpty()) {
+                    Database.DeleteResult[] dr = Database.delete(recs, false);
+                    for (Database.DeleteResult r : dr) { if (r.isSuccess()) deleted++; }
+                }
+            }
+
+            // Delete cross-tab child records that reference demo accounts
+            if (!demoAcctIds.isEmpty()) {
+                deleted += deleteChildrenByAccountIds(gd, demoAcctIds,
+                    new String[]{ 'contactpointaddress', 'contactpointemail' },
+                    'ParentId');
+                deleted += deleteChildrenByAccountIds(gd, demoAcctIds,
+                    new String[]{ 'medicalinsightaccount' },
+                    'AccountId');
+            }
 
             if (gd.containsKey('healthcareproviderspecialty')) {
                 List<SObject> recs = Database.query('SELECT Id FROM HealthcareProviderSpecialty WHERE SourceSystem = \'' + escapedTag + '\'');
@@ -443,16 +469,47 @@ public with sharing class DemoAccountProviderController {
             }
 
             // Delete accounts last (both orgs and person accounts)
-            List<Account> accts = [SELECT Id FROM Account WHERE Site = :DEMO_TAG];
-            if (!accts.isEmpty()) {
-                Database.DeleteResult[] dr = Database.delete(accts, false);
-                for (Database.DeleteResult r : dr) { if (r.isSuccess()) deleted++; }
+            // Report first failure reason if any accounts fail to delete
+            if (!demoAccts.isEmpty()) {
+                Database.DeleteResult[] dr = Database.delete(demoAccts, false);
+                List<String> failReasons = new List<String>();
+                for (Database.DeleteResult r : dr) {
+                    if (r.isSuccess()) {
+                        deleted++;
+                    } else if (failReasons.size() < 3) {
+                        for (Database.Error e : r.getErrors()) {
+                            failReasons.add(e.getMessage());
+                        }
+                    }
+                }
+                if (!failReasons.isEmpty()) {
+                    Integer failCount = demoAccts.size() - deleted;
+                    return 'Deleted ' + deleted + ' records. ' + failCount + ' accounts failed: ' + String.join(failReasons, '; ');
+                }
             }
 
             return 'Deleted ' + deleted + ' demo records.';
         } catch (Exception e) {
             throw new AuraHandledException('Error deleting demo data: ' + e.getMessage());
         }
+    }
+
+    private static Integer deleteChildrenByAccountIds(Map<String, Schema.SObjectType> gd, Set<Id> acctIds, String[] objNames, String fieldName) {
+        Integer deleted = 0;
+        for (String objName : objNames) {
+            if (gd.containsKey(objName)) {
+                try {
+                    List<SObject> recs = Database.query(
+                        'SELECT Id FROM ' + objName + ' WHERE ' + fieldName + ' IN :acctIds'
+                    );
+                    if (!recs.isEmpty()) {
+                        Database.DeleteResult[] dr = Database.delete(recs, false);
+                        for (Database.DeleteResult r : dr) { if (r.isSuccess()) deleted++; }
+                    }
+                } catch (Exception e) { /* Object or field not available */ }
+            }
+        }
+        return deleted;
     }
 
     // ---------------------------------------------------------------------------
