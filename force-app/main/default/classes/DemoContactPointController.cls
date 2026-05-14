@@ -274,16 +274,32 @@ public with sharing class DemoContactPointController {
                             Database.update(visits, false);
                         }
                     }
-                    // Delete PATI records referencing these CPAs (nulling PreferredAddressId
-                    // doesn't work — the managed package trigger re-populates it)
+                    // Delete and recreate PATI records that reference these CPAs
+                    // (nulling PreferredAddressId doesn't work — the managed trigger re-populates it)
+                    List<SObject> patiBackups = new List<SObject>();
                     if (gd.containsKey('provideracctterritoryinfo')) {
                         List<SObject> patis = Database.query(
-                            'SELECT Id FROM ProviderAcctTerritoryInfo WHERE PreferredAddressId IN :cpaIds');
+                            'SELECT Id, AccountId, Territory2Id, IsTargetedAccount, IsAvailableOffline, IsActive, SourceSystemName, SourceType FROM ProviderAcctTerritoryInfo WHERE PreferredAddressId IN :cpaIds');
                         if (!patis.isEmpty()) {
+                            for (SObject p : patis) {
+                                SObject backup = gd.get('provideracctterritoryinfo').newSObject();
+                                backup.put('AccountId', p.get('AccountId'));
+                                backup.put('Territory2Id', p.get('Territory2Id'));
+                                backup.put('IsTargetedAccount', p.get('IsTargetedAccount'));
+                                backup.put('IsAvailableOffline', p.get('IsAvailableOffline'));
+                                backup.put('IsActive', p.get('IsActive'));
+                                backup.put('SourceSystemName', p.get('SourceSystemName'));
+                                backup.put('SourceType', p.get('SourceType'));
+                                patiBackups.add(backup);
+                            }
                             Database.delete(patis, false);
                         }
                     }
                     deleted += countDeleteSuccesses(Database.delete(recs, false));
+                    // Recreate PATIs without PreferredAddressId
+                    if (!patiBackups.isEmpty()) {
+                        Database.insert(patiBackups, false);
+                    }
                 }
             } else if (objectType == 'ContactPointEmail' || objectType == 'ContactPointPhone') {
                 Set<Id> accountIds = getDemoAccountIds();
