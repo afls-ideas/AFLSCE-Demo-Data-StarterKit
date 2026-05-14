@@ -257,11 +257,33 @@ public with sharing class DemoContactPointController {
 
             if (objectType == 'ContactPointAddress') {
                 List<ContactPointAddress> recs = [SELECT Id FROM ContactPointAddress WHERE Name LIKE :likePattern];
-                if (!recs.isEmpty()) { deleted += countDeleteSuccesses(Database.delete(recs, false)); }
                 Set<Id> acctIds = getDemoAccountIds();
-                if (!acctIds.isEmpty()) {
-                    List<ContactPointAddress> byParent = [SELECT Id FROM ContactPointAddress WHERE ParentId IN :acctIds];
-                    if (!byParent.isEmpty()) { deleted += countDeleteSuccesses(Database.delete(byParent, false)); }
+                if (recs.isEmpty() && !acctIds.isEmpty()) {
+                    recs = [SELECT Id FROM ContactPointAddress WHERE ParentId IN :acctIds];
+                }
+                if (!recs.isEmpty()) {
+                    Set<Id> cpaIds = new Set<Id>();
+                    for (ContactPointAddress c : recs) { cpaIds.add(c.Id); }
+                    Map<String, Schema.SObjectType> gd = Schema.getGlobalDescribe();
+                    // Clear Visit.PlaceId references
+                    if (gd.containsKey('visit')) {
+                        List<SObject> visits = Database.query(
+                            'SELECT Id FROM Visit WHERE PlaceId IN :cpaIds');
+                        if (!visits.isEmpty()) {
+                            for (SObject v : visits) { v.put('PlaceId', null); }
+                            Database.update(visits, false);
+                        }
+                    }
+                    // Delete PATI records referencing these CPAs (nulling PreferredAddressId
+                    // doesn't work — the managed package trigger re-populates it)
+                    if (gd.containsKey('provideracctterritoryinfo')) {
+                        List<SObject> patis = Database.query(
+                            'SELECT Id FROM ProviderAcctTerritoryInfo WHERE PreferredAddressId IN :cpaIds');
+                        if (!patis.isEmpty()) {
+                            Database.delete(patis, false);
+                        }
+                    }
+                    deleted += countDeleteSuccesses(Database.delete(recs, false));
                 }
             } else if (objectType == 'ContactPointEmail' || objectType == 'ContactPointPhone') {
                 Set<Id> accountIds = getDemoAccountIds();
