@@ -43,6 +43,10 @@
         <apexClass>DemoVisitController</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>DemoNextBestCustomerController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
     <objectPermissions>
         <allowCreate>true</allowCreate>
         <allowDelete>true</allowDelete>
@@ -119,6 +123,13 @@
         <allowEdit>true</allowEdit>
         <allowRead>true</allowRead>
         <object>BusinessLicense</object>
+    </objectPermissions>
+    <objectPermissions>
+        <allowCreate>true</allowCreate>
+        <allowDelete>true</allowDelete>
+        <allowEdit>true</allowEdit>
+        <allowRead>true</allowRead>
+        <object>TerritoryAccountScore</object>
     </objectPermissions>
     <applicationVisibilities>
         <application>AFLS_Powertool</application>

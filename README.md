@@ -24,7 +24,7 @@ sf project deploy start --source-dir force-app --target-org YOUR_ORG_ALIAS
 2. Open the **AFLSCE Demo Data** app from the App Launcher
 3. Assign the **AFLSCE Demo Account Plan** permission set (for Account & Action Plans tab)
 4. Open the **AFLSCE Demo Data** app from the App Launcher
-5. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Inventory Replenishment → Scenario Builder → Account & Action Plans → Activity Plans → Campaigns → Visits → Medical Insights
+5. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Inventory Replenishment → Scenario Builder → Account & Action Plans → Activity Plans → Visits → Medical Insights → Next Best Customer
 
 ## What Gets Created
 
@@ -143,15 +143,7 @@ Creates the activity plan structure for tracking visit goals per territory:
 - **ProviderActivityGoal** — one per HCP in the territory, with realistic goals (50 down to 10 visits/year)
 - **ProviderActivityGoalMeasure** — visit-level measures (90/5/5 channel split) and product-level measures per country brand
 
-### Tab 10: Campaigns
-
-Creates marketing campaigns and HCP journey data for the HCP Journey app:
-
-- **Journey Campaigns** (~11, one per country) — "Immunexis HCP Adoption Journey — {Country}" with journey-stage statuses: Unaware, Aware, Interested, Trial, Adopter, Advocate. All demo HCPs in each country are added as members with weighted stage distribution (25% Unaware → 5% Advocate)
-- **Marketing Campaigns** (7) — Email nurtures, webinars, congress follow-ups, product launches, speaker invites. Each gets 40-80% of HCPs as members with email-engagement statuses (Sent, Opened, Clicked, Registered, Attended, No Show)
-- **CampaignMemberStatus** — Custom statuses per campaign type (journey stages or email engagement)
-
-### Tab 11: Visits
+### Tab 10: Visits
 
 Creates completed Visit records for a selected territory with a UI-selectable primary channel:
 
@@ -164,7 +156,7 @@ Creates completed Visit records for a selected territory with a UI-selectable pr
 
 > **Before deleting visits:** Disable `VisitLockHandler` and `RemoteSessionInvitationVisitHandler` trigger handlers in Admin Console → Trigger Settings, then re-enable after.
 
-### Tab 12: Medical Insights
+### Tab 11: Medical Insights
 
 Creates realistic medical insight records from field visits, linked to HCP accounts and brand products. Select a territory from the picker and click to create insights for that territory. Localized to each country's language (English, French, German, Italian, Spanish, Japanese, Korean, Portuguese):
 
@@ -173,6 +165,14 @@ Creates realistic medical insight records from field visits, linked to HCP accou
 - **MedicalInsightProduct** — links each insight to the country-specific brand (`LifeSciMarketableProduct`)
 - **Sharing** — `MedicalInsightShare` records grant Edit access to territory groups
 - **Note:** Deactivate the **Insight Trigger Flow** in Setup > Flows before creating insights, then reactivate after
+
+### Tab 12: Next Best Customer
+
+Creates `TerritoryAccountScore` records ranking each demo HCP in the selected territory. Powers the Next Best Customer widget for field reps:
+
+- **TerritoryAccountScore** — one per HCP in the chosen territory, `Rank` 1..N (sorted by Account Name), `TotalScore` descending from 100 down (floored at 30, 5-point step). Owned by the territory rep
+- **ScoreExplainabilityInfo** — JSON `rationals` array covering Account Profile, Activity Plan, Sales Performance, Account Scope, and # of interactions in last 90 days. Tier (A/B/C) and segment (Strategic Growth / High Opportunity / Maintain) derived from rank
+- **Tagged** via `SourceSystemName = 'AFLSCE-Demo-Data'`; `SourceSystemIdentifier = 'TAS-{territoryId}-{accountId}'`. Re-running Create for the same territory clears existing demo scores before re-inserting
 
 ## Tagging & Cleanup
 
@@ -204,11 +204,11 @@ All created records are tagged for safe cleanup:
 | AccountPlan | `SourceSystemName` | `AFLSCE-Demo-Data` |
 | AccountPlanObjective | `SourceSystemName` | `AFLSCE-Demo-Data` |
 | ActionPlan | `SourceSystemName` | `AFLSCE-Demo-Data` |
-| Campaign | `Name` | `[AFLSCE-Demo] *` (prefix) |
 | ProductGuidance | `SourceSystemName` | `AFLSCE-Demo-Data` |
 | MedicalInsight | `Name` | `* #AFLSCE` (suffix) |
 | MedicalInsightAccount | via MedicalInsightId | (child of tagged MedicalInsight) |
 | MedicalInsightProduct | via MedicalInsightId | (child of tagged MedicalInsight) |
+| TerritoryAccountScore | `SourceSystemName` | `AFLSCE-Demo-Data` |
 
 Every tab has a **Delete** button that removes only the records created by this tool. Your existing org data is never touched.
 
@@ -238,9 +238,9 @@ force-app/main/default/
 │   ├── DemoActionPlanBatch            Batchable for Action Plan + AssessmentTask creation
 │   ├── DemoAccountPlanData            English plan archetypes, objectives & KAM task definitions
 │   ├── DemoAccountPlanLocale          Localized plan names, objectives & templates (7 languages)
-│   ├── DemoCampaignController          Campaign + CampaignMember creation (journey + marketing)
 │   ├── DemoMedicalInsightController   Medical Insights with territory picker & per-HCP creation
 │   ├── DemoMedicalInsightLocale       Localized insight templates (8 languages)
+│   ├── DemoNextBestCustomerController TerritoryAccountScore creation per territory with explainability JSON
 │   └── DemoVisitController            Visit creation with channel picker & planned visits
 ├── lwc/                  Lightning Web Components
 │   ├── demoDataAdmin           Main tabbed UI
@@ -253,8 +253,8 @@ force-app/main/default/
 │   ├── scenarioBuilder         Therapy-area scenario layering
 │   ├── activityPlanSetup       Account & Action Plans creation UI
 │   ├── providerActivityPlanSetup  Activity Plans & Goals with measure type picker
-│   ├── campaignSetup             Campaign + journey member creation
 │   ├── medicalInsightSetup     Medical Insights with account & product links
+│   ├── nextBestCustomerSetup   TerritoryAccountScore creation with territory picker
 │   └── visitSetup              Visit creation with channel picker, territory selector & batched delete
 ├── flexipages/           Lightning Record Pages
 │   ├── Action_Plan_Record_Page              ActionPlan record page

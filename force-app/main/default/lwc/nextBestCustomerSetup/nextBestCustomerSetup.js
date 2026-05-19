@@ -1,11 +1,13 @@
 import { LightningElement, wire } from 'lwc';
 import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import { refreshApex } from '@salesforce/apex';
-import getStatus from '@salesforce/apex/DemoCampaignController.getStatus';
-import createCampaigns from '@salesforce/apex/DemoCampaignController.createCampaigns';
-import deleteCampaigns from '@salesforce/apex/DemoCampaignController.deleteCampaigns';
+import getStatus from '@salesforce/apex/DemoNextBestCustomerController.getStatus';
+import getTerritories from '@salesforce/apex/DemoNextBestCustomerController.getTerritories';
+import createScoresForTerritory from '@salesforce/apex/DemoNextBestCustomerController.createScoresForTerritory';
+import deleteScoresForTerritory from '@salesforce/apex/DemoNextBestCustomerController.deleteScoresForTerritory';
+import deleteAllScores from '@salesforce/apex/DemoNextBestCustomerController.deleteAllScores';
 
-export default class CampaignSetup extends LightningElement {
+export default class NextBestCustomerSetup extends LightningElement {
     statusData;
     statusError;
     isLoading = false;
@@ -13,6 +15,8 @@ export default class CampaignSetup extends LightningElement {
     isSuccess = false;
     wiredStatusResult;
     activityLog = [];
+    territoryOptions = [];
+    selectedTerritoryId;
 
     @wire(getStatus)
     wiredStatus(result) {
@@ -24,6 +28,19 @@ export default class CampaignSetup extends LightningElement {
             this.statusError = result.error.body ? result.error.body.message : 'Unable to retrieve status.';
             this.statusData = undefined;
         }
+    }
+
+    @wire(getTerritories)
+    wiredTerritories({ data, error }) {
+        if (data) {
+            this.territoryOptions = data;
+        } else if (error) {
+            this.territoryOptions = [];
+        }
+    }
+
+    handleTerritoryChange(event) {
+        this.selectedTerritoryId = event.detail.value;
     }
 
     get resultClass() {
@@ -47,8 +64,6 @@ export default class CampaignSetup extends LightningElement {
                 entries.push({ id: entries.length, message: item.substring(8), isSuccess: true });
             } else if (item.startsWith('ERROR:')) {
                 entries.push({ id: entries.length, message: item.substring(6), isError: true });
-            } else if (item.startsWith('WARNING:')) {
-                entries.push({ id: entries.length, message: item.substring(8), isWarning: true });
             } else {
                 entries.push({ id: entries.length, message: item, isDetail: true });
             }
@@ -61,11 +76,18 @@ export default class CampaignSetup extends LightningElement {
     }
 
     async handleCreate() {
+        if (!this.selectedTerritoryId) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error', message: 'Please select a territory first.', variant: 'error'
+            }));
+            return;
+        }
         this.isLoading = true;
         this.resultMessage = undefined;
         this.activityLog = [];
+
         try {
-            const raw = await createCampaigns();
+            const raw = await createScoresForTerritory({ territoryId: this.selectedTerritoryId });
             let result;
             try {
                 result = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -98,13 +120,47 @@ export default class CampaignSetup extends LightningElement {
         }
     }
 
-    async handleDelete() {
-        if (!window.confirm('Are you sure you want to delete? This cannot be undone.')) return;
+    async handleDeleteTerritory() {
+        if (!this.selectedTerritoryId) {
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error', message: 'Please select a territory first.', variant: 'error'
+            }));
+            return;
+        }
+        if (!window.confirm('Delete all demo Territory Account Scores for the selected territory?')) return;
         this.isLoading = true;
         this.resultMessage = undefined;
         this.activityLog = [];
         try {
-            const result = await deleteCampaigns();
+            const result = await deleteScoresForTerritory({ territoryId: this.selectedTerritoryId });
+            this.isSuccess = true;
+            this.resultMessage = result;
+            this.activityLog = [
+                { id: 0, message: 'Delete Complete', isHeader: true },
+                { id: 1, message: result, isSuccess: true }
+            ];
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Success', message: result, variant: 'success'
+            }));
+        } catch (error) {
+            this.isSuccess = false;
+            this.resultMessage = error.body ? error.body.message : 'An error occurred.';
+            this.dispatchEvent(new ShowToastEvent({
+                title: 'Error', message: this.resultMessage, variant: 'error'
+            }));
+        } finally {
+            this.isLoading = false;
+            await refreshApex(this.wiredStatusResult);
+        }
+    }
+
+    async handleDelete() {
+        if (!window.confirm('Delete ALL demo Territory Account Scores? This cannot be undone.')) return;
+        this.isLoading = true;
+        this.resultMessage = undefined;
+        this.activityLog = [];
+        try {
+            const result = await deleteAllScores();
             this.isSuccess = true;
             this.resultMessage = result;
             this.activityLog = [

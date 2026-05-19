@@ -1,20 +1,30 @@
 <template>
-    <lightning-card title="Campaigns" icon-name="standard:campaign">
+    <lightning-card title="Next Best Customer" icon-name="standard:lead_insights">
         <div class="slds-p-horizontal_medium slds-p-bottom_medium">
             <p class="slds-text-body_regular slds-m-bottom_small">
-                Creates marketing campaigns with HCP engagement data for the HCP Journey app.
-                Each campaign gets custom member statuses (Sent, Opened, Clicked, Registered, Attended, No Show)
-                and 40-80% of demo HCPs as members with realistic status distribution.
+                Creates demo <strong>TerritoryAccountScore</strong> records ranking each demo HCP in the
+                selected territory. Scores descend from 100 down to 30 by rank, with explainability JSON
+                covering Account Profile, Activity Plan, Sales Performance, Account Scope, and recent
+                interactions. Powers the Next Best Customer widget for field reps.
             </p>
 
             <!-- Objects created by this tab -->
             <div class="slds-box slds-theme_shade slds-m-bottom_medium slds-p-around_small">
                 <p class="slds-text-title_caps slds-m-bottom_x-small">Objects created by this tab</p>
                 <ul class="slds-list_dotted slds-text-body_small">
-                    <li><strong>Campaign</strong> &mdash; 8 pharma marketing campaigns (email nurtures, webinars, congress follow-ups)</li>
-                    <li><strong>CampaignMemberStatus</strong> &mdash; Custom statuses per campaign (Opened, Clicked, Registered, Attended, No Show)</li>
-                    <li><strong>CampaignMember</strong> &mdash; HCPs linked to campaigns with varied engagement statuses</li>
+                    <li><strong>TerritoryAccountScore</strong> &mdash; One per HCP in the territory, ranked 1..N with descending Total Score and explainability JSON</li>
                 </ul>
+            </div>
+
+            <!-- Prerequisite -->
+            <div class="slds-box slds-theme_warning slds-m-bottom_medium slds-p-around_small">
+                <p class="slds-text-title_caps slds-m-bottom_x-small">Prerequisite</p>
+                <p class="slds-text-body_small">
+                    The rep user must have access to <strong>Actionable Relationship Center</strong>. Without it, the
+                    rep sees the error: <em>&ldquo;Looks like you don&rsquo;t have access to Actionable Relationship
+                    Center. Your Salesforce admin can help with that.&rdquo;</em> Assign the relevant permission set
+                    (e.g. Actionable Relationship Center User) to the rep before testing the Top NBC widget.
+                </p>
             </div>
 
             <!-- Status Section -->
@@ -50,11 +60,23 @@
                 </template>
             </div>
 
+            <!-- Territory Picker -->
+            <div class="slds-m-bottom_medium">
+                <lightning-combobox
+                    name="territory"
+                    label="Select Territory"
+                    placeholder="Choose a territory..."
+                    options={territoryOptions}
+                    value={selectedTerritoryId}
+                    onchange={handleTerritoryChange}>
+                </lightning-combobox>
+            </div>
+
             <!-- Action Buttons -->
             <div class="slds-m-bottom_medium">
                 <lightning-button
                     variant="brand"
-                    label="Create Campaigns"
+                    label="Create Scores for Territory"
                     icon-name="utility:add"
                     onclick={handleCreate}
                     disabled={isLoading}
@@ -62,7 +84,15 @@
                 </lightning-button>
                 <lightning-button
                     variant="destructive"
-                    label="Delete Campaigns"
+                    label="Delete Territory Scores"
+                    icon-name="utility:delete"
+                    onclick={handleDeleteTerritory}
+                    disabled={isLoading}
+                    class="slds-m-right_small">
+                </lightning-button>
+                <lightning-button
+                    variant="destructive"
+                    label="Delete All Scores"
                     icon-name="utility:delete"
                     onclick={handleDelete}
                     disabled={isLoading}>

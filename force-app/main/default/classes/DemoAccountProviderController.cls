@@ -958,7 +958,7 @@ public with sharing class DemoAccountProviderController {
         docs.add(makeDoctor(hcpRtId, 'Angela', 'Torres', 'angela.torres@zsfg.example.com', '+1 (415) 206-8001', '1001 Potrero Avenue', 'San Francisco', 'CA', '94110', 'US'));
         docs.add(makeDoctor(hcpRtId, 'Kevin', 'Patel', 'kevin.patel@sutter.example.com', '+1 (415) 600-6002', '2333 Buchanan Street', 'San Francisco', 'CA', '94115', 'US'));
         docs.add(makeDoctor(hcpRtId, 'Christine', 'O\'Brien', 'christine.obrien@elcamino.example.com', '+1 (650) 940-7001', '2500 Grant Road', 'Mountain View', 'CA', '94040', 'US'));
-        docs.add(makeDoctor(hcpRtId, 'Andrew', 'Kim', 'andrew.kim@ucsf.example.com', '+1 (415) 476-1003', '505 Parnassus Avenue', 'San Francisco', 'CA', '94143', 'US'));
+        docs.add(makeDoctor(hcpRtId, 'Andrew', 'Kim', 'andrew.kim@ucsf.example.com', '+1 (415) 476-1003', '364 Irving Avenue', 'San Francisco', 'CA', '94122', 'US'));
         docs.add(makeDoctor(hcpRtId, 'Laura', 'Henderson', 'laura.henderson@pamf.example.com', '+1 (650) 853-2961', '795 El Camino Real', 'Palo Alto', 'CA', '94301', 'US'));
         docs.add(makeDoctor(hcpRtId, 'Jason', 'Gupta', 'jason.gupta@stanford.example.com', '+1 (650) 723-4003', '300 Pasteur Drive', 'Palo Alto', 'CA', '94304', 'US'));
         docs.add(makeDoctor(hcpRtId, 'Michelle', 'Reyes', 'michelle.reyes@zsfg.example.com', '+1 (415) 206-8002', '1001 Potrero Avenue', 'San Francisco', 'CA', '94110', 'US'));
@@ -1434,11 +1434,20 @@ public with sharing class DemoAccountProviderController {
             'Gastroenterology', 'Pulmonology', 'Endocrinology', 'Dermatology',
             'Immunology', 'Pediatrics', 'Orthopedics', 'Family Medicine'
         };
+        // Per-HCP overrides so demo HCPs get a deterministic, story-consistent specialty.
+        // Keys match the HealthcareProvider.Name format ("Dr. FirstName LastName").
+        Map<String, String> specialtyOverrides = new Map<String, String>{
+            'Dr. Andrew Kim' => 'Immunology'
+        };
         Map<String, String> providerSpecialties = new Map<String, String>();
         Integer specIdx = 0;
         for (String provName : hcpNameToId.keySet()) {
-            providerSpecialties.put(provName, specialtyRotation[Math.mod(specIdx, specialtyRotation.size())]);
-            specIdx++;
+            String spec = specialtyOverrides.get(provName);
+            if (spec == null) {
+                spec = specialtyRotation[Math.mod(specIdx, specialtyRotation.size())];
+                specIdx++;
+            }
+            providerSpecialties.put(provName, spec);
         }
 
         Map<String, Schema.SObjectField> specFields = specType.getDescribe().fields.getMap();
