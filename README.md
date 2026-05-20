@@ -24,7 +24,7 @@ sf project deploy start --source-dir force-app --target-org YOUR_ORG_ALIAS
 2. Open the **AFLSCE Demo Data** app from the App Launcher
 3. Assign the **AFLSCE Demo Account Plan** permission set (for Account & Action Plans tab)
 4. Open the **AFLSCE Demo Data** app from the App Launcher
-5. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Inventory Replenishment → Scenario Builder → Account & Action Plans → Activity Plans → Visits → Medical Insights → Next Best Customer
+5. Follow the tabs in order: Territory Setup → Accounts & Providers → Contact Points → Product Alignment → Samples → Inventory Replenishment → Scenario Builder → Account & Action Plans → Activity Plans → Visits → Medical Insights → Next Best Customer → Medical Inquiries
 
 ## What Gets Created
 
@@ -174,6 +174,23 @@ Creates `TerritoryAccountScore` records ranking each demo HCP in the selected te
 - **ScoreExplainabilityInfo** — JSON `rationals` array covering Account Profile, Activity Plan, Sales Performance, Account Scope, and # of interactions in last 90 days. Tier (A/B/C) and segment (Strategic Growth / High Opportunity / Maintain) derived from rank
 - **Tagged** via `SourceSystemName = 'AFLSCE-Demo-Data'`; `SourceSystemIdentifier = 'TAS-{territoryId}-{accountId}'`. Re-running Create for the same territory clears existing demo scores before re-inserting
 
+### Tab 13: Medical Inquiries
+
+Creates a full Case → Inquiry → Question → Answer chain plus a digital signature for each HCP in the selected territory. Two pickers in the UI:
+
+- **Inquiry Record Type** (radio): Medical Inquiry / Adverse Event / General. Looked up by Name so the package works across orgs that namespace DeveloperName like `LSDO_*`. The Case parent uses the same record type when one with that name exists, otherwise falls back to "Medical Inquiry".
+- **Response Delivery Preference** (radio): Email / Phone / Address. The controller resolves a ContactPoint of the chosen type per HCP (primary first), then sets it as `ResponseContactPointRecId` on the Inquiry and matching Answer.
+
+Records created (all tagged with `SourceSystemName = 'AFLSCE-Demo-Data'`):
+
+- **Case** — 1-2 per HCP, `Status = 'Draft'` (LSC's state machine rejects direct insert at later stages), `Origin = 'Phone'`, randomized priority. Owned by the territory rep
+- **Inquiry** — one per Case. `Type = 'Medical Inquiry'`, `Territory2Id` + `TerritoryName` set, `InquiryChannelType` picked dynamically from the active picklist (Call Center, Email, Fax, Field Request, Web), realistic `DisclaimerText`, `SubmittedDateTime` within the last 30 days. `Status` and `AccountId` are read-only on Inquiry — `AccountId` inherits from the parent Case, `Status` defaults to Draft via the LSC state machine.
+- **DigitalSignature** — one per Inquiry. The controller queries the org for an existing `DigitalSignature` (>1KB) and clones its `DocumentBody` + `DocumentContentType` so demo signatures look realistic. Falls back to a tiny placeholder PNG if no existing signature is found. `SignedBy = HCP name`, `SignedDate = Inquiry.SubmittedDateTime`.
+- **InquiryQuestion** — 1-2 per Inquiry, `ResponseStatus = 'Responded'`, with realistic clinical questions for Immunexis (RA / autoimmune) and Immunonco (oncology). Brand names used in question text.
+- **InquiryQuestionAnswer** — one per Question with a paired clinical response. `ResponseDateTime` is always after the Inquiry's `SubmittedDateTime` (1h–7d later) to satisfy the LSC validation rule. Inherits the same response contact point as the parent Inquiry.
+
+Delete cascades: Answers → Signatures → Questions → Inquiries → Cases.
+
 ## Tagging & Cleanup
 
 All created records are tagged for safe cleanup:
@@ -209,6 +226,11 @@ All created records are tagged for safe cleanup:
 | MedicalInsightAccount | via MedicalInsightId | (child of tagged MedicalInsight) |
 | MedicalInsightProduct | via MedicalInsightId | (child of tagged MedicalInsight) |
 | TerritoryAccountScore | `SourceSystemName` | `AFLSCE-Demo-Data` |
+| Inquiry | `SourceSystemName` | `AFLSCE-Demo-Data` |
+| InquiryQuestion | `SourceSystemName` | `AFLSCE-Demo-Data` |
+| InquiryQuestionAnswer | `SourceSystemName` | `AFLSCE-Demo-Data` |
+| DigitalSignature | via `ParentId` | (child of tagged Inquiry) |
+| Case (Medical Inquiry) | via Inquiry.CaseId | (parent of tagged Inquiry) |
 
 Every tab has a **Delete** button that removes only the records created by this tool. Your existing org data is never touched.
 
@@ -241,6 +263,7 @@ force-app/main/default/
 │   ├── DemoMedicalInsightController   Medical Insights with territory picker & per-HCP creation
 │   ├── DemoMedicalInsightLocale       Localized insight templates (8 languages)
 │   ├── DemoNextBestCustomerController TerritoryAccountScore creation per territory with explainability JSON
+│   ├── DemoInquiryController          Case + Inquiry + InquiryQuestion creation per territory (Medical Inquiry)
 │   └── DemoVisitController            Visit creation with channel picker & planned visits
 ├── lwc/                  Lightning Web Components
 │   ├── demoDataAdmin           Main tabbed UI
@@ -255,6 +278,7 @@ force-app/main/default/
 │   ├── providerActivityPlanSetup  Activity Plans & Goals with measure type picker
 │   ├── medicalInsightSetup     Medical Insights with account & product links
 │   ├── nextBestCustomerSetup   TerritoryAccountScore creation with territory picker
+│   ├── inquirySetup            Medical Inquiry Case/Inquiry/Question creation with territory picker
 │   └── visitSetup              Visit creation with channel picker, territory selector & batched delete
 ├── flexipages/           Lightning Record Pages
 │   ├── Action_Plan_Record_Page              ActionPlan record page
